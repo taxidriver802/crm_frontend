@@ -1,26 +1,86 @@
-@import "tailwindcss";
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
 
+/* ------------------- */
+/* Theme Tokens */
+/* ------------------- */
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --bg: #ffffff;
+  --surface: #f8fafc;
+  --border: #e5e7eb;
+  --text: #111827;
+  --muted: #6b7280;
+  --accent: #2563eb;
 }
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+/* next-themes will toggle this class */
+.dark {
+  --bg: #0b1220;
+  --surface: #111a2e;
+  --border: #22304a;
+  --text: #eef2ff;
+  --muted: #a6b0c3;
+  --accent: #60a5fa;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+/* ------------------- */
+/* Base Layout / Resets */
+/* ------------------- */
+@layer base {
+  *,
+  *::before,
+  *::after {
+    box-sizing: border-box;
+  }
+
+  html,
+  body {
+    height: 100%;
+  }
+
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+  }
+
+  /* Makes borders consistent without specifying a color everywhere */
+  * {
+    border-color: var(--border);
+  }
+
+  a {
+    color: inherit;
+    text-decoration: none;
   }
 }
 
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+/* ------------------- */
+/* Utility Tokens (Classes) */
+/* ------------------- */
+@layer utilities {
+  .bg-app {
+    background: var(--bg);
+  }
+
+  .bg-surface {
+    background: var(--surface);
+  }
+
+  .border-base {
+    border-color: var(--border);
+  }
+
+  .text-main {
+    color: var(--text);
+  }
+
+  .text-muted {
+    color: var(--muted);
+  }
+
+  .bg-accent {
+    background: color-mix(in srgb, var(--accent) 15%, transparent);
+  }
 }
