@@ -1,36 +1,226 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app).
+# Realtor CRM — Frontend
 
-## Getting Started
+Frontend application for a full-stack Realtor CRM platform.
 
-First, run the development server:
+This project provides a modern web interface for managing leads, tasks, and daily workflow for a real estate professional.
+
+The frontend communicates with a Node.js / Express backend and PostgreSQL database to display and manage CRM data in real time.
+
+---
+
+# Live Project Status
+
+🚧 Currently in active development
+
+Core features implemented:
+
+- Lead management
+- Task management
+- Dashboard overview
+- API integration with backend services
+
+---
+
+```bash
+┌───────────────────────────┐
+│        Next.js App        │
+│     React + Tailwind      │
+└─────────────┬─────────────┘
+              │ REST API
+              ▼
+┌───────────────────────────┐
+│      Express Backend      │
+│      Business Logic       │
+└─────────────┬─────────────┘
+              │ SQL Queries
+              ▼
+┌───────────────────────────┐
+│      PostgreSQL DB        │
+│      Leads + Tasks        │
+└───────────────────────────┘
+```
+
+# Tech Stack
+
+Frontend Framework
+
+- Next.js (App Router)
+- React
+
+Styling
+
+- TailwindCSS
+- Custom UI components
+
+Data Fetching
+
+- REST API
+- Fetch / custom API utilities
+
+Architecture
+
+- Component-based UI
+- Client + server rendering
+- Modular route structure
+
+---
+
+# Features
+
+## Leads Management
+
+Create and manage client leads.
+
+Fields include:
+
+- First name
+- Last name
+- Email
+- Phone
+- Budget range
+- Source
+- Status
+- Notes
+
+Users can:
+
+- View all leads
+- Create new leads
+- Navigate to lead detail pages
+- Track updates
+
+---
+
+## Task Management
+
+Track follow-ups and reminders for each lead.
+
+Tasks include:
+
+- Title
+- Description
+- Due date
+- Status
+- Linked lead
+
+Features:
+
+- Task summary dashboard
+- Filter by status
+- Upcoming / overdue task indicators
+
+---
+
+## Dashboard
+
+Central overview of task activity.
+
+Displays:
+
+- Overdue tasks
+- Tasks due today
+- Upcoming tasks
+
+Provides quick navigation to active work.
+
+---
+
+# Project Structure
+
+```bash
+app/
+dashboard/
+leads/
+tasks/
+components/
+ui/
+lib/
+api.js
+```
+
+Key concepts:
+
+- **App Router** used for route organization
+- **Reusable UI components**
+- **API abstraction layer** for backend communication
+
+---
+
+# Running Locally
+
+Clone the repository
+
+```bash
+git clone https://github.com/taxidriver802/crm-frontend
+```
+
+Install dependencies
+
+```bash
+npm install
+```
+
+Create environment file
+
+```bash
+.env.local
+
+EX:
+NEXT_PUBLIC_API_BASE_URL=http://localhost:4000
+```
+
+Run development server
 
 ```bash
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Open in browser:
 
-You can start editing the page by modifying `app/page.js`. The page auto-updates as you edit the file.
+```bash
+http://localhost:3000
+```
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+---
 
-## Learn More
+# Backend Repository
 
-To learn more about Next.js, take a look at the following resources:
+The frontend communicates with a dedicated backend API.
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+Backend repo:
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+```bash
+crm-backend
+```
 
-## Deploy on Vercel
+Technologies:
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+- Node.js
+- Express
+- PostgreSQL
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+---
+
+# Future Improvements
+
+Planned features include:
+
+- Authentication system
+- Role-based access
+- Email integrations
+- Zillow / external lead imports
+- Analytics dashboard
+- Mobile optimization
+
+---
+
+# Author
+
+Jason Cox  
+Full-Stack Developer
+
+Portfolio  
+https://jasoncox.dev
+
+GitHub  
+https://github.com/Taxidriver802
