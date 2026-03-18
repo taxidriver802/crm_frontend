@@ -18,7 +18,9 @@ export default function LeadsPage() {
 
   const queryString = useMemo(() => {
     const params = new URLSearchParams();
-    if (status) params.set("status", status);
+    if (status && status !== "All") {
+      params.set("status", status);
+    }
     if (q.trim()) params.set("q", q.trim());
     params.set("limit", "50");
     params.set("offset", "0");

@@ -13,18 +13,31 @@ export default function TasksPage() {
   const [error, setError] = useState("");
 
   // Filters
+  const [title, setTitle] = useState("");
   const [status, setStatus] = useState("");
   const [leadId, setLeadId] = useState("");
 
   const queryString = useMemo(() => {
     const params = new URLSearchParams();
-    if (status) params.set("status", status);
-    if (leadId.trim()) params.set("leadId", leadId.trim());
+
+    if (status && status !== "All") {
+      params.set("status", status);
+    }
+
+    if (leadId.trim()) {
+      params.set("leadId", leadId.trim());
+    }
+
+    if (title.trim()) {
+      params.set("q", title.trim());
+    }
+
     params.set("limit", "50");
     params.set("offset", "0");
+
     const s = params.toString();
     return s ? `?${s}` : "";
-  }, [status, leadId]);
+  }, [status, leadId, title]);
 
   async function loadSummary() {
     setLoadingSummary(true);
@@ -124,13 +137,12 @@ export default function TasksPage() {
             </div>
 
             <div className="flex-1">
-              <label className="text-muted text-xs">Lead</label>
+              <label className="text-muted text-xs">Title</label>
               <input
                 className="border-base bg-app mt-1 w-full rounded-md border px-3 py-2 text-sm"
-                placeholder="Filter by lead"
-                value={leadId}
-                onChange={(e) => setLeadId(e.target.value)}
-                inputMode="numeric"
+                placeholder="Filter by title"
+                value={title}
+                onChange={(e) => setTitle(e.target.value)}
               />
             </div>
 

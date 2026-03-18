@@ -8,11 +8,22 @@ const nextConfig = {
       },
     },
   },
+
   onDemandEntries: {
     maxInactiveAge: 60 * 1000,
     pagesBufferLength: 5,
   },
-  allowedDevOrigins: ["192.168.137.1"],
+
+  allowedDevOrigins: ["unusuriously-interlocutory-dann.ngrok-free.dev", "192.168.137.1"],
+
+  async rewrites() {
+    return [
+      {
+        source: "/api/:path*",
+        destination: "http://localhost:4000/:path*",
+      },
+    ];
+  },
 };
 
 export default nextConfig;

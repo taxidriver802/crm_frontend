@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { AppShell } from "@/components/app-shell";
-import { api } from "@/lib/api"; // <- your api.js
+import { api } from "@/lib/api";
 
 function StatCard({ label, value, sub, href }) {
   const inner = (
@@ -93,6 +93,12 @@ export default function DashboardPage() {
   const [err, setErr] = useState("");
 
   const [tab, setTab] = useState("due_today"); // overdue | due_today | next_up
+  const [mounted, setMounted] = useState(false);
+  const [user, setUser] = useState(null);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   useEffect(() => {
     let alive = true;
@@ -173,8 +179,37 @@ export default function DashboardPage() {
     return rows;
   }, [data]);
 
+  useEffect(() => {
+    const fetchUser = async () => {
+      try {
+        const data = await api("/auth/me", {
+          credentials: "include",
+        });
+
+        setUser(data?.user || null);
+      } catch {
+        setUser(null);
+      }
+    };
+
+    fetchUser();
+  }, []);
+
+  const greeting = user?.first_name
+    ? `Hello ${user.first_name}, welcome back!`
+    : "Hello, welcome back!";
+
   return (
-    <AppShell title="Dashboard">
+    <AppShell
+      title={
+        <div className="flex items-end justify-between">
+          <span>Dashboard</span>
+          <span className="text-main pt-auto pl-[40px] align-bottom text-sm">
+            {greeting}
+          </span>
+        </div>
+      }
+    >
       <div className="space-y-6">
         {/* KPI row */}
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
@@ -192,13 +227,13 @@ export default function DashboardPage() {
         {/* Error */}
         {!loading && err ? (
           <div className="bg-surface border-base rounded-lg border p-4">
-            <div className="text-sm font-medium">Couldn’t load dashboard</div>
+            <div className="text-sm font-medium">Couldn't load dashboard</div>
             <div className="text-muted-foreground mt-1 text-sm">{err}</div>
           </div>
         ) : null}
 
         {/* Main grid */}
-        <div className="grid gap-4 lg:grid-cols-3">
+        <div className="grid gap-4 lg:min-h-[600px] lg:grid-cols-3">
           {/* Tasks */}
           <div className="space-y-4 lg:col-span-2">
             <SectionCard
@@ -249,7 +284,7 @@ export default function DashboardPage() {
           </div>
 
           {/* Lead status breakdown */}
-          <div className="space-y-4 lg:col-span-1">
+          <div className="flex flex-col space-y-4 lg:col-span-1">
             <SectionCard
               title="Leads by status"
               right={
@@ -280,7 +315,7 @@ export default function DashboardPage() {
             </SectionCard>
 
             {/* Quick actions */}
-            <div className="bg-surface border-base rounded-lg border p-4">
+            <div className="bg-surface border-base mt-auto rounded-lg border p-4">
               <div className="text-sm font-medium">Quick actions</div>
               <div className="text-muted-foreground mt-1 text-sm">Add new work fast.</div>
               <div className="mt-3 flex flex-wrap gap-2">

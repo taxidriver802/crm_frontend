@@ -2,7 +2,7 @@ import { redirect } from "next/navigation";
 import { cookies } from "next/headers";
 
 export default async function Home() {
-  const base = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:4000";
+  const base = process.env.API_INTERNAL_BASE_URL || "http://localhost:4000";
 
   const cookieStore = await cookies();
 
