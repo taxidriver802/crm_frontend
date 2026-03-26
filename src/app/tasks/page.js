@@ -198,10 +198,14 @@ export default function TasksPage() {
                       className="border-base hover:bg-accent-soft border-t transition"
                     >
                       <td className="px-4 py-3">
-                        <div className="font-medium">{t.title}</div>
-                        {t.description ? (
-                          <div className="text-muted mt-1 text-xs">{t.description}</div>
-                        ) : null}
+                        <Link href={`/tasks/${t.id}`} className="block hover:opacity-80">
+                          <div className="font-medium underline underline-offset-4">
+                            {t.title}
+                          </div>
+                          {t.description ? (
+                            <div className="text-muted mt-1 text-xs">{t.description}</div>
+                          ) : null}
+                        </Link>
                       </td>
 
                       <td className="px-4 py-3">
@@ -224,21 +228,37 @@ export default function TasksPage() {
                       </td>
 
                       <td className="px-4 py-3 text-right">
-                        {t.status === "Completed" ? (
-                          <button
+                        <div className="flex justify-end gap-2">
+                          <Link
+                            href={`/tasks/${t.id}`}
                             className="border-base bg-surface hover:bg-accent-soft rounded-md border px-3 py-2 text-xs"
-                            onClick={() => setTaskStatus(t.id, "Pending")}
                           >
-                            Mark pending
-                          </button>
-                        ) : (
-                          <button
+                            View
+                          </Link>
+
+                          <Link
+                            href={`/tasks/${t.id}/edit`}
                             className="border-base bg-surface hover:bg-accent-soft rounded-md border px-3 py-2 text-xs"
-                            onClick={() => setTaskStatus(t.id, "Completed")}
                           >
-                            Mark completed
-                          </button>
-                        )}
+                            Edit
+                          </Link>
+
+                          {t.status === "Completed" ? (
+                            <button
+                              className="border-base bg-surface hover:bg-accent-soft rounded-md border px-3 py-2 text-xs"
+                              onClick={() => setTaskStatus(t.id, "Pending")}
+                            >
+                              Mark pending
+                            </button>
+                          ) : (
+                            <button
+                              className="border-base bg-surface hover:bg-accent-soft rounded-md border px-3 py-2 text-xs"
+                              onClick={() => setTaskStatus(t.id, "Completed")}
+                            >
+                              Mark completed
+                            </button>
+                          )}
+                        </div>
                       </td>
                     </tr>
                   ))

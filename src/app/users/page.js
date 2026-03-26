@@ -9,17 +9,18 @@ import { api } from "@/lib/api";
 
 function badgeClass(status) {
   switch (status) {
-    case "active":
+    case "Active":
       return "border-green-300 bg-green-50 text-green-700";
-    case "invited":
+    case "Pending Invite":
       return "border-yellow-300 bg-yellow-50 text-yellow-700";
-    case "disabled":
+    case "Expired":
+      return "border-red-300 bg-red-50 text-red-700";
+    case "Disabled":
       return "border-red-300 bg-red-50 text-red-700";
     default:
       return "border-base bg-surface text-main";
   }
 }
-
 export default function UsersPage() {
   const router = useRouter();
 
@@ -31,6 +32,8 @@ export default function UsersPage() {
   const [inviteModalOpen, setInviteModalOpen] = useState(false);
   const [busyId, setBusyId] = useState(null);
   const [statusFilter, setStatusFilter] = useState("all");
+  const [searchQuery, setSearchQuery] = useState("");
+  const [roleFilter, setRoleFilter] = useState("all");
 
   async function loadCurrentUser() {
     const res = await fetch("/api/auth/me", {
@@ -97,9 +100,32 @@ export default function UsersPage() {
   }, [users]);
 
   const filteredUsers = useMemo(() => {
-    if (statusFilter === "all") return users;
-    return users.filter((u) => u.status === statusFilter);
-  }, [users, statusFilter]);
+    return users.filter((user) => {
+      // Status filter
+      if (statusFilter !== "all" && user.status !== statusFilter) {
+        return false;
+      }
+
+      // Role filter
+      if (roleFilter !== "all" && user.role !== roleFilter) {
+        return false;
+      }
+
+      // Search filter (name + email)
+      if (searchQuery.trim()) {
+        const query = searchQuery.toLowerCase();
+
+        const fullName = `${user.first_name ?? ""} ${user.last_name ?? ""}`.toLowerCase();
+        const email = user.email?.toLowerCase() ?? "";
+
+        if (!fullName.includes(query) && !email.includes(query)) {
+          return false;
+        }
+      }
+
+      return true;
+    });
+  }, [users, statusFilter, roleFilter, searchQuery]);
 
   async function updateUser(id, patch) {
     setBusyId(id);
@@ -146,10 +172,38 @@ export default function UsersPage() {
   const isOwner = currentUser?.role === "owner";
 
   function getDisplayStatus(user) {
-    if (user.status === "invited") return "Pending Invite";
     if (user.status === "active") return "Active";
     if (user.status === "disabled") return "Disabled";
+
+    if (
+      user.status === "invited" &&
+      user.invite_expires_at &&
+      new Date(user.invite_expires_at) < new Date()
+    ) {
+      return "Expired";
+    }
+
+    if (user.status === "invited") return "Pending Invite";
+
     return user.status;
+  }
+
+  async function resendInvite(id) {
+    setBusyId(id);
+    setError("");
+
+    try {
+      await api(`/users/invite/${id}/resend`, {
+        method: "POST",
+      });
+
+      await loadUsers();
+    } catch (err) {
+      console.error(err);
+      setError("Failed to resend invite.");
+    } finally {
+      setBusyId(null);
+    }
   }
 
   if (loadingUser) {
@@ -249,7 +303,7 @@ export default function UsersPage() {
       </div> */}
 
       <section className="bg-surface rounded-2xl border">
-        <div className="flex items-center justify-between border-b px-5 py-4">
+        <div className="flex flex-col gap-3 border-b px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <h2 className="text-lg font-semibold">
               {statusFilter === "all"
@@ -261,6 +315,30 @@ export default function UsersPage() {
                 ? "Manage invited, active, and disabled users."
                 : `Showing users filtered by ${statusFilter}.`}
             </p>
+          </div>
+
+          {/* Filters */}
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+            {/* Search */}
+            <input
+              type="text"
+              placeholder="Search users..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="bg-background w-full rounded-lg border px-3 py-2 text-sm sm:w-56"
+            />
+
+            {/* Role Filter */}
+            <select
+              value={roleFilter}
+              onChange={(e) => setRoleFilter(e.target.value)}
+              className="bg-background rounded-lg border px-3 py-2 text-sm"
+            >
+              <option value="all">All Roles</option>
+              <option value="owner">Owner</option>
+              <option value="admin">Admin</option>
+              <option value="agent">Agent</option>
+            </select>
           </div>
         </div>
 
@@ -293,6 +371,12 @@ export default function UsersPage() {
                   const isSelf = currentUser?.id === user.id;
                   const canDelete =
                     user.status === "invited" || user.status === "disabled";
+                  const displayStatus = getDisplayStatus(user);
+                  const canResend = user.status === "invited";
+                  const isExpired =
+                    user.status === "invited" &&
+                    user.invite_expires_at &&
+                    new Date(user.invite_expires_at) < new Date();
 
                   return (
                     <tr key={user.id} className="border-b last:border-b-0">
@@ -330,17 +414,16 @@ export default function UsersPage() {
                       <td className="px-5 py-4 align-top">
                         <div className="flex flex-col gap-1">
                           <span
-                            className={`inline-flex w-fit rounded-full border px-2.5 py-1 text-xs font-medium ${badgeClass(
-                              user.status,
-                            )}`}
+                            className={`inline-flex w-fit rounded-full border px-2.5 py-1 text-xs font-medium ${badgeClass(displayStatus)}`}
                           >
-                            {getDisplayStatus(user)}
+                            {displayStatus}
                           </span>
 
                           {user.status === "invited" && user.invite_expires_at ? (
                             <span className="text-muted-foreground text-xs">
-                              Expires{" "}
-                              {new Date(user.invite_expires_at).toLocaleDateString()}
+                              {isExpired
+                                ? "Invite expired"
+                                : `Expires ${new Date(user.invite_expires_at).toLocaleDateString()}`}
                             </span>
                           ) : null}
                         </div>
@@ -361,8 +444,8 @@ export default function UsersPage() {
                       </td>
 
                       <td className="px-5 py-4 align-top">
-                        <div className="flex w-full items-center justify-between gap-2">
-                          <div>
+                        <div className="flex w-full items-start justify-between gap-3">
+                          <div className="flex flex-wrap items-center gap-2">
                             {user.status === "active" && !isSelf ? (
                               <button
                                 onClick={() =>
@@ -373,7 +456,9 @@ export default function UsersPage() {
                               >
                                 Disable
                               </button>
-                            ) : user.status === "disabled" ? (
+                            ) : null}
+
+                            {user.status === "disabled" ? (
                               <button
                                 onClick={() => updateUser(user.id, { status: "active" })}
                                 disabled={busyId === user.id}
@@ -381,9 +466,17 @@ export default function UsersPage() {
                               >
                                 Re-enable
                               </button>
-                            ) : (
-                              <span />
-                            )}
+                            ) : null}
+
+                            {canResend ? (
+                              <button
+                                onClick={() => resendInvite(user.id)}
+                                disabled={busyId === user.id}
+                                className="hover:bg-accent-soft rounded-md border px-3 py-1.5 text-xs"
+                              >
+                                {busyId === user.id ? "Sending..." : "Resend Invite"}
+                              </button>
+                            ) : null}
                           </div>
 
                           <div>
