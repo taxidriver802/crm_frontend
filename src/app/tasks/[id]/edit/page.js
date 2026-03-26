@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { AppShell } from "@/components/app-shell";
@@ -8,14 +8,21 @@ import { api } from "@/lib/api";
 
 const STATUS_OPTIONS = ["Pending", "Completed"];
 
-function taskToForm(task) {
-  return {
-    lead_id: task?.lead_id != null ? String(task.lead_id) : "",
-    title: task?.title ?? "",
-    description: task?.description ?? "",
-    due_date: toDatetimeLocal(task?.due_date),
-    status: task?.status ?? "Pending",
-  };
+function toDatetimeLocal(value) {
+  if (!value) return "";
+
+  const d = new Date(value);
+  if (Number.isNaN(d.getTime())) return "";
+
+  const pad = (n) => String(n).padStart(2, "0");
+
+  const year = d.getFullYear();
+  const month = pad(d.getMonth() + 1);
+  const day = pad(d.getDate());
+  const hours = pad(d.getHours());
+  const minutes = pad(d.getMinutes());
+
+  return `${year}-${month}-${day}T${hours}:${minutes}`;
 }
 
 export default function EditTaskPage() {
@@ -24,7 +31,11 @@ export default function EditTaskPage() {
 
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [loadingLeads, setLoadingLeads] = useState(true);
   const [error, setError] = useState("");
+
+  const [task, setTask] = useState(null);
+  const [leads, setLeads] = useState([]);
 
   const [form, setForm] = useState({
     lead_id: "",
@@ -35,28 +46,30 @@ export default function EditTaskPage() {
   });
 
   function setField(key, value) {
-    setForm((prev) => ({ ...prev, [key]: value }));
+    setForm((f) => ({ ...f, [key]: value }));
   }
 
   useEffect(() => {
     let alive = true;
 
-    async function load() {
+    async function loadTask() {
       try {
         setLoading(true);
         setError("");
 
         const res = await api(`/tasks/${id}`);
-        const task = res?.task ?? res;
-
         if (!alive) return;
 
-        if (!task) {
-          setError("Task not found.");
-          return;
-        }
+        const nextTask = res?.task ?? res;
+        setTask(nextTask);
 
-        setForm(taskToForm(task));
+        setForm({
+          lead_id: nextTask?.lead_id ? String(nextTask.lead_id) : "",
+          title: nextTask?.title || "",
+          description: nextTask?.description || "",
+          due_date: toDatetimeLocal(nextTask?.due_date),
+          status: nextTask?.status || "Pending",
+        });
       } catch (e) {
         if (!alive) return;
         setError(e?.message || "Failed to load task");
@@ -66,28 +79,61 @@ export default function EditTaskPage() {
       }
     }
 
-    if (id) load();
+    async function loadLeads() {
+      try {
+        setLoadingLeads(true);
+        const res = await api("/leads?limit=200&offset=0");
+        if (!alive) return;
+        setLeads(res?.leads || []);
+      } catch (e) {
+        if (!alive) return;
+        setError((prev) => prev || e?.message || "Failed to load leads");
+      } finally {
+        if (!alive) return;
+        setLoadingLeads(false);
+      }
+    }
+
+    if (id) {
+      loadTask();
+      loadLeads();
+    }
 
     return () => {
       alive = false;
     };
   }, [id]);
 
+  const leadOptions = useMemo(() => {
+    return leads
+      .slice()
+      .sort((a, b) => {
+        const an = `${a.first_name || ""} ${a.last_name || ""}`.trim().toLowerCase();
+        const bn = `${b.first_name || ""} ${b.last_name || ""}`.trim().toLowerCase();
+        return an.localeCompare(bn);
+      })
+      .map((l) => ({
+        id: String(l.id),
+        label:
+          `${(l.first_name || "").trim()} ${(l.last_name || "").trim()}`.trim() ||
+          `Lead #${l.id}`,
+        status: l.status,
+      }));
+  }, [leads]);
+
   async function onSubmit(e) {
     e.preventDefault();
     setError("");
 
-    if (!form.title.trim()) {
-      setError("Title is required.");
-      return;
-    }
+    if (!form.title.trim()) return setError("Title is required.");
+    if (!form.lead_id.trim()) return setError("Please choose a lead.");
 
     const payload = {
-      lead_id: form.lead_id.trim() ? Number(form.lead_id.trim()) : null,
+      lead_id: Number(form.lead_id),
       title: form.title.trim(),
       description: form.description.trim() || null,
-      due_date: form.due_date || null,
       status: form.status,
+      due_date: form.due_date ? new Date(form.due_date).toISOString() : null,
     };
 
     try {
@@ -99,7 +145,6 @@ export default function EditTaskPage() {
       });
 
       router.push(`/tasks/${id}`);
-      router.refresh?.();
     } catch (e) {
       setError(e?.message || "Failed to update task");
     } finally {
@@ -111,6 +156,8 @@ export default function EditTaskPage() {
     <AppShell title={`Edit Task #${id}`}>
       {loading ? (
         <div className="text-muted-foreground text-sm">Loading…</div>
+      ) : !task ? (
+        <div className="text-muted-foreground text-sm">Task not found.</div>
       ) : (
         <form onSubmit={onSubmit} className="space-y-6">
           {error ? <div className="text-sm text-red-500">{error}</div> : null}
@@ -118,22 +165,40 @@ export default function EditTaskPage() {
           <section className="bg-surface border-base rounded-lg border p-4">
             <div className="grid gap-4 sm:grid-cols-2">
               <div className="sm:col-span-2">
+                <label className="text-muted text-xs">Lead *</label>
+                <select
+                  className="border-base bg-app mt-1 w-full rounded-md border px-3 py-2 text-sm"
+                  value={form.lead_id}
+                  onChange={(e) => setField("lead_id", e.target.value)}
+                  disabled={loadingLeads}
+                >
+                  <option value="">
+                    {loadingLeads
+                      ? "Loading leads…"
+                      : leadOptions.length
+                        ? "Select a lead…"
+                        : "No leads found"}
+                  </option>
+
+                  {leadOptions.map((o) => (
+                    <option key={o.id} value={o.id}>
+                      {o.label} (#{o.id}){o.status ? ` • ${o.status}` : ""}
+                    </option>
+                  ))}
+                </select>
+
+                <div className="text-muted-foreground mt-1 text-xs">
+                  Choose the lead this task belongs to.
+                </div>
+              </div>
+
+              <div className="sm:col-span-2">
                 <label className="text-muted text-xs">Title *</label>
                 <input
                   className="border-base bg-app mt-1 w-full rounded-md border px-3 py-2 text-sm"
                   value={form.title}
                   onChange={(e) => setField("title", e.target.value)}
-                />
-              </div>
-
-              <div>
-                <label className="text-muted text-xs">Lead ID</label>
-                <input
-                  className="border-base bg-app mt-1 w-full rounded-md border px-3 py-2 text-sm"
-                  value={form.lead_id}
-                  onChange={(e) => setField("lead_id", e.target.value)}
-                  inputMode="numeric"
-                  placeholder="Optional"
+                  placeholder="Call client, send follow-up, confirm showing..."
                 />
               </div>
 
@@ -152,7 +217,7 @@ export default function EditTaskPage() {
                 </select>
               </div>
 
-              <div className="sm:col-span-2">
+              <div>
                 <label className="text-muted text-xs">Due date</label>
                 <input
                   type="datetime-local"
@@ -202,21 +267,4 @@ export default function EditTaskPage() {
       )}
     </AppShell>
   );
-}
-
-function toDatetimeLocal(value) {
-  if (!value) return "";
-
-  const d = new Date(value);
-  if (Number.isNaN(d.getTime())) return "";
-
-  const pad = (n) => String(n).padStart(2, "0");
-
-  const year = d.getFullYear();
-  const month = pad(d.getMonth() + 1);
-  const day = pad(d.getDate());
-  const hours = pad(d.getHours());
-  const minutes = pad(d.getMinutes());
-
-  return `${year}-${month}-${day}T${hours}:${minutes}`;
 }

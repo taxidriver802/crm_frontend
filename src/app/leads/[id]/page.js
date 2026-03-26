@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { AppShell } from "@/components/app-shell";
@@ -15,11 +15,20 @@ function formatDate(value) {
   return d.toLocaleDateString();
 }
 
+function formatDateTime(value) {
+  if (!value) return "—";
+  const d = new Date(value);
+  if (Number.isNaN(d.getTime())) return value;
+  return d.toLocaleString();
+}
+
 function formatBytes(bytes) {
   if (bytes == null) return "—";
   if (bytes < 1024) return `${bytes} B`;
   if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
-  if (bytes < 1024 * 1024 * 1024) return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+  if (bytes < 1024 * 1024 * 1024) {
+    return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+  }
   return `${(bytes / (1024 * 1024 * 1024)).toFixed(1)} GB`;
 }
 
@@ -28,20 +37,47 @@ function buildFileUrl(file) {
   return `${API_BASE}/uploads/${file.storage_key}`;
 }
 
+function isCompletedTask(task) {
+  return String(task?.status || "").toLowerCase() === "completed";
+}
+
+function isOverdueTask(task) {
+  if (!task?.due_date || isCompletedTask(task)) return false;
+  const due = new Date(task.due_date);
+  return !Number.isNaN(due.getTime()) && due.getTime() < Date.now();
+}
+
+function statusPillClasses(status) {
+  const value = String(status || "").toLowerCase();
+
+  if (value === "completed") {
+    return "border-green-500/30 bg-green-500/10 text-green-700 dark:text-green-300";
+  }
+
+  if (value === "pending") {
+    return "border-amber-500/30 bg-amber-500/10 text-amber-700 dark:text-amber-300";
+  }
+
+  return "border-base bg-app text-main";
+}
+
 export default function LeadDetailPage() {
   const { id } = useParams();
   const router = useRouter();
 
   const [lead, setLead] = useState(null);
+  const [tasks, setTasks] = useState([]);
   const [files, setFiles] = useState([]);
   const [currentUser, setCurrentUser] = useState(null);
 
   const [loading, setLoading] = useState(true);
+  const [loadingTasks, setLoadingTasks] = useState(true);
   const [loadingFiles, setLoadingFiles] = useState(true);
   const [uploading, setUploading] = useState(false);
   const [busyFileId, setBusyFileId] = useState(null);
 
   const [error, setError] = useState("");
+  const [tasksError, setTasksError] = useState("");
   const [filesError, setFilesError] = useState("");
   const [success, setSuccess] = useState("");
 
@@ -82,6 +118,22 @@ export default function LeadDetailPage() {
       }
     }
 
+    async function loadLeadTasks() {
+      try {
+        setLoadingTasks(true);
+        setTasksError("");
+        const res = await api(`/tasks?leadId=${id}&limit=50&offset=0`);
+        if (!alive) return;
+        setTasks(res.tasks || []);
+      } catch (e) {
+        if (!alive) return;
+        setTasksError(e?.message || "Failed to load tasks");
+      } finally {
+        if (!alive) return;
+        setLoadingTasks(false);
+      }
+    }
+
     async function loadLeadFiles() {
       try {
         setLoadingFiles(true);
@@ -101,6 +153,7 @@ export default function LeadDetailPage() {
     if (id) {
       loadCurrentUser();
       loadLead();
+      loadLeadTasks();
       loadLeadFiles();
     }
 
@@ -182,10 +235,26 @@ export default function LeadDetailPage() {
     }
   }
 
+  const openTasks = useMemo(
+    () => tasks.filter((task) => !isCompletedTask(task)),
+    [tasks],
+  );
+
+  const completedTasks = useMemo(
+    () => tasks.filter((task) => isCompletedTask(task)),
+    [tasks],
+  );
+
+  const overdueOpenTasks = useMemo(
+    () => openTasks.filter((task) => isOverdueTask(task)),
+    [openTasks],
+  );
+
   return (
     <AppShell title={`Lead #${id}`}>
       <div className="space-y-4">
         {error ? <div className="text-sm text-red-500">{error}</div> : null}
+        {success ? <div className="text-sm text-green-600">{success}</div> : null}
 
         <div className="bg-surface border-base rounded-lg border p-4">
           {loading ? (
@@ -193,21 +262,30 @@ export default function LeadDetailPage() {
           ) : !lead ? (
             <div className="text-muted-foreground text-sm">Not found.</div>
           ) : (
-            <div className="flex flex-row gap-6">
+            <div className="flex flex-col gap-4 sm:flex-row sm:items-start">
               <div className="space-y-2">
                 <div className="text-xl font-semibold">
                   {lead.first_name} {lead.last_name}
                 </div>
+
                 <div className="text-muted-foreground text-sm">
                   {(lead.email ?? "—") + (lead.phone ? ` • ${lead.phone}` : "")}
                 </div>
-                <div className="flex flex-wrap gap-2 pt-2">
+
+                <div className="flex flex-wrap gap-2 pt-1">
                   <span className="inline-flex items-center rounded-full border px-2 py-0.5 text-xs">
                     {lead.status ?? "—"}
                   </span>
+
                   {lead.source ? (
                     <span className="inline-flex items-center rounded-full border px-2 py-0.5 text-xs">
-                      {lead.source}
+                      Source: {lead.source}
+                    </span>
+                  ) : null}
+
+                  {lead.budget_min != null || lead.budget_max != null ? (
+                    <span className="inline-flex items-center rounded-full border px-2 py-0.5 text-xs">
+                      Budget: {lead.budget_min ?? "—"} - {lead.budget_max ?? "—"}
                     </span>
                   ) : null}
                 </div>
@@ -221,8 +299,10 @@ export default function LeadDetailPage() {
               </div>
 
               <button
-                className="ml-auto flex h-8 w-8 items-center justify-center rounded border p-1"
+                className="border-base hover:bg-accent-soft flex h-8 w-8 items-center justify-center rounded border p-1 sm:ml-auto"
                 onClick={handleDeleteLead}
+                aria-label="Delete lead"
+                title="Delete lead"
               >
                 <svg
                   className="h-4 w-4"
@@ -242,8 +322,25 @@ export default function LeadDetailPage() {
           )}
         </div>
 
-        <div className="flex justify-between">
-          <div className="flex gap-2">
+        <section className="grid gap-3 sm:grid-cols-3">
+          <div className="bg-surface border-base rounded-lg border p-4">
+            <div className="text-muted text-xs">Open tasks</div>
+            <div className="mt-1 text-2xl font-semibold">{openTasks.length}</div>
+          </div>
+
+          <div className="bg-surface border-base rounded-lg border p-4">
+            <div className="text-muted text-xs">Overdue</div>
+            <div className="mt-1 text-2xl font-semibold">{overdueOpenTasks.length}</div>
+          </div>
+
+          <div className="bg-surface border-base rounded-lg border p-4">
+            <div className="text-muted text-xs">Files</div>
+            <div className="mt-1 text-2xl font-semibold">{files.length}</div>
+          </div>
+        </section>
+
+        <div className="flex flex-col gap-2 sm:flex-row sm:justify-between">
+          <div className="flex flex-wrap gap-2">
             <Link
               href={`/tasks/new?lead_id=${id}`}
               className="hover:bg-accent-soft rounded-md border px-3 py-2 text-sm"
@@ -267,110 +364,186 @@ export default function LeadDetailPage() {
           </button>
         </div>
 
-        <section className="bg-surface border-base rounded-lg border">
-          <div className="flex flex-col gap-3 border-b p-4 sm:flex-row sm:items-center sm:justify-between">
-            <div>
-              <h2 className="text-lg font-semibold">Attached Files</h2>
-              <p className="text-muted-foreground mt-1 text-sm">
-                Files uploaded directly to this lead.
-              </p>
+        <section className="grid gap-4 xl:grid-cols-[1.2fr_0.8fr]">
+          <div className="bg-surface border-base rounded-lg border">
+            <div className="border-base flex items-center justify-between border-b p-4">
+              <div>
+                <h2 className="text-lg font-semibold">Lead Tasks</h2>
+                <p className="text-muted-foreground mt-1 text-sm">
+                  Open and completed work tied to this lead.
+                </p>
+              </div>
+
+              <Link
+                href={`/tasks/new?lead_id=${id}`}
+                className="hover:bg-accent-soft rounded-md border px-3 py-2 text-sm"
+              >
+                + New task
+              </Link>
             </div>
 
-            {canManageFiles ? (
-              <label className="hover:bg-accent-soft inline-flex cursor-pointer items-center rounded-md border px-3 py-2 text-sm">
-                <input
-                  type="file"
-                  className="hidden"
-                  onChange={handleFileUpload}
-                  disabled={uploading}
-                />
-                {uploading ? "Uploading..." : "Upload to Lead"}
-              </label>
-            ) : null}
+            <div className="space-y-6 p-4">
+              {tasksError ? (
+                <div className="text-sm text-red-500">{tasksError}</div>
+              ) : loadingTasks ? (
+                <div className="text-muted-foreground text-sm">Loading tasks…</div>
+              ) : tasks.length === 0 ? (
+                <div className="text-muted-foreground rounded-lg border border-dashed p-4 text-sm">
+                  No tasks for this lead yet.
+                </div>
+              ) : (
+                <>
+                  <div className="space-y-3">
+                    <div className="text-sm font-medium">Open</div>
+
+                    {openTasks.length === 0 ? (
+                      <div className="text-muted-foreground text-sm">No open tasks.</div>
+                    ) : (
+                      openTasks.map((task) => (
+                        <Link
+                          key={task.id}
+                          href={`/tasks/${task.id}`}
+                          className="hover:bg-accent-soft block rounded-lg border p-3 transition"
+                        >
+                          <div className="flex items-start justify-between gap-3">
+                            <div className="min-w-0">
+                              <div className="font-medium">{task.title}</div>
+                              <div className="text-muted-foreground mt-1 text-sm">
+                                Due: {formatDateTime(task.due_date)}
+                              </div>
+                            </div>
+
+                            <div className="flex shrink-0 flex-col items-end gap-2">
+                              <span
+                                className={`inline-flex items-center rounded-full border px-2 py-0.5 text-xs ${statusPillClasses(task.status)}`}
+                              >
+                                {task.status ?? "—"}
+                              </span>
+
+                              {isOverdueTask(task) ? (
+                                <span className="text-xs text-red-500">Overdue</span>
+                              ) : null}
+                            </div>
+                          </div>
+                        </Link>
+                      ))
+                    )}
+                  </div>
+
+                  <div className="space-y-3">
+                    <div className="text-sm font-medium">Completed</div>
+
+                    {completedTasks.length === 0 ? (
+                      <div className="text-muted-foreground text-sm">
+                        No completed tasks yet.
+                      </div>
+                    ) : (
+                      completedTasks.map((task) => (
+                        <Link
+                          key={task.id}
+                          href={`/tasks/${task.id}`}
+                          className="hover:bg-accent-soft block rounded-lg border p-3 opacity-85 transition"
+                        >
+                          <div className="flex items-start justify-between gap-3">
+                            <div className="min-w-0">
+                              <div className="font-medium">{task.title}</div>
+                              <div className="text-muted-foreground mt-1 text-sm">
+                                Due: {formatDateTime(task.due_date)}
+                              </div>
+                            </div>
+
+                            <span
+                              className={`inline-flex items-center rounded-full border px-2 py-0.5 text-xs ${statusPillClasses(task.status)}`}
+                            >
+                              {task.status ?? "—"}
+                            </span>
+                          </div>
+                        </Link>
+                      ))
+                    )}
+                  </div>
+                </>
+              )}
+            </div>
           </div>
 
-          {filesError ? (
-            <div className="px-4 pt-4 text-sm text-red-500">{filesError}</div>
-          ) : null}
+          <section className="bg-surface border-base rounded-lg border">
+            <div className="flex flex-col gap-3 border-b p-4 sm:flex-row sm:items-center sm:justify-between">
+              <div>
+                <h2 className="text-lg font-semibold">Attached Files</h2>
+                <p className="text-muted-foreground mt-1 text-sm">
+                  Files uploaded directly to this lead.
+                </p>
+              </div>
 
-          {success ? (
-            <div className="px-4 pt-4 text-sm text-green-600">{success}</div>
-          ) : null}
-
-          {loadingFiles ? (
-            <div className="text-muted-foreground px-4 py-6 text-sm">
-              Loading files...
+              {canManageFiles ? (
+                <label className="hover:bg-accent-soft inline-flex cursor-pointer items-center rounded-md border px-3 py-2 text-sm">
+                  {uploading ? "Uploading…" : "Upload file"}
+                  <input
+                    type="file"
+                    className="hidden"
+                    onChange={handleFileUpload}
+                    disabled={uploading}
+                  />
+                </label>
+              ) : null}
             </div>
-          ) : files.length === 0 ? (
-            <div className="text-muted-foreground px-4 py-6 text-sm">
-              No files attached to this lead yet.
+
+            <div className="p-4">
+              {filesError ? (
+                <div className="mb-3 text-sm text-red-500">{filesError}</div>
+              ) : null}
+
+              {loadingFiles ? (
+                <div className="text-muted-foreground text-sm">Loading files…</div>
+              ) : files.length === 0 ? (
+                <div className="text-muted-foreground rounded-lg border border-dashed p-4 text-sm">
+                  No files attached to this lead yet.
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {files.map((file) => (
+                    <div
+                      key={file.id}
+                      className="flex items-start justify-between gap-3 rounded-lg border p-3"
+                    >
+                      <div className="min-w-0">
+                        <div className="truncate font-medium">{file.original_name}</div>
+                        <div className="text-muted-foreground mt-1 text-xs">
+                          {file.mime_type || "Unknown type"} •{" "}
+                          {formatBytes(file.size_bytes)}
+                        </div>
+                        <div className="text-muted-foreground mt-1 text-xs">
+                          Uploaded: {formatDate(file.created_at)}
+                        </div>
+                      </div>
+
+                      <div className="flex shrink-0 gap-2">
+                        <a
+                          href={buildFileUrl(file)}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="hover:bg-accent-soft rounded-md border px-3 py-2 text-sm"
+                        >
+                          Open
+                        </a>
+
+                        {canManageFiles ? (
+                          <button
+                            className="hover:bg-accent-soft rounded-md border px-3 py-2 text-sm"
+                            onClick={() => handleDeleteFile(file.id)}
+                            disabled={busyFileId === file.id}
+                          >
+                            {busyFileId === file.id ? "Deleting…" : "Delete"}
+                          </button>
+                        ) : null}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
-          ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead className="bg-accent-soft">
-                  <tr className="text-left">
-                    <th className="px-4 py-3 font-medium">File</th>
-                    <th className="px-4 py-3 font-medium">Type</th>
-                    <th className="px-4 py-3 font-medium">Size</th>
-                    <th className="px-4 py-3 font-medium">Uploaded By</th>
-                    <th className="px-4 py-3 font-medium">Uploaded</th>
-                    <th className="px-4 py-3 text-right font-medium">Actions</th>
-                  </tr>
-                </thead>
-
-                <tbody>
-                  {files.map((file) => {
-                    const uploaderName =
-                      [file.first_name, file.last_name].filter(Boolean).join(" ") ||
-                      "Unknown User";
-
-                    return (
-                      <tr
-                        key={file.id}
-                        className="border-base hover:bg-accent-soft border-t transition"
-                      >
-                        <td className="px-4 py-3">
-                          <div className="font-medium">{file.original_name}</div>
-                          <div className="text-muted mt-1 text-xs">
-                            {file.storage_key}
-                          </div>
-                        </td>
-
-                        <td className="px-4 py-3">{file.mime_type || "—"}</td>
-                        <td className="px-4 py-3">{formatBytes(file.size_bytes)}</td>
-                        <td className="px-4 py-3">{uploaderName}</td>
-                        <td className="px-4 py-3">{formatDate(file.created_at)}</td>
-
-                        <td className="px-4 py-3 text-right">
-                          <div className="flex justify-end gap-2">
-                            <a
-                              href={buildFileUrl(file)}
-                              target="_blank"
-                              rel="noreferrer"
-                              className="underline underline-offset-4 hover:opacity-80"
-                            >
-                              Open
-                            </a>
-
-                            {canManageFiles ? (
-                              <button
-                                onClick={() => handleDeleteFile(file.id)}
-                                disabled={busyFileId === file.id}
-                                className="text-red-600 underline underline-offset-4 hover:opacity-80"
-                              >
-                                {busyFileId === file.id ? "Deleting..." : "Delete"}
-                              </button>
-                            ) : null}
-                          </div>
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
-          )}
+          </section>
         </section>
       </div>
     </AppShell>
