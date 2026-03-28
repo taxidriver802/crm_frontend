@@ -7,10 +7,16 @@ export function proxy(request) {
   const isLogin = pathname === "/login";
 
   // If not logged in, block protected routes
-  const isProtected =
-    pathname.startsWith("/dashboard") ||
-    pathname.startsWith("/leads") ||
-    pathname.startsWith("/tasks");
+  const protectedRoutes = [
+    "/dashboard",
+    "/leads",
+    "/tasks",
+    "/files",
+    "/notifications",
+    "/jobs",
+  ];
+
+  const isProtected = protectedRoutes.some((route) => pathname.startsWith(route));
 
   if (!token && isProtected) {
     return NextResponse.redirect(new URL("/login", request.url));
@@ -25,5 +31,13 @@ export function proxy(request) {
 }
 
 export const config = {
-  matcher: ["/dashboard/:path*", "/leads/:path*", "/tasks/:path*", "/login"],
+  matcher: [
+    "/dashboard/:path*",
+    "/leads/:path*",
+    "/tasks/:path*",
+    "/files/:path*",
+    "/jobs/:path*",
+    "/notifications",
+    "/login",
+  ],
 };

@@ -16,6 +16,7 @@ const BASE_NAV = [
   { href: "/dashboard", label: "Dashboard", priority: "primary" },
   { href: "/leads", label: "Leads", priority: "primary" },
   { href: "/tasks", label: "Tasks", priority: "primary" },
+  { href: "/jobs", label: "Jobs", priority: "primary" },
   { href: "/integrations", label: "Integrations", priority: "secondary" },
 ];
 

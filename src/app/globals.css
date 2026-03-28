@@ -68,6 +68,14 @@
     background: var(--surface);
   }
 
+  .bg-main {
+    background: var(--accent);
+  }
+
+  .border-main {
+    border-color: var(--accent);
+  }
+
   .border-base {
     border-color: var(--border);
   }
