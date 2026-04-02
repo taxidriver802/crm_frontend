@@ -4,35 +4,16 @@ import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 
 import { AppShell } from "@/components/app-shell";
+import { FilePreviewModal } from "@/components/file-preview-modal";
 import { api } from "@/lib/api";
-
-const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL || "";
-
-function formatBytes(bytes) {
-  if (bytes == null) return "—";
-  if (bytes < 1024) return `${bytes} B`;
-  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
-  if (bytes < 1024 * 1024 * 1024) return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
-  return `${(bytes / (1024 * 1024 * 1024)).toFixed(1)} GB`;
-}
-
-function formatDate(value) {
-  if (!value) return "—";
-  return new Date(value).toLocaleDateString();
-}
-
-function getFileTypeLabel(file) {
-  if (file.mime_type) return file.mime_type;
-  const name = file.original_name || "";
-  const parts = name.split(".");
-  if (parts.length > 1) return parts.pop().toUpperCase();
-  return "Unknown";
-}
-
-function buildFileUrl(file) {
-  if (!file?.storage_key) return "#";
-  return `${API_BASE}/uploads/${file.storage_key}`;
-}
+import {
+  getFileTypeLabel,
+  buildFileUrl,
+  formatBytes,
+  formatDate,
+  isPreviewableFile,
+  API_BASE,
+} from "@/lib/helper";
 
 function StatCard({ label, value }) {
   return (
@@ -54,6 +35,8 @@ export default function FilesPage() {
   const [success, setSuccess] = useState("");
   const [busyId, setBusyId] = useState(null);
   const [uploading, setUploading] = useState(false);
+
+  const [previewFile, setPreviewFile] = useState(null);
 
   const [searchQuery, setSearchQuery] = useState("");
   const [typeFilter, setTypeFilter] = useState("all");
@@ -116,7 +99,7 @@ export default function FilesPage() {
       total: files.length,
       general: files.filter((f) => !f.lead_id && !f.task_id).length,
       leadLinked: files.filter((f) => !!f.lead_id).length,
-      taskLinked: files.filter((f) => !!f.task_id).length,
+      jobLinked: files.filter((f) => !!f.job_id).length,
     };
   }, [files]);
 
@@ -130,7 +113,7 @@ export default function FilesPage() {
         return false;
       }
 
-      if (scopeFilter === "task" && !file.task_id) {
+      if (scopeFilter === "job" && !file.job_id) {
         return false;
       }
 
@@ -272,7 +255,6 @@ export default function FilesPage() {
         <StatCard label="Total Files" value={counts.total} />
         <StatCard label="General Files" value={counts.general} />
         <StatCard label="Lead Files" value={counts.leadLinked} />
-        {/* <StatCard label="Task Files" value={counts.taskLinked} /> */}
       </div>
 
       {error ? (
@@ -313,7 +295,7 @@ export default function FilesPage() {
               <option value="all">All Scopes</option>
               <option value="general">General</option>
               <option value="lead">Lead Attached</option>
-              {/* <option value="task">Task Attached</option> */}
+              <option value="job">Job Attached</option>
             </select>
 
             <select
@@ -393,8 +375,13 @@ export default function FilesPage() {
                           >
                             Lead #{file.lead_id}
                           </button>
-                        ) : file.task_id ? (
-                          <span>Task #{file.task_id}</span>
+                        ) : file.job_id ? (
+                          <button
+                            onClick={() => router.push(`/jobs/${file.job_id}`)}
+                            className="hover:text-main underline underline-offset-4 transition"
+                          >
+                            Job #{file.job_id}
+                          </button>
                         ) : (
                           <span>General</span>
                         )}
@@ -406,14 +393,24 @@ export default function FilesPage() {
 
                       <td className="px-5 py-4 align-top">
                         <div className="flex flex-wrap items-center gap-2">
-                          <a
-                            href={buildFileUrl(file)}
-                            target="_blank"
-                            rel="noreferrer"
-                            className="hover:bg-accent-soft rounded-md border px-3 py-1.5 text-xs"
-                          >
-                            Open
-                          </a>
+                          {isPreviewableFile(file) ? (
+                            <button
+                              type="button"
+                              onClick={() => setPreviewFile(file)}
+                              className="hover:bg-accent-soft rounded-md border px-3 py-1.5 text-xs"
+                            >
+                              Preview
+                            </button>
+                          ) : (
+                            <a
+                              href={buildFileUrl(file)}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="hover:bg-accent-soft rounded-md border px-3 py-1.5 text-xs"
+                            >
+                              Open
+                            </a>
+                          )}
 
                           {canManageFiles ? (
                             <button
@@ -434,6 +431,11 @@ export default function FilesPage() {
           </div>
         )}
       </section>
+      <FilePreviewModal
+        open={!!previewFile}
+        file={previewFile}
+        onClose={() => setPreviewFile(null)}
+      />
     </AppShell>
   );
 }

@@ -5,8 +5,17 @@ import { useParams } from "next/navigation";
 import Link from "next/link";
 import { AppShell } from "@/components/app-shell";
 import { api } from "@/lib/api";
+import {
+  buildFileUrl,
+  formatBytes,
+  formatDate,
+  formatDateTime,
+  API_BASE,
+  isPreviewableFile,
+} from "@/lib/helper";
 
 import { ToggleFormSection } from "@/components/toggle-form-section";
+import { FilePreviewModal } from "@/components/file-preview-modal";
 
 const JOB_STATUSES = [
   "New",
@@ -23,6 +32,14 @@ export default function JobDetailPage() {
   const [job, setJob] = useState(null);
   const [tasks, setTasks] = useState([]);
 
+  const [currentUser, setCurrentUser] = useState(null);
+
+  const [files, setFiles] = useState([]);
+  const [loadingFiles, setLoadingFiles] = useState(true);
+  const [filesError, setFilesError] = useState("");
+  const [uploading, setUploading] = useState(false);
+  const [busyFileId, setBusyFileId] = useState(null);
+
   const [loading, setLoading] = useState(true);
   const [loadingTasks, setLoadingTasks] = useState(true);
   const [creatingTask, setCreatingTask] = useState(false);
@@ -31,13 +48,14 @@ export default function JobDetailPage() {
   const [updatingStatus, setUpdatingStatus] = useState(null);
 
   const [isTaskFormOpen, setIsTaskFormOpen] = useState(false);
-
   const [taskForm, setTaskForm] = useState({
     title: "",
     description: "",
     due_date: "",
     status: "Pending",
   });
+
+  const [previewFile, setPreviewFile] = useState(null);
 
   async function loadJob() {
     const data = await api(`/jobs/${id}`);
@@ -56,12 +74,24 @@ export default function JobDetailPage() {
     }
   }
 
+  async function loadFiles() {
+    try {
+      setLoadingFiles(true);
+      const res = await api(`/files?job_id=${id}`);
+      setFiles(res.files || []);
+    } catch (e) {
+      setFilesError(e.message || "Failed to load files");
+    } finally {
+      setLoadingFiles(false);
+    }
+  }
+
   async function loadPage() {
     try {
       setLoading(true);
       setError(null);
 
-      await Promise.all([loadJob(), loadTasks()]);
+      await Promise.all([loadJob(), loadTasks(), loadFiles()]);
     } catch (e) {
       setError(e.message || "Failed to load job");
     } finally {
@@ -150,6 +180,85 @@ export default function JobDetailPage() {
       setError(e.message || "Failed to update task");
     }
   }
+
+  async function handleFileUpload(event) {
+    const file = event.target.files?.[0];
+
+    if (!file) return;
+
+    setUploading(true);
+
+    try {
+      const formData = new FormData();
+      formData.append("file", file);
+      formData.append("job_id", String(id));
+
+      const res = await fetch(`${API_BASE}/files`, {
+        method: "POST",
+        credentials: "include",
+        body: formData,
+      });
+
+      if (!res.ok) throw new Error("Upload failed");
+
+      await loadFiles();
+    } catch (e) {
+      setFilesError(e.message);
+    } finally {
+      setUploading(false);
+    }
+  }
+
+  async function handleDeleteFile(fileId) {
+    const confirmed = window.confirm("Delete this file?");
+    if (!confirmed) return;
+
+    setBusyFileId(fileId);
+    setFilesError("");
+
+    try {
+      await api(`/files/${fileId}`, {
+        method: "DELETE",
+      });
+
+      setFiles((prev) => prev.filter((file) => file.id !== fileId));
+    } catch (e) {
+      console.error(e);
+      setFilesError(e?.message || "Failed to delete file");
+    } finally {
+      setBusyFileId(null);
+    }
+  }
+
+  const canManageFiles = currentUser?.role === "owner" || currentUser?.role === "admin";
+
+  useEffect(() => {
+    let alive = true;
+
+    async function loadCurrentUser() {
+      try {
+        const res = await fetch("/api/auth/me", {
+          credentials: "include",
+          cache: "no-store",
+        });
+
+        if (!res.ok) return;
+        const data = await res.json();
+        if (!alive) return;
+        setCurrentUser(data.user || null);
+      } catch (e) {
+        console.error(e);
+      }
+    }
+
+    if (id) {
+      loadCurrentUser();
+    }
+
+    return () => {
+      alive = false;
+    };
+  }, [id]);
 
   useEffect(() => {
     if (id) loadPage();
@@ -396,23 +505,102 @@ export default function JobDetailPage() {
                 </div>
               </dl>
             </section>
+
+            <section className="bg-surface border-base rounded-lg border">
+              <div className="flex flex-col gap-3 border-b p-4 sm:flex-row sm:items-center sm:justify-between">
+                <div>
+                  <h2 className="text-lg font-semibold">Attached Files</h2>
+                  <p className="text-muted-foreground mt-1 text-sm">
+                    Files uploaded directly to this Job.
+                  </p>
+                </div>
+
+                {canManageFiles ? (
+                  <label className="hover:bg-accent-soft inline-flex cursor-pointer items-center rounded-md border px-3 py-2 text-sm">
+                    {uploading ? "Uploading…" : "Upload file"}
+                    <input
+                      type="file"
+                      className="hidden"
+                      onChange={handleFileUpload}
+                      disabled={uploading}
+                    />
+                  </label>
+                ) : null}
+              </div>
+
+              <div className="p-4">
+                {filesError ? (
+                  <div className="mb-3 text-sm text-red-500">{filesError}</div>
+                ) : null}
+
+                {loadingFiles ? (
+                  <div className="text-muted-foreground text-sm">Loading files…</div>
+                ) : files.length === 0 ? (
+                  <div className="text-muted-foreground rounded-lg border border-dashed p-4 text-sm">
+                    No files attached to this Job yet.
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    {files.map((file) => (
+                      <div
+                        key={file.id}
+                        className="flex items-start justify-between gap-3 rounded-lg border p-3"
+                      >
+                        <div className="min-w-0">
+                          <div className="truncate font-medium">{file.original_name}</div>
+                          <div className="text-muted-foreground mt-1 text-xs">
+                            {file.mime_type || "Unknown type"} •{" "}
+                            {formatBytes(file.size_bytes)}
+                          </div>
+                          <div className="text-muted-foreground mt-1 text-xs">
+                            Uploaded: {formatDate(file.created_at)}
+                          </div>
+                        </div>
+
+                        <div className="flex flex-wrap items-center gap-2">
+                          {isPreviewableFile(file) ? (
+                            <button
+                              type="button"
+                              onClick={() => setPreviewFile(file)}
+                              className="hover:bg-accent-soft rounded-md border px-3 py-1.5 text-xs"
+                            >
+                              Preview
+                            </button>
+                          ) : (
+                            <a
+                              href={buildFileUrl(file)}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="hover:bg-accent-soft rounded-md border px-3 py-1.5 text-xs"
+                            >
+                              Open
+                            </a>
+                          )}
+
+                          {canManageFiles ? (
+                            <button
+                              onClick={() => handleDeleteFile(file.id)}
+                              disabled={busyFileId === file.id}
+                              className="rounded-md border px-3 py-1.5 text-xs text-red-600 hover:bg-red-50"
+                            >
+                              {busyFileId === file.id ? "Deleting..." : "Delete"}
+                            </button>
+                          ) : null}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </section>
           </div>
         </div>
       )}
+      <FilePreviewModal
+        open={!!previewFile}
+        file={previewFile}
+        onClose={() => setPreviewFile(null)}
+      />
     </AppShell>
   );
-}
-
-function formatDate(value) {
-  if (!value) return "—";
-  const d = new Date(value);
-  if (Number.isNaN(d.getTime())) return value;
-  return d.toLocaleDateString();
-}
-
-function formatDateTime(value) {
-  if (!value) return "No due date";
-  const d = new Date(value);
-  if (Number.isNaN(d.getTime())) return value;
-  return d.toLocaleString();
 }

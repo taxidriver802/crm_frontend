@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { AppShell } from "@/components/app-shell";
 import { api } from "@/lib/api";
+import { formatDue } from "@/lib/helper";
 
 export default function TasksPage() {
   const [summary, setSummary] = useState(null);
@@ -326,11 +327,4 @@ function Bucket({ title, tone, loading, items, onComplete }) {
       </div>
     </div>
   );
-}
-
-function formatDue(dueDate) {
-  if (!dueDate) return "No due date";
-  const d = new Date(dueDate);
-  if (Number.isNaN(d.getTime())) return dueDate;
-  return d.toLocaleDateString();
 }

@@ -5,37 +5,15 @@ import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { AppShell } from "@/components/app-shell";
 import { api } from "@/lib/api";
-
-const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL || "";
-
-function formatDate(value) {
-  if (!value) return "—";
-  const d = new Date(value);
-  if (Number.isNaN(d.getTime())) return value;
-  return d.toLocaleDateString();
-}
-
-function formatDateTime(value) {
-  if (!value) return "—";
-  const d = new Date(value);
-  if (Number.isNaN(d.getTime())) return value;
-  return d.toLocaleString();
-}
-
-function formatBytes(bytes) {
-  if (bytes == null) return "—";
-  if (bytes < 1024) return `${bytes} B`;
-  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
-  if (bytes < 1024 * 1024 * 1024) {
-    return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
-  }
-  return `${(bytes / (1024 * 1024 * 1024)).toFixed(1)} GB`;
-}
-
-function buildFileUrl(file) {
-  if (!file?.storage_key) return "#";
-  return `${API_BASE}/uploads/${file.storage_key}`;
-}
+import {
+  formatBytes,
+  buildFileUrl,
+  formatDate,
+  formatDateTime,
+  API_BASE,
+  isPreviewableFile,
+} from "@/lib/helper";
+import { FilePreviewModal } from "@/components/file-preview-modal";
 
 function isCompletedTask(task) {
   return String(task?.status || "").toLowerCase() === "completed";
@@ -69,6 +47,7 @@ export default function LeadDetailPage() {
   const [tasks, setTasks] = useState([]);
   const [files, setFiles] = useState([]);
   const [currentUser, setCurrentUser] = useState(null);
+  const [previewFile, setPreviewFile] = useState(null);
 
   const [loading, setLoading] = useState(true);
   const [loadingTasks, setLoadingTasks] = useState(true);
@@ -518,23 +497,33 @@ export default function LeadDetailPage() {
                         </div>
                       </div>
 
-                      <div className="flex shrink-0 gap-2">
-                        <a
-                          href={buildFileUrl(file)}
-                          target="_blank"
-                          rel="noreferrer"
-                          className="hover:bg-accent-soft rounded-md border px-3 py-2 text-sm"
-                        >
-                          Open
-                        </a>
+                      <div className="flex flex-wrap items-center gap-2">
+                        {isPreviewableFile(file) ? (
+                          <button
+                            type="button"
+                            onClick={() => setPreviewFile(file)}
+                            className="hover:bg-accent-soft rounded-md border px-3 py-1.5 text-xs"
+                          >
+                            Preview
+                          </button>
+                        ) : (
+                          <a
+                            href={buildFileUrl(file)}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="hover:bg-accent-soft rounded-md border px-3 py-1.5 text-xs"
+                          >
+                            Open
+                          </a>
+                        )}
 
                         {canManageFiles ? (
                           <button
-                            className="hover:bg-accent-soft rounded-md border px-3 py-2 text-sm"
                             onClick={() => handleDeleteFile(file.id)}
                             disabled={busyFileId === file.id}
+                            className="rounded-md border px-3 py-1.5 text-xs text-red-600 hover:bg-red-50"
                           >
-                            {busyFileId === file.id ? "Deleting…" : "Delete"}
+                            {busyFileId === file.id ? "Deleting..." : "Delete"}
                           </button>
                         ) : null}
                       </div>
@@ -546,6 +535,11 @@ export default function LeadDetailPage() {
           </section>
         </section>
       </div>
+      <FilePreviewModal
+        open={!!previewFile}
+        file={previewFile}
+        onClose={() => setPreviewFile(null)}
+      />
     </AppShell>
   );
 }

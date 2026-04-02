@@ -1,6 +1,5 @@
 import { NextResponse } from "next/server";
-
-const API_BASE = process.env.API_INTERNAL_BASE_URL || "http://localhost:4000";
+import { API_BASE } from "@/lib/helper";
 
 async function handler(req, { params }) {
   const path = params.path || [];

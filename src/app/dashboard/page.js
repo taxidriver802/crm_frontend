@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { AppShell } from "@/components/app-shell";
 import { api } from "@/lib/api";
+import { formatDue } from "@/lib/helper";
 
 function StatCard({ label, value, sub, href }) {
   const inner = (
@@ -41,20 +42,6 @@ function Badge({ children }) {
       {children}
     </span>
   );
-}
-
-function formatDue(dueDate) {
-  if (!dueDate) return "No due date";
-  const d = new Date(dueDate);
-  if (Number.isNaN(d.getTime())) return "Invalid date";
-
-  // Example: Mar 4, 2:30 PM
-  return d.toLocaleString(undefined, {
-    month: "short",
-    day: "numeric",
-    hour: "numeric",
-    minute: "2-digit",
-  });
 }
 
 function TaskRow({ t }) {

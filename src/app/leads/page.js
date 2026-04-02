@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { AppShell } from "@/components/app-shell";
 import { api } from "@/lib/api";
+import { formatDate } from "@/lib/helper";
 
 export default function LeadsPage() {
   const [q, setQ] = useState("");
@@ -219,11 +220,4 @@ export default function LeadsPage() {
       </div>
     </AppShell>
   );
-}
-
-function formatDate(iso) {
-  if (!iso) return "—";
-  const d = new Date(iso);
-  if (Number.isNaN(d.getTime())) return iso;
-  return d.toLocaleDateString();
 }

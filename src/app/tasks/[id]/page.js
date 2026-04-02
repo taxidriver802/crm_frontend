@@ -5,32 +5,14 @@ import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { AppShell } from "@/components/app-shell";
 import { api } from "@/lib/api";
-
-const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL || "";
-
-function formatDue(value) {
-  if (!value) return "No due date";
-  const d = new Date(value);
-  if (Number.isNaN(d.getTime())) return value;
-  return d.toLocaleString();
-}
-
-function formatDate(value) {
-  if (!value) return "—";
-  const d = new Date(value);
-  if (Number.isNaN(d.getTime())) return value;
-  return d.toLocaleDateString();
-}
-
-function formatBytes(bytes) {
-  if (bytes == null) return "—";
-  if (bytes < 1024) return `${bytes} B`;
-  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
-  if (bytes < 1024 * 1024 * 1024) {
-    return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
-  }
-  return `${(bytes / (1024 * 1024 * 1024)).toFixed(1)} GB`;
-}
+import {
+  formatBytes,
+  buildFileUrl,
+  formatDate,
+  formatDue,
+  isPreviewableFile,
+} from "@/lib/helper";
+import { FilePreviewModal } from "@/components/file-preview-modal";
 
 function isCompleted(task) {
   return String(task?.status || "").toLowerCase() === "completed";
@@ -48,11 +30,6 @@ function isDueSoon(task) {
   const due = new Date(task.due_date).getTime();
   if (Number.isNaN(due)) return false;
   return due > now && due <= now + 1000 * 60 * 60 * 24;
-}
-
-function buildFileUrl(file) {
-  if (!file?.storage_key) return "#";
-  return `${API_BASE}/uploads/${file.storage_key}`;
 }
 
 function badgeClass(task) {
@@ -84,10 +61,47 @@ export default function TaskDetailPage() {
   const [loadingLead, setLoadingLead] = useState(false);
   const [loadingFiles, setLoadingFiles] = useState(false);
 
+  const [busyFileId, setBusyFileId] = useState(null);
+
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [leadError, setLeadError] = useState("");
   const [filesError, setFilesError] = useState("");
+
+  const [previewFile, setPreviewFile] = useState(null);
+  const [currentUser, setCurrentUser] = useState(null);
+
+  const [success, setSuccess] = useState("");
+
+  async function loadCurrentUser() {
+    const res = await fetch("/api/auth/me", {
+      credentials: "include",
+      cache: "no-store",
+    });
+
+    if (!res.ok) {
+      router.replace("/login");
+      return null;
+    }
+
+    const data = await res.json();
+    return data.user;
+  }
+
+  useEffect(() => {
+    async function boot() {
+      try {
+        const user = await loadCurrentUser();
+        setCurrentUser(user);
+        if (!user) return;
+      } catch (err) {
+        console.error(err);
+        router.replace("/login");
+      }
+    }
+
+    boot();
+  }, [router]);
 
   useEffect(() => {
     let cancelled = false;
@@ -261,12 +275,38 @@ export default function TaskDetailPage() {
     }
   }
 
+  async function handleDeleteFile(fileId) {
+    const confirmed = window.confirm("Delete this file?");
+    if (!confirmed) return;
+
+    setBusyFileId(fileId);
+    setFilesError("");
+    setSuccess("");
+
+    try {
+      await api(`/files/${fileId}`, {
+        method: "DELETE",
+      });
+
+      setFiles((prev) => prev.filter((file) => file.id !== fileId));
+      setSuccess("File deleted successfully.");
+    } catch (e) {
+      console.error(e);
+      setFilesError(e?.message || "Failed to delete file");
+    } finally {
+      setBusyFileId(null);
+    }
+  }
+
   const recentFiles = useMemo(() => files.slice(0, 5), [files]);
+
+  const canManageFiles = currentUser?.role === "owner" || currentUser?.role === "admin";
 
   return (
     <AppShell title={`Task #${id}`}>
       <div className="space-y-4">
         {error ? <div className="text-sm text-red-500">{error}</div> : null}
+        {success ? <div className="text-sm text-green-600">{success}</div> : null}
 
         <section className="bg-surface border-base rounded-lg border p-4">
           {loadingTask ? (
@@ -516,14 +556,36 @@ export default function TaskDetailPage() {
                         </div>
                       </div>
 
-                      <a
-                        href={buildFileUrl(file)}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="hover:bg-accent-soft shrink-0 rounded-md border px-3 py-2 text-sm"
-                      >
-                        Open
-                      </a>
+                      <div className="flex flex-wrap items-center gap-2">
+                        {isPreviewableFile(file) ? (
+                          <button
+                            type="button"
+                            onClick={() => setPreviewFile(file)}
+                            className="hover:bg-accent-soft rounded-md border px-3 py-1.5 text-xs"
+                          >
+                            Preview
+                          </button>
+                        ) : (
+                          <a
+                            href={buildFileUrl(file)}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="hover:bg-accent-soft rounded-md border px-3 py-1.5 text-xs"
+                          >
+                            Open
+                          </a>
+                        )}
+
+                        {canManageFiles ? (
+                          <button
+                            onClick={() => handleDeleteFile(file.id)}
+                            disabled={busyFileId === file.id}
+                            className="rounded-md border px-3 py-1.5 text-xs text-red-600 hover:bg-red-50"
+                          >
+                            {busyFileId === file.id ? "Deleting..." : "Delete"}
+                          </button>
+                        ) : null}
+                      </div>
                     </div>
                   ))}
                 </div>
@@ -532,6 +594,11 @@ export default function TaskDetailPage() {
           </div>
         </section>
       </div>
+      <FilePreviewModal
+        open={!!previewFile}
+        file={previewFile}
+        onClose={() => setPreviewFile(null)}
+      />
     </AppShell>
   );
 }
