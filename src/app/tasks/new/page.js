@@ -10,7 +10,6 @@ const STATUS_OPTIONS = ["Pending", "Completed"];
 export default function NewTaskPage() {
   const router = useRouter();
   const params = useSearchParams();
-  const prefillLeadId = params.get("lead_id") || "";
 
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
@@ -18,11 +17,30 @@ export default function NewTaskPage() {
   const [loadingLeads, setLoadingLeads] = useState(true);
   const [leads, setLeads] = useState([]);
 
+  const [jobs, setJobs] = useState([]);
+  const [loadingJobs, setLoadingJobs] = useState(true);
+
+  const prefillLeadId = params.get("lead_id") || "";
+  const prefillJobId = params.get("job_id") || "";
+
+  const [contextType, setContextType] = useState(prefillJobId ? "job" : "lead");
+
+  function handleContextChange(type) {
+    setContextType(type);
+
+    setForm((f) => ({
+      ...f,
+      lead_id: type === "lead" ? f.lead_id : "",
+      job_id: type === "job" ? f.job_id : "",
+    }));
+  }
+
   const [form, setForm] = useState({
-    lead_id: prefillLeadId, // string
+    lead_id: prefillLeadId,
+    job_id: prefillJobId,
     title: "",
     description: "",
-    due_date: "", // "YYYY-MM-DDTHH:mm"
+    due_date: "",
     status: "Pending",
   });
 
@@ -50,7 +68,24 @@ export default function NewTaskPage() {
       }
     }
 
+    async function loadJobs() {
+      try {
+        setLoadingJobs(true);
+        const res = await api("/jobs?limit=200&offset=0");
+        if (!alive) return;
+        setJobs(res.jobs || []);
+      } catch (e) {
+        if (!alive) return;
+        // We won't hard-fail the page, but we'll show the error.
+        setError(e?.message || "Failed to load jobs for dropdown");
+      } finally {
+        if (!alive) return;
+        setLoadingJobs(false);
+      }
+    }
+
     loadLeads();
+    loadJobs();
     return () => {
       alive = false;
     };
@@ -84,11 +119,18 @@ export default function NewTaskPage() {
     e.preventDefault();
     setError("");
 
-    if (!form.lead_id.trim()) return setError("Please choose a lead.");
+    if (contextType === "lead" && !form.lead_id.trim()) {
+      return setError("Please choose a lead.");
+    }
+
+    if (contextType === "job" && !form.job_id?.trim()) {
+      return setError("Please choose a job.");
+    }
     if (!form.title.trim()) return setError("Title is required.");
 
     const payload = {
-      lead_id: Number(form.lead_id),
+      lead_id: contextType === "lead" ? Number(form.lead_id) : null,
+      job_id: contextType === "job" ? Number(form.job_id) : null,
       title: form.title.trim(),
       description: form.description.trim() || null,
       status: form.status,
@@ -109,8 +151,29 @@ export default function NewTaskPage() {
     }
   }
 
+  const jobOptions = useMemo(() => {
+    return jobs.map((j) => ({
+      id: String(j.id),
+      label: j.name || `Job #${j.id}`,
+    }));
+  }, [jobs]);
+
+  const isPrefilled = !!prefillLeadId || !!prefillJobId;
+
+  const title = useMemo(() => {
+    if (contextType === "lead" && form.lead_id) {
+      return `New Task for Lead #${form.lead_id}`;
+    }
+
+    if (contextType === "job" && form.job_id) {
+      return `New Task for Job #${form.job_id}`;
+    }
+
+    return "New Task";
+  }, [contextType, form.lead_id, form.job_id]);
+
   return (
-    <AppShell title="New Task">
+    <AppShell title={title} backHref="/tasks">
       <form onSubmit={onSubmit} className="space-y-6">
         {error ? <div className="text-sm text-red-500">{error}</div> : null}
 
@@ -118,32 +181,88 @@ export default function NewTaskPage() {
           <div className="grid gap-4 sm:grid-cols-2">
             {/* Lead dropdown */}
             <div className="sm:col-span-2">
-              <label className="text-muted text-xs">Lead *</label>
-              <select
-                className="border-base bg-app mt-1 w-full rounded-md border px-3 py-2 text-sm"
-                value={form.lead_id}
-                onChange={(e) => setField("lead_id", e.target.value)}
-                disabled={loadingLeads}
-              >
-                <option value="">
-                  {loadingLeads
-                    ? "Loading leads…"
-                    : leadOptions.length
-                      ? "Select a lead…"
-                      : "No leads found"}
-                </option>
-                {leadOptions.map((o) => (
-                  <option key={o.id} value={o.id}>
-                    {o.label} (#{o.id}){o.status ? ` • ${o.status}` : ""}
-                  </option>
-                ))}
-              </select>
+              {!isPrefilled && (
+                <div className="flex gap-2">
+                  <button
+                    type="button"
+                    onClick={() => handleContextChange("lead")}
+                    className={`rounded-md px-3 py-1.5 text-sm ${
+                      contextType === "lead" ? "bg-accent-soft border" : "hover:bg-app"
+                    }`}
+                  >
+                    Lead
+                  </button>
 
-              <div className="text-muted-foreground mt-1 text-xs">
-                {leadOptions.length
-                  ? "Pick the lead this task belongs to."
-                  : "Create a lead first, then come back to create tasks."}
-              </div>
+                  <button
+                    type="button"
+                    onClick={() => handleContextChange("job")}
+                    className={`rounded-md px-3 py-1.5 text-sm ${
+                      contextType === "job" ? "bg-accent-soft border" : "hover:bg-app"
+                    }`}
+                  >
+                    Job
+                  </button>
+                </div>
+              )}
+              {contextType === "lead" && (
+                <>
+                  <label className="text-muted text-xs">Lead *</label>
+                  <select
+                    className="border-base bg-app mt-1 w-full rounded-md border px-3 py-2 text-sm"
+                    value={form.lead_id}
+                    onChange={(e) => setField("lead_id", e.target.value)}
+                    disabled={loadingLeads}
+                  >
+                    <option value="">
+                      {loadingLeads
+                        ? "Loading leads…"
+                        : leadOptions.length
+                          ? "Select a lead…"
+                          : "No leads found"}
+                    </option>
+                    {leadOptions.map((o) => (
+                      <option key={o.id} value={o.id}>
+                        {o.label} (#{o.id}){o.status ? ` • ${o.status}` : ""}
+                      </option>
+                    ))}
+                  </select>
+
+                  <div className="text-muted-foreground mt-1 text-xs">
+                    {leadOptions.length
+                      ? "Pick the lead this task belongs to."
+                      : "Create a lead first, then come back to create tasks."}
+                  </div>
+                </>
+              )}
+              {contextType === "job" && (
+                <>
+                  <label className="text-muted text-xs">Job *</label>
+                  <select
+                    className="border-base bg-app mt-1 w-full rounded-md border px-3 py-2 text-sm"
+                    value={form.job_id}
+                    onChange={(e) => setField("job_id", e.target.value)}
+                    disabled={loadingJobs}
+                  >
+                    <option value="">
+                      {loadingJobs
+                        ? "Loading jobs…"
+                        : jobOptions.length
+                          ? "Select a job…"
+                          : "Create a job first, then come back to create tasks."}
+                    </option>
+
+                    {jobOptions.map((o) => (
+                      <option key={o.id} value={o.id}>
+                        {o.label}
+                      </option>
+                    ))}
+                  </select>
+
+                  <div className="text-muted-foreground mt-1 text-xs">
+                    Select the job this task belongs to.
+                  </div>
+                </>
+              )}
             </div>
 
             <div>

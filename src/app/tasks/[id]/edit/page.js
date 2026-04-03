@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { AppShell } from "@/components/app-shell";
@@ -31,14 +31,13 @@ export default function EditTaskPage() {
 
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [loadingLeads, setLoadingLeads] = useState(true);
   const [error, setError] = useState("");
 
   const [task, setTask] = useState(null);
-  const [leads, setLeads] = useState([]);
 
   const [form, setForm] = useState({
     lead_id: "",
+    job_id: "",
     title: "",
     description: "",
     due_date: "",
@@ -65,6 +64,7 @@ export default function EditTaskPage() {
 
         setForm({
           lead_id: nextTask?.lead_id ? String(nextTask.lead_id) : "",
+          job_id: nextTask?.job_id ? String(nextTask.job_id) : "",
           title: nextTask?.title || "",
           description: nextTask?.description || "",
           due_date: toDatetimeLocal(nextTask?.due_date),
@@ -79,24 +79,8 @@ export default function EditTaskPage() {
       }
     }
 
-    async function loadLeads() {
-      try {
-        setLoadingLeads(true);
-        const res = await api("/leads?limit=200&offset=0");
-        if (!alive) return;
-        setLeads(res?.leads || []);
-      } catch (e) {
-        if (!alive) return;
-        setError((prev) => prev || e?.message || "Failed to load leads");
-      } finally {
-        if (!alive) return;
-        setLoadingLeads(false);
-      }
-    }
-
     if (id) {
       loadTask();
-      loadLeads();
     }
 
     return () => {
@@ -104,36 +88,22 @@ export default function EditTaskPage() {
     };
   }, [id]);
 
-  const leadOptions = useMemo(() => {
-    return leads
-      .slice()
-      .sort((a, b) => {
-        const an = `${a.first_name || ""} ${a.last_name || ""}`.trim().toLowerCase();
-        const bn = `${b.first_name || ""} ${b.last_name || ""}`.trim().toLowerCase();
-        return an.localeCompare(bn);
-      })
-      .map((l) => ({
-        id: String(l.id),
-        label:
-          `${(l.first_name || "").trim()} ${(l.last_name || "").trim()}`.trim() ||
-          `Lead #${l.id}`,
-        status: l.status,
-      }));
-  }, [leads]);
+  const isLeadTask = !!task?.lead_id;
+  const isJobTask = !!task?.job_id;
 
   async function onSubmit(e) {
     e.preventDefault();
     setError("");
 
     if (!form.title.trim()) return setError("Title is required.");
-    if (!form.lead_id.trim()) return setError("Please choose a lead.");
 
     const payload = {
-      lead_id: Number(form.lead_id),
       title: form.title.trim(),
       description: form.description.trim() || null,
       status: form.status,
       due_date: form.due_date ? new Date(form.due_date).toISOString() : null,
+      lead_id: isLeadTask ? Number(form.lead_id) : null,
+      job_id: isJobTask ? Number(form.job_id) : null,
     };
 
     try {
@@ -165,7 +135,7 @@ export default function EditTaskPage() {
           <section className="bg-surface border-base rounded-lg border p-4">
             <div className="grid gap-4 sm:grid-cols-2">
               <div className="sm:col-span-2">
-                <label className="text-muted text-xs">Lead *</label>
+                {/* <label className="text-muted text-xs">Lead *</label>
                 <select
                   className="border-base bg-app mt-1 w-full rounded-md border px-3 py-2 text-sm"
                   value={form.lead_id}
@@ -185,10 +155,19 @@ export default function EditTaskPage() {
                       {o.label} (#{o.id}){o.status ? ` • ${o.status}` : ""}
                     </option>
                   ))}
-                </select>
+                </select> */}
 
-                <div className="text-muted-foreground mt-1 text-xs">
-                  Choose the lead this task belongs to.
+                <div className="sm:col-span-2">
+                  <label className="text-muted text-xs">Linked To</label>
+
+                  <div className="border-base bg-app mt-1 w-full rounded-md border px-3 py-2 text-sm">
+                    {isLeadTask && `Lead #${form.lead_id}`}
+                    {isJobTask && `Job #${form.job_id}`}
+                  </div>
+
+                  <div className="text-muted-foreground mt-1 text-xs">
+                    Ownership cannot be changed after creation.
+                  </div>
                 </div>
               </div>
 

@@ -2,25 +2,57 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import { AppShell } from "@/components/app-shell";
+import { ToggleFormSection } from "@/components/toggle-form-section";
 import { api } from "@/lib/api";
 import { formatDate } from "@/lib/helper";
+
+function getLeadLabel(lead) {
+  const name = `${lead.first_name || ""} ${lead.last_name || ""}`.trim();
+  return name || `Lead #${lead.id}`;
+}
 
 export default function JobsPage() {
   const [q, setQ] = useState("");
   const [status, setStatus] = useState("");
 
   const [jobs, setJobs] = useState([]);
+  const [leads, setLeads] = useState([]);
+
   const [loadingJobs, setLoadingJobs] = useState(true);
+  const [loadingLeads, setLoadingLeads] = useState(true);
   const [creating, setCreating] = useState(false);
   const [error, setError] = useState("");
 
+  const [isCreateOpen, setIsCreateOpen] = useState(false);
+
+  const searchParams = useSearchParams();
+  const prefillLeadId = searchParams.get("lead_id") || "";
+  const shouldOpenCreate = searchParams.get("open") === "create";
+
   const [form, setForm] = useState({
+    lead_id: prefillLeadId,
     title: "",
     description: "",
     status: "New",
     address: "",
   });
+
+  useEffect(() => {
+    if (prefillLeadId) {
+      setForm((prev) => ({
+        ...prev,
+        lead_id: prefillLeadId,
+      }));
+    }
+  }, [prefillLeadId]);
+
+  useEffect(() => {
+    if (shouldOpenCreate) {
+      setIsCreateOpen(true);
+    }
+  }, [shouldOpenCreate]);
 
   const queryString = useMemo(() => {
     const params = new URLSearchParams();
@@ -53,9 +85,22 @@ export default function JobsPage() {
     }
   }
 
+  async function loadLeads() {
+    setLoadingLeads(true);
+
+    try {
+      const data = await api("/leads?limit=200&offset=0");
+      setLeads(data.leads || []);
+    } catch (e) {
+      setError(e.message || "Failed to load leads");
+    } finally {
+      setLoadingLeads(false);
+    }
+  }
+
   async function refreshAll() {
     setError("");
-    await loadJobs();
+    await Promise.all([loadJobs(), loadLeads()]);
   }
 
   useEffect(() => {
@@ -73,13 +118,22 @@ export default function JobsPage() {
     setCreating(true);
     setError("");
 
+    console.log("start job create");
+
     try {
+      if (!form.lead_id.trim()) {
+        throw new Error("Please choose a lead.");
+      }
+
       const payload = {
+        lead_id: Number(form.lead_id),
         title: form.title.trim(),
         description: form.description.trim() || null,
         status: form.status || "New",
         address: form.address.trim() || null,
       };
+
+      console.log("this is the form lead id in the payload", payload.lead_id);
 
       const data = await api("/jobs", {
         method: "POST",
@@ -87,12 +141,14 @@ export default function JobsPage() {
       });
 
       setForm({
+        lead_id: "",
         title: "",
         description: "",
         status: "New",
         address: "",
       });
 
+      setIsCreateOpen(false);
       setJobs((prev) => [data.job, ...prev]);
     } catch (e) {
       setError(e.message || "Failed to create job");
@@ -106,19 +162,45 @@ export default function JobsPage() {
       <div className="space-y-6">
         {error ? <div className="text-sm text-red-500">{error}</div> : null}
 
-        {/* Create Job */}
-        <section className="bg-surface border-base rounded-lg border p-4">
-          <div className="mb-4">
-            <h2 className="text-base font-semibold">Create Job</h2>
-            <p className="text-muted mt-1 text-sm">
-              Start a new job workspace for work that needs to move through your pipeline.
-            </p>
-          </div>
-
+        <ToggleFormSection
+          title="Create Job"
+          description="Start a new job workspace tied to an existing lead."
+          isOpen={isCreateOpen}
+          onToggle={() => setIsCreateOpen((prev) => !prev)}
+          openLabel="+ New Job"
+          closeLabel="Hide Form"
+        >
           <form
             onSubmit={handleCreateJob}
             className="grid grid-cols-1 gap-4 md:grid-cols-2"
           >
+            <div className="md:col-span-2">
+              <label className="text-muted text-xs">Lead *</label>
+              <select
+                className="border-base bg-app mt-1 w-full rounded-md border px-3 py-2 text-sm"
+                value={form.lead_id}
+                onChange={(e) =>
+                  setForm((prev) => ({ ...prev, lead_id: e.target.value }))
+                }
+                disabled={loadingLeads || creating}
+                required
+              >
+                <option value="">
+                  {loadingLeads
+                    ? "Loading leads..."
+                    : leads.length
+                      ? "Select a lead..."
+                      : "No leads available"}
+                </option>
+
+                {leads.map((lead) => (
+                  <option key={lead.id} value={lead.id}>
+                    {getLeadLabel(lead)}
+                  </option>
+                ))}
+              </select>
+            </div>
+
             <div className="md:col-span-2">
               <label className="text-muted text-xs">Title</label>
               <input
@@ -173,16 +255,15 @@ export default function JobsPage() {
             <div className="flex justify-end md:col-span-2">
               <button
                 type="submit"
-                disabled={creating}
+                disabled={creating || loadingLeads}
                 className="border-base bg-surface hover:bg-accent-soft rounded-md border px-4 py-2 text-sm disabled:opacity-60"
               >
                 {creating ? "Creating..." : "Create Job"}
               </button>
             </div>
           </form>
-        </section>
+        </ToggleFormSection>
 
-        {/* Filters / Actions */}
         <section className="bg-surface border-base rounded-lg border p-4">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
             <div className="flex-1">
@@ -216,7 +297,7 @@ export default function JobsPage() {
               <button
                 className="border-base bg-surface hover:bg-accent-soft rounded-md border px-3 py-2 text-sm disabled:opacity-60"
                 onClick={refreshAll}
-                disabled={loadingJobs}
+                disabled={loadingJobs || loadingLeads}
               >
                 Refresh
               </button>
@@ -224,7 +305,6 @@ export default function JobsPage() {
           </div>
         </section>
 
-        {/* Table */}
         <section className="bg-surface border-base overflow-hidden rounded-lg border">
           <div className="border-base text-muted border-b p-4 text-sm">
             {loadingJobs
@@ -237,6 +317,7 @@ export default function JobsPage() {
               <thead className="bg-accent-soft">
                 <tr className="text-left">
                   <th className="px-4 py-3 font-medium">Title</th>
+                  <th className="px-4 py-3 font-medium">Lead</th>
                   <th className="px-4 py-3 font-medium">Status</th>
                   <th className="px-4 py-3 font-medium">Address</th>
                   <th className="px-4 py-3 font-medium">Created</th>
@@ -247,7 +328,7 @@ export default function JobsPage() {
               <tbody>
                 {!loadingJobs && jobs.length === 0 ? (
                   <tr className="border-base border-t">
-                    <td className="text-muted px-4 py-6" colSpan={5}>
+                    <td className="text-muted px-4 py-6" colSpan={6}>
                       No jobs found.
                     </td>
                   </tr>
@@ -262,6 +343,19 @@ export default function JobsPage() {
                         <div className="text-muted mt-1 text-xs">
                           {job.description || "—"}
                         </div>
+                      </td>
+
+                      <td className="px-4 py-3">
+                        {job.lead ? (
+                          <Link
+                            className="underline underline-offset-4 hover:opacity-80"
+                            href={`/leads/${job.lead.id}`}
+                          >
+                            {job.lead.name}
+                          </Link>
+                        ) : (
+                          <span className="text-muted">—</span>
+                        )}
                       </td>
 
                       <td className="px-4 py-3">

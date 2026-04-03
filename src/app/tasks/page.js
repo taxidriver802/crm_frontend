@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { AppShell } from "@/components/app-shell";
 import { api } from "@/lib/api";
-import { formatDue } from "@/lib/helper";
+import { formatDue, getLinkedEntity, LinkedEntityCell } from "@/lib/helper";
 
 export default function TasksPage() {
   const [summary, setSummary] = useState(null);
@@ -13,10 +13,10 @@ export default function TasksPage() {
   const [loadingTasks, setLoadingTasks] = useState(true);
   const [error, setError] = useState("");
 
-  // Filters
   const [title, setTitle] = useState("");
   const [status, setStatus] = useState("");
   const [leadId, setLeadId] = useState("");
+  const [jobId, setJobId] = useState("");
 
   const queryString = useMemo(() => {
     const params = new URLSearchParams();
@@ -27,6 +27,10 @@ export default function TasksPage() {
 
     if (leadId.trim()) {
       params.set("leadId", leadId.trim());
+    }
+
+    if (jobId.trim()) {
+      params.set("jobId", jobId.trim());
     }
 
     if (title.trim()) {
@@ -96,7 +100,6 @@ export default function TasksPage() {
       <div className="space-y-6">
         {error ? <div className="text-sm text-red-500">{error}</div> : null}
 
-        {/* Buckets */}
         <section className="grid grid-cols-1 gap-4 md:grid-cols-3">
           <Bucket
             title="Overdue"
@@ -121,7 +124,6 @@ export default function TasksPage() {
           />
         </section>
 
-        {/* Filters */}
         <section className="bg-surface border-base rounded-lg border p-4">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
             <div className="w-full sm:w-56">
@@ -165,7 +167,6 @@ export default function TasksPage() {
           </div>
         </section>
 
-        {/* Table */}
         <section className="bg-surface border-base overflow-hidden rounded-lg border">
           <div className="border-base text-muted border-b p-4 text-sm">
             {loadingTasks
@@ -178,7 +179,7 @@ export default function TasksPage() {
               <thead className="bg-accent-soft">
                 <tr className="text-left">
                   <th className="px-4 py-3 font-medium">Title</th>
-                  <th className="px-4 py-3 font-medium">Lead</th>
+                  <th className="px-4 py-3 font-medium">Linked To</th>
                   <th className="px-4 py-3 font-medium">Due</th>
                   <th className="px-4 py-3 font-medium">Status</th>
                   <th className="px-4 py-3 text-right font-medium">Action</th>
@@ -210,14 +211,7 @@ export default function TasksPage() {
                       </td>
 
                       <td className="px-4 py-3">
-                        <Link
-                          className="underline underline-offset-4 hover:opacity-80"
-                          href={`/leads/${t.lead_id}`}
-                        >
-                          {t.lead_first_name && t.lead_last_name
-                            ? `${t.lead_first_name} ${t.lead_last_name}`
-                            : `Lead #${t.lead_id}`}
-                        </Link>
+                        <LinkedEntityCell task={t} />
                       </td>
 
                       <td className="px-4 py-3">{formatDue(t.due_date)}</td>
@@ -298,31 +292,31 @@ function Bucket({ title, tone, loading, items, onComplete }) {
         ) : items.length === 0 ? (
           <div className="text-muted text-sm">None</div>
         ) : (
-          items.map((t) => (
-            <div key={t.id} className="border-base bg-surface rounded-lg border p-3">
-              <div className="flex items-start justify-between gap-3">
-                <div>
-                  <div className="font-medium">{t.title}</div>
-                  <div className="text-muted text-sm">
-                    {(t.lead_first_name && t.lead_last_name
-                      ? `${t.lead_first_name} ${t.lead_last_name}`
-                      : `Lead #${t.lead_id}`) +
-                      " • " +
-                      formatDue(t.due_date)}
-                  </div>
-                </div>
+          items.map((t) => {
+            const linked = getLinkedEntity(t);
 
-                {t.status !== "Completed" ? (
-                  <button
-                    className="border-base bg-surface hover:bg-accent-soft shrink-0 rounded-md border px-3 py-2 text-xs"
-                    onClick={() => onComplete(t.id)}
-                  >
-                    Done
-                  </button>
-                ) : null}
+            return (
+              <div key={t.id} className="border-base bg-surface rounded-lg border p-3">
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <div className="font-medium">{t.title}</div>
+                    <div className="text-muted text-sm">
+                      {linked.label} • {formatDue(t.due_date)}
+                    </div>
+                  </div>
+
+                  {t.status !== "Completed" ? (
+                    <button
+                      className="border-base bg-surface hover:bg-accent-soft shrink-0 rounded-md border px-3 py-2 text-xs"
+                      onClick={() => onComplete(t.id)}
+                    >
+                      Done
+                    </button>
+                  ) : null}
+                </div>
               </div>
-            </div>
-          ))
+            );
+          })
         )}
       </div>
     </div>

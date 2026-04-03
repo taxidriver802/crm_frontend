@@ -11,6 +11,7 @@ import {
   formatDate,
   formatDue,
   isPreviewableFile,
+  getLinkedEntity,
 } from "@/lib/helper";
 import { FilePreviewModal } from "@/components/file-preview-modal";
 
@@ -174,7 +175,7 @@ export default function TaskDetailPage() {
     let cancelled = false;
 
     async function loadFiles() {
-      if (!task?.lead_id) {
+      if (!task?.lead_id && !task?.job_id) {
         setFiles([]);
         setFilesError("");
         return;
@@ -184,15 +185,22 @@ export default function TaskDetailPage() {
         setLoadingFiles(true);
         setFilesError("");
 
-        const res = await api(`/files?lead_id=${task.lead_id}`);
+        let res = null;
+
+        if (task.job_id) {
+          res = await api(`/files?job_id=${task.job_id}`);
+        } else if (task.lead_id) {
+          res = await api(`/files?lead_id=${task.lead_id}`);
+        }
+
         if (cancelled) return;
 
         setFiles(res?.files || []);
       } catch (e) {
         if (cancelled) return;
-        console.error("Failed to load lead files", e);
+        console.error("Failed to load related files", e);
         setFiles([]);
-        setFilesError(e?.message || "Failed to load lead files");
+        setFilesError(e?.message || "Failed to load related files");
       } finally {
         if (!cancelled) setLoadingFiles(false);
       }
@@ -203,7 +211,7 @@ export default function TaskDetailPage() {
     return () => {
       cancelled = true;
     };
-  }, [task?.lead_id]);
+  }, [task]);
 
   async function refreshTask() {
     const res = await api(`/tasks/${id}`);
@@ -301,6 +309,7 @@ export default function TaskDetailPage() {
   const recentFiles = useMemo(() => files.slice(0, 5), [files]);
 
   const canManageFiles = currentUser?.role === "owner" || currentUser?.role === "admin";
+  const linked = getLinkedEntity(task);
 
   return (
     <AppShell title={`Task #${id}`}>
@@ -320,20 +329,18 @@ export default function TaskDetailPage() {
                   <div className="text-2xl font-semibold">{task.title}</div>
 
                   <div className="text-muted-foreground mt-2 text-sm">
-                    {task.lead_id ? (
+                    {linked.href ? (
                       <>
-                        Related lead:{" "}
+                        Related {linked.kind.toLowerCase()}:{" "}
                         <Link
-                          href={`/leads/${task.lead_id}`}
+                          href={linked.href}
                           className="underline underline-offset-4 hover:opacity-80"
                         >
-                          {task.lead_first_name && task.lead_last_name
-                            ? `${task.lead_first_name} ${task.lead_last_name}`
-                            : `Lead #${task.lead_id}`}
+                          {linked.label}
                         </Link>
                       </>
                     ) : (
-                      "No lead linked"
+                      "No context linked"
                     )}
                   </div>
                 </div>
@@ -405,7 +412,14 @@ export default function TaskDetailPage() {
                 href={`/leads/${task.lead_id}`}
                 className="hover:bg-accent-soft rounded-md border px-3 py-2 text-sm"
               >
-                View lead
+                View related lead
+              </Link>
+            ) : task.job_id ? (
+              <Link
+                href={`/jobs/${task.job_id}`}
+                className="hover:bg-accent-soft rounded-md border px-3 py-2 text-sm"
+              >
+                View related job
               </Link>
             ) : null}
 
@@ -451,82 +465,107 @@ export default function TaskDetailPage() {
         ) : null}
 
         <section className="grid gap-4 xl:grid-cols-[0.95fr_1.05fr]">
-          <div className="bg-surface border-base rounded-lg border p-4">
-            <div className="mb-3">
-              <h2 className="text-lg font-semibold">Lead Snapshot</h2>
-              <p className="text-muted-foreground mt-1 text-sm">
-                Quick context for doing the work tied to this task.
-              </p>
-            </div>
-
-            {!task?.lead_id ? (
-              <div className="text-muted-foreground text-sm">
-                No lead linked to this task.
+          {task?.lead && (
+            <div className="bg-surface border-base rounded-lg border p-4">
+              <div className="mb-3">
+                <h2 className="text-lg font-semibold">Lead Snapshot</h2>
+                <p className="text-muted-foreground mt-1 text-sm">
+                  Quick context for doing the work tied to this task.
+                </p>
               </div>
-            ) : loadingLead ? (
-              <div className="text-muted-foreground text-sm">Loading lead details…</div>
-            ) : leadError ? (
-              <div className="text-sm text-red-500">{leadError}</div>
-            ) : !lead ? (
-              <div className="text-muted-foreground text-sm">
-                Lead details unavailable.
-              </div>
-            ) : (
-              <div className="space-y-3 text-sm">
-                <div>
-                  <div className="text-muted-foreground text-xs">Name</div>
-                  <div className="mt-1 font-medium">
-                    {lead.first_name} {lead.last_name}
-                  </div>
+
+              {!task?.lead_id ? (
+                <div className="text-muted-foreground text-sm">
+                  No lead linked to this task.
                 </div>
-
-                <div>
-                  <div className="text-muted-foreground text-xs">Contact</div>
-                  <div className="mt-1">
-                    {lead.email || "—"}
-                    {lead.phone ? ` • ${lead.phone}` : ""}
-                  </div>
+              ) : loadingLead ? (
+                <div className="text-muted-foreground text-sm">Loading lead details…</div>
+              ) : leadError ? (
+                <div className="text-sm text-red-500">{leadError}</div>
+              ) : !lead ? (
+                <div className="text-muted-foreground text-sm">
+                  Lead details unavailable.
                 </div>
+              ) : (
+                <div className="space-y-3 text-sm">
+                  <div>
+                    <div className="text-muted-foreground text-xs">Name</div>
+                    <div className="mt-1 font-medium">
+                      {lead.first_name} {lead.last_name}
+                    </div>
+                  </div>
 
-                <div className="flex flex-wrap gap-2 pt-1">
-                  <span className="inline-flex items-center rounded-full border px-2 py-0.5 text-xs">
-                    {lead.status ?? "—"}
-                  </span>
+                  <div>
+                    <div className="text-muted-foreground text-xs">Contact</div>
+                    <div className="mt-1">
+                      {lead.email || "—"}
+                      {lead.phone ? ` • ${lead.phone}` : ""}
+                    </div>
+                  </div>
 
-                  {lead.source ? (
+                  <div className="flex flex-wrap gap-2 pt-1">
                     <span className="inline-flex items-center rounded-full border px-2 py-0.5 text-xs">
-                      Source: {lead.source}
+                      {lead.status ?? "—"}
                     </span>
+
+                    {lead.source ? (
+                      <span className="inline-flex items-center rounded-full border px-2 py-0.5 text-xs">
+                        Source: {lead.source}
+                      </span>
+                    ) : null}
+                  </div>
+
+                  {lead.notes ? (
+                    <div>
+                      <div className="text-muted-foreground text-xs">Notes</div>
+                      <div className="mt-1 whitespace-pre-wrap text-sm">{lead.notes}</div>
+                    </div>
                   ) : null}
                 </div>
+              )}
+            </div>
+          )}
 
-                {lead.notes ? (
+          {task?.job && (
+            <div className="bg-surface border-base rounded-lg border p-4">
+              <h2 className="text-lg font-semibold">Job Snapshot</h2>
+
+              <div className="mt-3 space-y-3 text-sm">
+                <div>
+                  <div className="text-muted-foreground text-xs">Title</div>
+                  <div className="mt-1 font-medium">{task.job.title}</div>
+                </div>
+
+                {task.job.address && (
                   <div>
-                    <div className="text-muted-foreground text-xs">Notes</div>
-                    <div className="mt-1 whitespace-pre-wrap text-sm">{lead.notes}</div>
+                    <div className="text-muted-foreground text-xs">Address</div>
+                    <div className="mt-1">{task.job.address}</div>
                   </div>
-                ) : null}
+                )}
+
+                {task.job.status && (
+                  <div>
+                    <div className="text-muted-foreground text-xs">Status</div>
+                    <div className="mt-1">{task.job.status}</div>
+                  </div>
+                )}
               </div>
-            )}
-          </div>
+            </div>
+          )}
 
           <div className="bg-surface border-base rounded-lg border">
             <div className="border-base flex items-center justify-between border-b p-4">
               <div>
-                <h2 className="text-lg font-semibold">Lead Files</h2>
+                <h2 className="text-lg font-semibold">Related Files</h2>
                 <p className="text-muted-foreground mt-1 text-sm">
-                  Recent files connected to this task’s lead.
+                  Recent files connected to this task.
                 </p>
               </div>
 
-              {task?.lead_id ? (
-                <Link
-                  href={`/leads/${task.lead_id}`}
-                  className="hover:bg-accent-soft rounded-md border px-3 py-2 text-sm"
-                >
-                  Open lead
-                </Link>
-              ) : null}
+              <div className="flex gap-2">
+                {task?.lead && <Link href={`/leads/${task.lead.id}`}>Open lead</Link>}
+                {task?.job && <Link href={`/jobs/${task.job.id}`}>Open job</Link>}
+              </div>
             </div>
 
             <div className="p-4">
@@ -536,7 +575,7 @@ export default function TaskDetailPage() {
                 <div className="text-sm text-red-500">{filesError}</div>
               ) : recentFiles.length === 0 ? (
                 <div className="text-muted-foreground rounded-lg border border-dashed p-4 text-sm">
-                  No lead files available for this task yet.
+                  No files available for this task yet.
                 </div>
               ) : (
                 <div className="space-y-3">

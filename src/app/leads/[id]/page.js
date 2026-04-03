@@ -43,6 +43,10 @@ export default function LeadDetailPage() {
   const { id } = useParams();
   const router = useRouter();
 
+  const [jobs, setJobs] = useState([]);
+  const [loadingJobs, setLoadingJobs] = useState(true);
+  const [jobsError, setJobsError] = useState("");
+
   const [lead, setLead] = useState(null);
   const [tasks, setTasks] = useState([]);
   const [files, setFiles] = useState([]);
@@ -129,11 +133,30 @@ export default function LeadDetailPage() {
       }
     }
 
+    async function loadLeadJobs() {
+      try {
+        setLoadingJobs(true);
+        setJobsError("");
+
+        const res = await api(`/jobs?leadId=${id}&limit=50&offset=0`);
+        if (!alive) return;
+
+        setJobs(res.jobs || []);
+      } catch (e) {
+        if (!alive) return;
+        setJobsError(e?.message || "Failed to load jobs");
+      } finally {
+        if (!alive) return;
+        setLoadingJobs(false);
+      }
+    }
+
     if (id) {
       loadCurrentUser();
       loadLead();
       loadLeadTasks();
       loadLeadFiles();
+      loadLeadJobs();
     }
 
     return () => {
@@ -301,6 +324,30 @@ export default function LeadDetailPage() {
           )}
         </div>
 
+        <div className="flex flex-row justify-between gap-2">
+          <div className="flex flex-wrap gap-2">
+            {/* <Link
+              href={`/tasks/new?lead_id=${id}`}
+              className="hover:bg-accent-soft rounded-md border px-3 py-2 text-sm"
+            >
+              + Create task for this lead
+            </Link>
+ */}
+            <button
+              className="hover:bg-accent-soft rounded-md border px-3 py-2 text-sm"
+              onClick={() => router.push("/leads")}
+            >
+              Back to leads
+            </button>
+          </div>
+          <Link
+            href={`/leads/${id}/edit`}
+            className="hover:bg-accent-soft max-w-[50px] rounded-md border px-3 py-2 text-sm sm:max-w-none"
+          >
+            Edit
+          </Link>
+        </div>
+
         <section className="grid gap-3 sm:grid-cols-3">
           <div className="bg-surface border-base rounded-lg border p-4">
             <div className="text-muted text-xs">Open tasks</div>
@@ -318,30 +365,56 @@ export default function LeadDetailPage() {
           </div>
         </section>
 
-        <div className="flex flex-col gap-2 sm:flex-row sm:justify-between">
-          <div className="flex flex-wrap gap-2">
-            <Link
-              href={`/tasks/new?lead_id=${id}`}
-              className="hover:bg-accent-soft rounded-md border px-3 py-2 text-sm"
-            >
-              + Create task for this lead
-            </Link>
+        <section className="bg-surface border-base rounded-lg border">
+          <div className="border-base flex items-center justify-between border-b p-4">
+            <div>
+              <h2 className="text-lg font-semibold">Jobs</h2>
+              <p className="text-muted-foreground mt-1 text-sm">
+                Workspaces tied to this lead.
+              </p>
+            </div>
 
             <Link
-              href={`/leads/${id}/edit`}
+              href={`/jobs?lead_id=${id}&open=create`}
               className="hover:bg-accent-soft rounded-md border px-3 py-2 text-sm"
             >
-              Edit
+              + New job
             </Link>
           </div>
 
-          <button
-            className="hover:bg-accent-soft rounded-md border px-3 py-2 text-sm"
-            onClick={() => router.push("/leads")}
-          >
-            Back to leads
-          </button>
-        </div>
+          <div className="space-y-3 p-4">
+            {jobsError ? (
+              <div className="text-sm text-red-500">{jobsError}</div>
+            ) : loadingJobs ? (
+              <div className="text-muted-foreground text-sm">Loading jobs…</div>
+            ) : jobs.length === 0 ? (
+              <div className="text-muted-foreground rounded-lg border border-dashed p-4 text-sm">
+                No jobs for this lead yet.
+              </div>
+            ) : (
+              jobs.map((job) => (
+                <Link
+                  key={job.id}
+                  href={`/jobs/${job.id}`}
+                  className="hover:bg-accent-soft block rounded-lg border p-3 transition"
+                >
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <div className="font-medium">{job.title}</div>
+                      <div className="text-muted-foreground text-sm">
+                        {job.address ?? "—"}
+                      </div>
+                    </div>
+
+                    <span className="border-base bg-surface inline-flex items-center rounded-full border px-2 py-0.5 text-xs">
+                      {job.status}
+                    </span>
+                  </div>
+                </Link>
+              ))
+            )}
+          </div>
+        </section>
 
         <section className="grid gap-4 xl:grid-cols-[1.2fr_0.8fr]">
           <div className="bg-surface border-base rounded-lg border">

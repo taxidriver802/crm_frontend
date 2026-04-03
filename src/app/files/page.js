@@ -97,7 +97,7 @@ export default function FilesPage() {
   const counts = useMemo(() => {
     return {
       total: files.length,
-      general: files.filter((f) => !f.lead_id && !f.task_id).length,
+      general: files.filter((f) => !f.lead_id && !f.job_id).length,
       leadLinked: files.filter((f) => !!f.lead_id).length,
       jobLinked: files.filter((f) => !!f.job_id).length,
     };
@@ -105,7 +105,7 @@ export default function FilesPage() {
 
   const filteredFiles = useMemo(() => {
     return files.filter((file) => {
-      if (scopeFilter === "general" && (file.lead_id || file.task_id)) {
+      if (scopeFilter === "general" && (file.lead_id || file.job_id)) {
         return false;
       }
 

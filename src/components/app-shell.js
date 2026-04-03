@@ -6,21 +6,23 @@ import { usePathname, useRouter } from "next/navigation";
 import { useTheme } from "next-themes";
 
 import { useToast } from "./toast-provider";
-
 import { InviteUserModal } from "@/components/invite-user-modal";
 
 import MainLogo from "@/assets/mainlogo.svg";
 import { api } from "@/lib/api";
 
-const BASE_NAV = [
+const WORKFLOW_NAV = [
   { href: "/dashboard", label: "Dashboard", priority: "primary" },
   { href: "/leads", label: "Leads", priority: "primary" },
-  { href: "/tasks", label: "Tasks", priority: "primary" },
   { href: "/jobs", label: "Jobs", priority: "primary" },
+  { href: "/tasks", label: "Tasks", priority: "primary" },
+];
+
+const SYSTEM_NAV = [
+  { href: "/files", label: "Files", priority: "secondary" },
   { href: "/integrations", label: "Integrations", priority: "secondary" },
 ];
 
-const FILES_NAV = { href: "/files", label: "Files", priority: "secondary" };
 const USERS_NAV = { href: "/users", label: "Users", priority: "secondary" };
 
 function cx(...classes) {
@@ -60,6 +62,10 @@ function getNotificationHref(notification) {
     return `/leads/${notification.entity_id}`;
   }
 
+  if (notification.entity_type === "job" && notification.entity_id) {
+    return `/jobs/${notification.entity_id}`;
+  }
+
   return null;
 }
 
@@ -88,7 +94,7 @@ export function AppShell({ children, title, right }) {
     const interval = setInterval(() => {
       loadUnreadCount();
       loadNotifications();
-    }, 30000); // every 30s
+    }, 30000);
 
     return () => clearInterval(interval);
   }, []);
@@ -135,7 +141,6 @@ export function AppShell({ children, title, right }) {
 
       const newNotifications = data?.notifications ?? [];
 
-      // 🔥 detect new ones
       const newItems = newNotifications.filter(
         (n) => !prevNotifications.some((p) => p.id === n.id),
       );
@@ -264,19 +269,6 @@ export function AppShell({ children, title, right }) {
     }
   }
 
-  const isAdminUser = user?.role === "owner" || user?.role === "admin";
-
-  const navItems = useMemo(() => {
-    return isAdminUser ? [...BASE_NAV, USERS_NAV, FILES_NAV] : [...BASE_NAV, FILES_NAV];
-  }, [isAdminUser]);
-
-  const primaryNavItems = navItems.filter((item) => item.priority === "primary");
-  const secondaryNavItems = navItems.filter((item) => item.priority === "secondary");
-
-  const moreMenuHasActiveItem = secondaryNavItems.some((item) =>
-    isActivePath(pathname, item.href),
-  );
-
   async function handleClearRead() {
     try {
       await api("/notifications/read", {
@@ -290,6 +282,21 @@ export function AppShell({ children, title, right }) {
     }
   }
 
+  const isAdminUser = user?.role === "owner" || user?.role === "admin";
+
+  const navItems = useMemo(() => {
+    return isAdminUser
+      ? [...WORKFLOW_NAV, ...SYSTEM_NAV, USERS_NAV]
+      : [...WORKFLOW_NAV, ...SYSTEM_NAV];
+  }, [isAdminUser]);
+
+  const primaryNavItems = navItems.filter((item) => item.priority === "primary");
+  const secondaryNavItems = navItems.filter((item) => item.priority === "secondary");
+
+  const moreMenuHasActiveItem = secondaryNavItems.some((item) =>
+    isActivePath(pathname, item.href),
+  );
+
   const hasReadNotifications = notifications.some((n) => n.read_at);
 
   return (
@@ -302,7 +309,7 @@ export function AppShell({ children, title, right }) {
             </Link>
 
             <nav className={s.navDesktopWide}>
-              {navItems.map((item) => {
+              {primaryNavItems.map((item) => {
                 const active = isActivePath(pathname, item.href);
 
                 return (
@@ -318,6 +325,43 @@ export function AppShell({ children, title, right }) {
                   </Link>
                 );
               })}
+
+              {secondaryNavItems.length > 0 && (
+                <div className="more-menu relative">
+                  <button
+                    type="button"
+                    onClick={() => setMoreOpen((prev) => !prev)}
+                    aria-expanded={moreOpen}
+                    className={cx(
+                      s.navItem,
+                      moreMenuHasActiveItem ? s.navItemActive : s.navItemInactive,
+                    )}
+                  >
+                    Tools ▾
+                  </button>
+
+                  {moreOpen && (
+                    <div className={s.dropdown}>
+                      {secondaryNavItems.map((item) => {
+                        const active = isActivePath(pathname, item.href);
+
+                        return (
+                          <Link
+                            key={item.href}
+                            href={item.href}
+                            className={cx(
+                              s.dropdownItem,
+                              active ? "bg-accent-soft" : "hover:bg-muted",
+                            )}
+                          >
+                            {item.label}
+                          </Link>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+              )}
             </nav>
 
             <nav className={s.navDesktopMedium}>
@@ -349,7 +393,7 @@ export function AppShell({ children, title, right }) {
                       moreMenuHasActiveItem ? s.navItemActive : s.navItemInactive,
                     )}
                   >
-                    More ▾
+                    Tools ▾
                   </button>
 
                   {moreOpen && (
@@ -551,7 +595,8 @@ export function AppShell({ children, title, right }) {
         {mobileMenuOpen && (
           <div className={s.mobileMenuWrap}>
             <nav className={s.mobileMenu}>
-              {navItems.map((item) => {
+              <div className={s.mobileSectionLabel}>Workflow</div>
+              {primaryNavItems.map((item) => {
                 const active = isActivePath(pathname, item.href);
 
                 return (
@@ -568,33 +613,58 @@ export function AppShell({ children, title, right }) {
                 );
               })}
 
-              <div className="border-base mt-2 border-t pt-2">
-                {isAdminUser && (
-                  <button
-                    onClick={() => {
-                      setMobileMenuOpen(false);
-                      setInviteModalOpen(true);
-                    }}
-                    className="hover:bg-accent-soft block w-full rounded-md px-3 py-2 text-left text-sm"
-                  >
-                    Invite User
-                  </button>
-                )}
+              {secondaryNavItems.length > 0 && (
+                <>
+                  <div className={s.mobileSectionDivider} />
+                  <div className={s.mobileSectionLabel}>Tools</div>
 
+                  {secondaryNavItems.map((item) => {
+                    const active = isActivePath(pathname, item.href);
+
+                    return (
+                      <Link
+                        key={item.href}
+                        href={item.href}
+                        className={cx(
+                          s.mobileNavItem,
+                          active ? s.navItemActive : s.navItemInactive,
+                        )}
+                      >
+                        {item.label}
+                      </Link>
+                    );
+                  })}
+                </>
+              )}
+
+              <div className={s.mobileSectionDivider} />
+              <div className={s.mobileSectionLabel}>Account</div>
+
+              {isAdminUser && (
                 <button
-                  onClick={handleToggleTheme}
+                  onClick={() => {
+                    setMobileMenuOpen(false);
+                    setInviteModalOpen(true);
+                  }}
                   className="hover:bg-accent-soft block w-full rounded-md px-3 py-2 text-left text-sm"
                 >
-                  Toggle Theme
+                  Invite User
                 </button>
+              )}
 
-                <button
-                  onClick={handleLogout}
-                  className="hover:bg-accent-soft block w-full rounded-md px-3 py-2 text-left text-sm text-red-500"
-                >
-                  Log out
-                </button>
-              </div>
+              <button
+                onClick={handleToggleTheme}
+                className="hover:bg-accent-soft block w-full rounded-md px-3 py-2 text-left text-sm"
+              >
+                Toggle Theme
+              </button>
+
+              <button
+                onClick={handleLogout}
+                className="hover:bg-accent-soft block w-full rounded-md px-3 py-2 text-left text-sm text-red-500"
+              >
+                Log out
+              </button>
             </nav>
           </div>
         )}
@@ -615,7 +685,8 @@ export function AppShell({ children, title, right }) {
 const s = {
   app: "min-h-screen bg-app text-main",
 
-  header: "sticky top-0 z-20 border-b border-base bg-surface",
+  header:
+    "sticky top-0 z-20 border-b border-base bg-surface/95 backdrop-blur supports-[backdrop-filter]:bg-surface/80",
   headerInner: "mx-auto flex max-w-6xl items-center justify-between gap-3 px-4 py-3",
 
   left: "flex min-w-0 items-center gap-3 lg:gap-6",
@@ -625,7 +696,7 @@ const s = {
   navDesktopMedium: "hidden items-center gap-2 md:flex xl:hidden",
 
   navItem: "whitespace-nowrap rounded-md px-3 py-2 text-sm transition",
-  navItemActive: "bg-accent-soft",
+  navItemActive: "bg-accent-soft text-main",
   navItemInactive: "text-muted hover:bg-accent-soft",
 
   right: "flex shrink-0 items-center gap-2",
@@ -666,6 +737,9 @@ const s = {
   mobileMenuWrap: "border-t border-base px-4 pb-3 md:hidden",
   mobileMenu: "mx-auto flex max-w-6xl flex-col gap-2 pt-3",
   mobileNavItem: "rounded-md px-3 py-2 text-sm transition",
+  mobileSectionLabel:
+    "px-3 pt-1 text-[11px] font-semibold uppercase tracking-wide text-muted",
+  mobileSectionDivider: "border-base mt-2 border-t pt-2",
 
   main: "mx-auto max-w-6xl px-4 py-6",
   mainInner: "space-y-6",
