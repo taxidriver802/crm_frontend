@@ -344,6 +344,7 @@ export function AppShell({ children, title, right }) {
                     <div className={s.dropdown}>
                       {secondaryNavItems.map((item) => {
                         const active = isActivePath(pathname, item.href);
+                        console.log(active, pathname, item.href);
 
                         return (
                           <Link
@@ -351,7 +352,7 @@ export function AppShell({ children, title, right }) {
                             href={item.href}
                             className={cx(
                               s.dropdownItem,
-                              active ? "bg-accent-soft" : "hover:bg-muted",
+                              active ? "bg-accent" : "hover:bg-muted",
                             )}
                           >
                             {item.label}

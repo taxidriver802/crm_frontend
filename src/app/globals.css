@@ -91,4 +91,8 @@
   .bg-accent {
     background: color-mix(in srgb, var(--accent) 15%, transparent);
   }
+
+  .bg-muted {
+    background: var(--muted);
+  }
 }
