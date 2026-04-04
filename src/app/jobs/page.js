@@ -118,8 +118,6 @@ export default function JobsPage() {
     setCreating(true);
     setError("");
 
-    console.log("start job create");
-
     try {
       if (!form.lead_id.trim()) {
         throw new Error("Please choose a lead.");
@@ -132,8 +130,6 @@ export default function JobsPage() {
         status: form.status || "New",
         address: form.address.trim() || null,
       };
-
-      console.log("this is the form lead id in the payload", payload.lead_id);
 
       const data = await api("/jobs", {
         method: "POST",

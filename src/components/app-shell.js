@@ -344,7 +344,6 @@ export function AppShell({ children, title, right }) {
                     <div className={s.dropdown}>
                       {secondaryNavItems.map((item) => {
                         const active = isActivePath(pathname, item.href);
-                        console.log(active, pathname, item.href);
 
                         return (
                           <Link

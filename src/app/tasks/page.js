@@ -15,6 +15,7 @@ export default function TasksPage() {
 
   const [title, setTitle] = useState("");
   const [status, setStatus] = useState("");
+  const [linkedFilter, setLinkedFilter] = useState("");
   const [leadId, setLeadId] = useState("");
   const [jobId, setJobId] = useState("");
 
@@ -23,6 +24,10 @@ export default function TasksPage() {
 
     if (status && status !== "All") {
       params.set("status", status);
+    }
+
+    if (linkedFilter && linkedFilter !== "All") {
+      params.set("linkedTo", linkedFilter);
     }
 
     if (leadId.trim()) {
@@ -41,8 +46,9 @@ export default function TasksPage() {
     params.set("offset", "0");
 
     const s = params.toString();
+
     return s ? `?${s}` : "";
-  }, [status, leadId, title]);
+  }, [status, linkedFilter, leadId, jobId, title]);
 
   async function loadSummary() {
     setLoadingSummary(true);
@@ -139,6 +145,21 @@ export default function TasksPage() {
               </select>
             </div>
 
+            <div className="w-full sm:w-56">
+              <label className="text-muted text-xs">Linked To</label>
+              <select
+                className="border-base bg-app mt-1 w-full rounded-md border px-3 py-2 text-sm"
+                value={linkedFilter}
+                onChange={(e) => {
+                  setLinkedFilter(e.target.value);
+                }}
+              >
+                <option value="">All</option>
+                <option value="job">Job</option>
+                <option value="lead">Lead</option>
+              </select>
+            </div>
+
             <div className="flex-1">
               <label className="text-muted text-xs">Title</label>
               <input
@@ -152,12 +173,12 @@ export default function TasksPage() {
             <div className="flex gap-2">
               <Link
                 href="/tasks/new"
-                className="border-base bg-surface hover:bg-accent-soft rounded-md border px-3 py-2 text-sm"
+                className="border-base bg-surface hover:bg-accent rounded-md border px-3 py-2 text-sm"
               >
                 New Task
               </Link>
               <button
-                className="border-base bg-surface hover:bg-accent-soft rounded-md border px-3 py-2 text-sm"
+                className="border-base bg-surface hover:bg-accent rounded-md border px-3 py-2 text-sm"
                 onClick={refreshAll}
                 disabled={loadingSummary || loadingTasks}
               >
@@ -176,7 +197,7 @@ export default function TasksPage() {
 
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
-              <thead className="bg-accent-soft">
+              <thead className="bg-accent">
                 <tr className="text-left">
                   <th className="px-4 py-3 font-medium">Title</th>
                   <th className="px-4 py-3 font-medium">Linked To</th>
@@ -190,14 +211,14 @@ export default function TasksPage() {
                 {!loadingTasks && tasks.length === 0 ? (
                   <tr className="border-base border-t">
                     <td className="text-muted px-4 py-6" colSpan={5}>
-                      No tasks found.
+                      No tasks found. Try adjusting filters or create a new task.
                     </td>
                   </tr>
                 ) : (
                   tasks.map((t) => (
                     <tr
                       key={t.id}
-                      className="border-base hover:bg-accent-soft border-t transition"
+                      className="border-base hover:bg-accent border-t transition"
                     >
                       <td className="px-4 py-3">
                         <Link href={`/tasks/${t.id}`} className="block hover:opacity-80">
@@ -226,28 +247,28 @@ export default function TasksPage() {
                         <div className="flex justify-end gap-2">
                           <Link
                             href={`/tasks/${t.id}`}
-                            className="border-base bg-surface hover:bg-accent-soft rounded-md border px-3 py-2 text-xs"
+                            className="border-base bg-surface hover:bg-accent rounded-md border px-3 py-2 text-xs"
                           >
                             View
                           </Link>
 
                           <Link
                             href={`/tasks/${t.id}/edit`}
-                            className="border-base bg-surface hover:bg-accent-soft rounded-md border px-3 py-2 text-xs"
+                            className="border-base bg-surface hover:bg-accent rounded-md border px-3 py-2 text-xs"
                           >
                             Edit
                           </Link>
 
                           {t.status === "Completed" ? (
                             <button
-                              className="border-base bg-surface hover:bg-accent-soft rounded-md border px-3 py-2 text-xs"
+                              className="border-base bg-surface hover:bg-accent rounded-md border px-3 py-2 text-xs"
                               onClick={() => setTaskStatus(t.id, "Pending")}
                             >
                               Mark pending
                             </button>
                           ) : (
                             <button
-                              className="border-base bg-surface hover:bg-accent-soft rounded-md border px-3 py-2 text-xs"
+                              className="border-base bg-surface hover:bg-accent rounded-md border px-3 py-2 text-xs"
                               onClick={() => setTaskStatus(t.id, "Completed")}
                             >
                               Mark completed
@@ -307,7 +328,7 @@ function Bucket({ title, tone, loading, items, onComplete }) {
 
                   {t.status !== "Completed" ? (
                     <button
-                      className="border-base bg-surface hover:bg-accent-soft shrink-0 rounded-md border px-3 py-2 text-xs"
+                      className="border-base bg-surface hover:bg-accent shrink-0 rounded-md border px-3 py-2 text-xs"
                       onClick={() => onComplete(t.id)}
                     >
                       Done
