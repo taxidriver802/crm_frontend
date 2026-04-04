@@ -44,6 +44,10 @@ export default function JobDetailPage() {
   const [loadingTasks, setLoadingTasks] = useState(true);
   const [creatingTask, setCreatingTask] = useState(false);
 
+  const [lead, setLead] = useState(null);
+  const [loadingLead, setLoadingLead] = useState(false);
+  const [leadError, setLeadError] = useState("");
+
   const [error, setError] = useState(null);
   const [updatingStatus, setUpdatingStatus] = useState(null);
 
@@ -233,6 +237,41 @@ export default function JobDetailPage() {
   const canManageFiles = currentUser?.role === "owner" || currentUser?.role === "admin";
 
   useEffect(() => {
+    let cancelled = false;
+
+    async function loadLead() {
+      if (!job?.lead_id) {
+        setLead(null);
+        setLeadError("");
+        return;
+      }
+
+      try {
+        setLoadingLead(true);
+        setLeadError("");
+
+        const res = await api(`/leads/${job.lead_id}`);
+        if (cancelled) return;
+
+        setLead(res?.lead ?? res ?? null);
+      } catch (e) {
+        if (cancelled) return;
+        console.error("Failed to load related lead", e);
+        setLead(null);
+        setLeadError(e?.message || "Failed to load related lead");
+      } finally {
+        if (!cancelled) setLoadingLead(false);
+      }
+    }
+
+    loadLead();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [job?.lead_id]);
+
+  useEffect(() => {
     let alive = true;
 
     async function loadCurrentUser() {
@@ -276,7 +315,20 @@ export default function JobDetailPage() {
               <div className="flex items-start justify-between gap-3">
                 <div>
                   <h2 className="text-lg font-medium">Job description</h2>
-                  <p className="text-muted mt-1 text-xs">Overview and current status</p>
+                  {job.lead_id ? (
+                    <div className="mt-2 text-sm">
+                      <span className="text-muted">Lead: </span>
+                      <Link
+                        href={`/leads/${job.lead_id}`}
+                        className="underline underline-offset-4"
+                      >
+                        {lead
+                          ? `${lead.first_name} ${lead.last_name}`
+                          : `Lead #${job.lead_id}`}
+                      </Link>
+                    </div>
+                  ) : null}
+                  <p className="text-muted mt-2 text-xs">Overview and current status</p>
                 </div>
 
                 <span className="border-base bg-surface rounded-full border px-2.5 py-1 text-xs font-medium">
@@ -420,7 +472,7 @@ export default function JobDetailPage() {
                     <button
                       type="submit"
                       disabled={creatingTask}
-                      className="border-base bg-surface hover:bg-accent-soft rounded-md border px-4 py-2 text-sm disabled:opacity-60"
+                      className="border-base bg-surface hover:bg-accent rounded-md border px-4 py-2 text-sm disabled:opacity-60"
                     >
                       {creatingTask ? "Creating..." : "Create Task"}
                     </button>
@@ -470,7 +522,7 @@ export default function JobDetailPage() {
                         <button
                           type="button"
                           onClick={() => handleToggleTaskStatus(task)}
-                          className="border-base bg-surface hover:bg-accent-soft rounded-md border px-3 py-2 text-xs"
+                          className="border-base bg-surface hover:bg-accent rounded-md border px-3 py-2 text-xs"
                         >
                           {task.status === "Completed"
                             ? "Mark pending"
@@ -506,17 +558,82 @@ export default function JobDetailPage() {
               </dl>
             </section>
 
+            <section className="bg-surface border-base hover:bg-accent rounded-lg border p-4 transition">
+              <Link href={`/leads/${job.lead_id}`} className="block cursor-pointer">
+                <div className="mb-3">
+                  <h2 className="text-lg font-semibold">Lead Snapshot</h2>
+                  <p className="text-muted-foreground mt-1 text-sm">
+                    Quick context for the lead tied to this job.
+                  </p>
+                </div>
+
+                {!job?.lead_id ? (
+                  <div className="text-muted-foreground text-sm">
+                    No lead linked to this job.
+                  </div>
+                ) : loadingLead ? (
+                  <div className="text-muted-foreground text-sm">
+                    Loading lead details…
+                  </div>
+                ) : leadError ? (
+                  <div className="text-sm text-red-500">{leadError}</div>
+                ) : !lead ? (
+                  <div className="text-muted-foreground text-sm">
+                    Lead details unavailable.
+                  </div>
+                ) : (
+                  <div className="space-y-3 text-sm">
+                    <div>
+                      <div className="text-muted-foreground text-xs">Name</div>
+                      <div className="mt-1 font-medium">
+                        {lead.first_name} {lead.last_name}
+                      </div>
+                    </div>
+
+                    <div>
+                      <div className="text-muted-foreground text-xs">Contact</div>
+                      <div className="mt-1">
+                        {lead.email || "—"}
+                        {lead.phone ? ` • ${lead.phone}` : ""}
+                      </div>
+                    </div>
+
+                    <div className="flex flex-wrap gap-2 pt-1">
+                      <span className="inline-flex items-center rounded-full border px-2 py-0.5 text-xs">
+                        {lead.status ?? "—"}
+                      </span>
+
+                      {lead.source ? (
+                        <span className="inline-flex items-center rounded-full border px-2 py-0.5 text-xs">
+                          Source: {lead.source}
+                        </span>
+                      ) : null}
+                    </div>
+
+                    {lead.notes ? (
+                      <div>
+                        <div className="text-muted-foreground text-xs">Notes</div>
+                        <div className="mt-1 whitespace-pre-wrap text-sm">
+                          {lead.notes}
+                        </div>
+                      </div>
+                    ) : null}
+                  </div>
+                )}
+              </Link>
+            </section>
+
             <section className="bg-surface border-base rounded-lg border">
               <div className="flex flex-col gap-3 border-b p-4 sm:flex-row sm:items-center sm:justify-between">
                 <div>
                   <h2 className="text-lg font-semibold">Attached Files</h2>
                   <p className="text-muted-foreground mt-1 text-sm">
-                    Files uploaded directly to this Job.
+                    Files uploaded directly to this job.
                   </p>
                 </div>
 
                 {canManageFiles ? (
-                  <label className="hover:bg-accent-soft inline-flex cursor-pointer items-center rounded-md border px-3 py-2 text-sm">
+                  <label className="hover:bg-accent inline-flex cursor-pointer items-center rounded-md border px-3 py-2 text-sm">
                     {uploading ? "Uploading…" : "Upload file"}
                     <input
                       type="file"
@@ -562,7 +679,7 @@ export default function JobDetailPage() {
                             <button
                               type="button"
                               onClick={() => setPreviewFile(file)}
-                              className="hover:bg-accent-soft rounded-md border px-3 py-1.5 text-xs"
+                              className="hover:bg-accent rounded-md border px-3 py-1.5 text-xs"
                             >
                               Preview
                             </button>
@@ -571,7 +688,7 @@ export default function JobDetailPage() {
                               href={buildFileUrl(file)}
                               target="_blank"
                               rel="noreferrer"
-                              className="hover:bg-accent-soft rounded-md border px-3 py-1.5 text-xs"
+                              className="hover:bg-accent rounded-md border px-3 py-1.5 text-xs"
                             >
                               Open
                             </a>
