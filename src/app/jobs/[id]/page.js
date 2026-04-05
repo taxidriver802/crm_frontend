@@ -48,6 +48,9 @@ export default function JobDetailPage() {
   const [loadingLead, setLoadingLead] = useState(false);
   const [leadError, setLeadError] = useState("");
 
+  const [activity, setActivity] = useState([]);
+  const [loadingActivity, setLoadingActivity] = useState(true);
+
   const [error, setError] = useState(null);
   const [updatingStatus, setUpdatingStatus] = useState(null);
 
@@ -64,6 +67,16 @@ export default function JobDetailPage() {
   async function loadJob() {
     const data = await api(`/jobs/${id}`);
     setJob(data.job);
+  }
+
+  async function loadActivity() {
+    setLoadingActivity(true);
+    try {
+      const res = await api(`/jobs/${id}/activity`);
+      setActivity(res.activity || []);
+    } finally {
+      setLoadingActivity(false);
+    }
   }
 
   async function loadTasks() {
@@ -95,7 +108,7 @@ export default function JobDetailPage() {
       setLoading(true);
       setError(null);
 
-      await Promise.all([loadJob(), loadTasks(), loadFiles()]);
+      await Promise.all([loadJob(), loadTasks(), loadFiles(), loadActivity()]);
     } catch (e) {
       setError(e.message || "Failed to load job");
     } finally {
@@ -122,6 +135,7 @@ export default function JobDetailPage() {
         method: "PATCH",
         body: JSON.stringify({ status: newStatus }),
       });
+      await loadActivity();
     } catch (e) {
       setJob((prev) => ({ ...prev, status: previous }));
       setError(e.message || "Failed to update status");
@@ -157,6 +171,8 @@ export default function JobDetailPage() {
         status: "Pending",
       });
 
+      await loadActivity();
+
       setIsTaskFormOpen(false);
     } catch (e) {
       setError(e.message || "Failed to create task");
@@ -179,6 +195,7 @@ export default function JobDetailPage() {
         method: "PATCH",
         body: JSON.stringify({ status: nextStatus }),
       });
+      await loadActivity();
     } catch (e) {
       setTasks(previousTasks);
       setError(e.message || "Failed to update task");
@@ -206,6 +223,7 @@ export default function JobDetailPage() {
       if (!res.ok) throw new Error("Upload failed");
 
       await loadFiles();
+      await loadActivity();
     } catch (e) {
       setFilesError(e.message);
     } finally {
@@ -397,6 +415,39 @@ export default function JobDetailPage() {
                   );
                 })}
               </div>
+            </section>
+
+            <section className="bg-surface border-base rounded-lg border p-4">
+              <h3 className="mb-3 font-medium">Activity</h3>
+
+              {loadingActivity ? (
+                <div className="text-muted text-sm">Loading activity...</div>
+              ) : activity.length === 0 ? (
+                <div className="text-muted text-sm">No activity yet.</div>
+              ) : (
+                <div className="space-y-3">
+                  {activity.map((a) => (
+                    <div key={a.id} className="rounded-lg border p-3">
+                      <div className="flex items-start justify-between">
+                        <div className="flex-1">
+                          <div className="text-sm font-medium">{a.title}</div>
+                          {a.message && (
+                            <div className="text-muted-foreground mt-1 text-xs">
+                              {a.message}
+                            </div>
+                          )}
+                          <div className="text-muted-foreground mt-1 text-xs">
+                            {a.entity_type} #{a.entity_id} • {a.type.replace("_", " ")}
+                          </div>
+                        </div>
+                        <div className="text-muted-foreground text-xs">
+                          {new Date(a.created_at).toLocaleString()}
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
             </section>
 
             <section className="bg-surface border-base space-y-4 rounded-lg border p-4">

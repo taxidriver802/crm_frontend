@@ -3,29 +3,65 @@
 @tailwind utilities;
 
 /* ------------------- */
-/* Theme Tokens */
+/* THEME TOKENS */
 /* ------------------- */
 :root {
+  /* Core surfaces */
   --bg: #ffffff;
   --surface: #f8fafc;
+  --surface-elevated: #ffffff;
+
+  /* Borders */
   --border: #e5e7eb;
+  --border-strong: #d1d5db;
+
+  /* Text */
   --text: #111827;
-  --muted: #6b7280;
+  --text-muted: #6b7280;
+  --text-soft: #9ca3af;
+
+  /* Brand / Accent */
   --accent: #2563eb;
+  --accent-hover: #1d4ed8;
+  --accent-soft: color-mix(in srgb, var(--accent) 12%, transparent);
+
+  /* States */
+  --success: #16a34a;
+  --warning: #f59e0b;
+  --danger: #dc2626;
+
+  /* Radius */
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 14px;
+
+  /* Shadows */
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.05);
+  --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.08);
 }
 
-/* next-themes will toggle this class */
 .dark {
   --bg: #0b1220;
   --surface: #111a2e;
+  --surface-elevated: #16213a;
+
   --border: #22304a;
+  --border-strong: #2f3f5f;
+
   --text: #eef2ff;
-  --muted: #a6b0c3;
+  --text-muted: #a6b0c3;
+  --text-soft: #7c8aa5;
+
   --accent: #60a5fa;
+  --accent-hover: #3b82f6;
+  --accent-soft: color-mix(in srgb, var(--accent) 18%, transparent);
+
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.4);
+  --shadow-md: 0 6px 18px rgba(0, 0, 0, 0.5);
 }
 
 /* ------------------- */
-/* Base Layout / Resets */
+/* BASE */
 /* ------------------- */
 @layer base {
   *,
@@ -43,9 +79,9 @@
     margin: 0;
     background: var(--bg);
     color: var(--text);
+    font-feature-settings: "cv02", "cv03", "cv04", "cv11";
   }
 
-  /* Makes borders consistent without specifying a color everywhere */
   * {
     border-color: var(--border);
   }
@@ -57,7 +93,7 @@
 }
 
 /* ------------------- */
-/* Utility Tokens (Classes) */
+/* UTILITIES */
 /* ------------------- */
 @layer utilities {
   .bg-app {
@@ -68,16 +104,8 @@
     background: var(--surface);
   }
 
-  .bg-main {
-    background: var(--accent);
-  }
-
-  .border-main {
-    border-color: var(--accent);
-  }
-
-  .border-base {
-    border-color: var(--border);
+  .bg-surface-elevated {
+    background: var(--surface-elevated);
   }
 
   .text-main {
@@ -85,14 +113,82 @@
   }
 
   .text-muted {
-    color: var(--muted);
+    color: var(--text-muted);
+  }
+
+  .text-soft {
+    color: var(--text-soft);
+  }
+
+  .border-base {
+    border-color: var(--border);
+  }
+
+  .border-strong {
+    border-color: var(--border-strong);
   }
 
   .bg-accent {
-    background: color-mix(in srgb, var(--accent) 15%, transparent);
+    background: var(--accent-soft);
   }
 
-  .bg-muted {
-    background: var(--muted);
+  .bg-accent-solid {
+    background: var(--accent);
+    color: white;
+  }
+
+  .hover-accent:hover {
+    background: var(--accent-soft);
+  }
+}
+
+/* ------------------- */
+/* COMPONENT PRIMITIVES */
+/* ------------------- */
+@layer components {
+  .btn {
+    @apply inline-flex items-center justify-center text-sm font-medium transition;
+    border-radius: var(--radius-md);
+    padding: 0.5rem 0.75rem;
+  }
+
+  .btn-primary {
+    background: var(--accent);
+    color: white;
+  }
+
+  .btn-primary:hover {
+    background: var(--accent-hover);
+  }
+
+  .btn-ghost {
+    @apply text-muted;
+  }
+
+  .btn-ghost:hover {
+    background: var(--accent-soft);
+    color: var(--text);
+  }
+
+  .card {
+    background: var(--surface-elevated);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-sm);
+  }
+
+  .input {
+    width: 100%;
+    border-radius: var(--radius-md);
+    border: 1px solid var(--border);
+    background: var(--surface);
+    padding: 0.5rem 0.75rem;
+    font-size: 0.875rem;
+  }
+
+  .input:focus {
+    outline: none;
+    border-color: var(--accent);
+    box-shadow: 0 0 0 2px var(--accent-soft);
   }
 }

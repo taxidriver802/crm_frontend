@@ -79,12 +79,9 @@ export default function DashboardPage() {
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState("");
   const [tab, setTab] = useState("due_today"); // overdue | due_today | next_up
-  const [mounted, setMounted] = useState(false);
   const [user, setUser] = useState(null);
-
-  useEffect(() => {
-    setMounted(true);
-  }, []);
+  const [activity, setActivity] = useState([]);
+  const [loadingActivity, setLoadingActivity] = useState(false);
 
   useEffect(() => {
     let alive = true;
@@ -165,20 +162,41 @@ export default function DashboardPage() {
     return rows;
   }, [data]);
 
+  const fetchUser = async () => {
+    try {
+      const data = await api("/auth/me", {
+        credentials: "include",
+      });
+
+      setUser(data?.user || null);
+    } catch {
+      setUser(null);
+    }
+  };
+
+  async function loadActivity() {
+    setLoadingActivity(true);
+    try {
+      const res = await api(`/dashboard/activities`);
+      setActivity(res.activity || []);
+    } finally {
+      setLoadingActivity(false);
+    }
+  }
+
+  async function loadPage() {
+    try {
+      setLoading(true);
+      await Promise.all([fetchUser(), loadActivity()]);
+    } catch (e) {
+      setErr(e?.message || "Failed to load dashboard");
+    } finally {
+      setLoading(false);
+    }
+  }
+
   useEffect(() => {
-    const fetchUser = async () => {
-      try {
-        const data = await api("/auth/me", {
-          credentials: "include",
-        });
-
-        setUser(data?.user || null);
-      } catch {
-        setUser(null);
-      }
-    };
-
-    fetchUser();
+    loadPage();
   }, []);
 
   const greeting = user?.first_name
@@ -222,6 +240,44 @@ export default function DashboardPage() {
         <div className="grid gap-4 lg:min-h-[600px] lg:grid-cols-3">
           {/* Tasks */}
           <div className="space-y-4 lg:col-span-2">
+            <SectionCard
+              title="Activity feed"
+              /* right={
+                <Link className="text-muted-foreground hover:underline" href="/tasks">
+                  View all
+                </Link>
+              } */
+            >
+              <div className="space-y-3">
+                {loadingActivity ? (
+                  <div className="text-muted-foreground text-sm">Loading...</div>
+                ) : activity.length === 0 ? (
+                  <div className="text-muted-foreground text-sm">No recent activity</div>
+                ) : (
+                  activity.map((a) => (
+                    <div key={a.id} className="rounded-lg border p-3">
+                      <div className="flex items-start justify-between">
+                        <div className="flex-1">
+                          <div className="text-sm font-medium">{a.title}</div>
+                          {a.message && (
+                            <div className="text-muted-foreground mt-1 text-xs">
+                              {a.message}
+                            </div>
+                          )}
+                          <div className="text-muted-foreground mt-1 text-xs">
+                            {a.entity_type} #{a.entity_id} • {a.type.replace("_", " ")}
+                          </div>
+                        </div>
+                        <div className="text-muted-foreground text-xs">
+                          {new Date(a.created_at).toLocaleString()}
+                        </div>
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+            </SectionCard>
+
             <SectionCard
               title="Tasks"
               right={
