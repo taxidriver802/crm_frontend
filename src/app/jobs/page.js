@@ -5,13 +5,9 @@ import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { AppShell } from "@/components/app-shell";
 import { ToggleFormSection } from "@/components/toggle-form-section";
+import { JobForm, createEmptyJobForm } from "@/components/forms/job-form";
 import { api } from "@/lib/api";
 import { formatDate } from "@/lib/helper";
-
-function getLeadLabel(lead) {
-  const name = `${lead.first_name || ""} ${lead.last_name || ""}`.trim();
-  return name || `Lead #${lead.id}`;
-}
 
 export default function JobsPage() {
   const [q, setQ] = useState("");
@@ -24,6 +20,7 @@ export default function JobsPage() {
   const [loadingLeads, setLoadingLeads] = useState(true);
   const [creating, setCreating] = useState(false);
   const [error, setError] = useState("");
+  const [createError, setCreateError] = useState("");
 
   const [isCreateOpen, setIsCreateOpen] = useState(false);
 
@@ -31,13 +28,7 @@ export default function JobsPage() {
   const prefillLeadId = searchParams.get("lead_id") || "";
   const shouldOpenCreate = searchParams.get("open") === "create";
 
-  const [form, setForm] = useState({
-    lead_id: prefillLeadId,
-    title: "",
-    description: "",
-    status: "New",
-    address: "",
-  });
+  const [form, setForm] = useState(createEmptyJobForm({ lead_id: prefillLeadId }));
 
   useEffect(() => {
     if (prefillLeadId) {
@@ -116,11 +107,15 @@ export default function JobsPage() {
   async function handleCreateJob(e) {
     e.preventDefault();
     setCreating(true);
-    setError("");
+    setCreateError("");
 
     try {
       if (!form.lead_id.trim()) {
         throw new Error("Please choose a lead.");
+      }
+
+      if (!form.title.trim()) {
+        throw new Error("Title is required.");
       }
 
       const payload = {
@@ -136,18 +131,11 @@ export default function JobsPage() {
         body: JSON.stringify(payload),
       });
 
-      setForm({
-        lead_id: "",
-        title: "",
-        description: "",
-        status: "New",
-        address: "",
-      });
-
+      setForm(createEmptyJobForm());
       setIsCreateOpen(false);
       setJobs((prev) => [data.job, ...prev]);
     } catch (e) {
-      setError(e.message || "Failed to create job");
+      setCreateError(e.message || "Failed to create job");
     } finally {
       setCreating(false);
     }
@@ -166,106 +154,30 @@ export default function JobsPage() {
           openLabel="+ New Job"
           closeLabel="Hide Form"
         >
-          <form
+          <JobForm
+            form={form}
+            onChange={setForm}
             onSubmit={handleCreateJob}
-            className="grid grid-cols-1 gap-4 md:grid-cols-2"
-          >
-            <div className="md:col-span-2">
-              <label className="text-muted text-xs">Lead *</label>
-              <select
-                className="border-base bg-app mt-1 w-full rounded-md border px-3 py-2 text-sm"
-                value={form.lead_id}
-                onChange={(e) =>
-                  setForm((prev) => ({ ...prev, lead_id: e.target.value }))
-                }
-                disabled={loadingLeads || creating}
-                required
-              >
-                <option value="">
-                  {loadingLeads
-                    ? "Loading leads..."
-                    : leads.length
-                      ? "Select a lead..."
-                      : "No leads available"}
-                </option>
-
-                {leads.map((lead) => (
-                  <option key={lead.id} value={lead.id}>
-                    {getLeadLabel(lead)}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            <div className="md:col-span-2">
-              <label className="text-muted text-xs">Title</label>
-              <input
-                className="border-base bg-app mt-1 w-full rounded-md border px-3 py-2 text-sm"
-                placeholder="Example: Roof inspection for 123 Main St"
-                value={form.title}
-                onChange={(e) => setForm((prev) => ({ ...prev, title: e.target.value }))}
-                required
-              />
-            </div>
-
-            <div>
-              <label className="text-muted text-xs">Status</label>
-              <select
-                className="border-base bg-app mt-1 w-full rounded-md border px-3 py-2 text-sm"
-                value={form.status}
-                onChange={(e) => setForm((prev) => ({ ...prev, status: e.target.value }))}
-              >
-                <option value="New">New</option>
-                <option value="Contacted">Contacted</option>
-                <option value="Appointment Scheduled">Appointment Scheduled</option>
-                <option value="Proposal Sent">Proposal Sent</option>
-                <option value="Closed Won">Closed Won</option>
-                <option value="Closed Lost">Closed Lost</option>
-              </select>
-            </div>
-
-            <div>
-              <label className="text-muted text-xs">Address</label>
-              <input
-                className="border-base bg-app mt-1 w-full rounded-md border px-3 py-2 text-sm"
-                placeholder="123 Main St"
-                value={form.address}
-                onChange={(e) =>
-                  setForm((prev) => ({ ...prev, address: e.target.value }))
-                }
-              />
-            </div>
-
-            <div className="md:col-span-2">
-              <label className="text-muted text-xs">Description</label>
-              <textarea
-                className="border-base bg-app mt-1 min-h-[96px] w-full rounded-md border px-3 py-2 text-sm"
-                placeholder="Add any context or notes for this job..."
-                value={form.description}
-                onChange={(e) =>
-                  setForm((prev) => ({ ...prev, description: e.target.value }))
-                }
-              />
-            </div>
-
-            <div className="flex justify-end md:col-span-2">
-              <button
-                type="submit"
-                disabled={creating || loadingLeads}
-                className="border-base bg-surface hover:bg-accent-soft rounded-md border px-4 py-2 text-sm disabled:opacity-60"
-              >
-                {creating ? "Creating..." : "Create Job"}
-              </button>
-            </div>
-          </form>
+            saving={creating}
+            error={createError}
+            submitLabel="Create Job"
+            cancelLabel="Clear"
+            onCancel={() => {
+              setForm(createEmptyJobForm({ lead_id: prefillLeadId || "" }));
+              setCreateError("");
+            }}
+            leads={leads}
+            loadingLeads={loadingLeads}
+            layout="compact"
+          />
         </ToggleFormSection>
 
-        <section className="bg-surface border-base rounded-lg border p-4">
+        <section className="card rounded-lg p-4">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
             <div className="flex-1">
               <label className="text-muted text-xs">Search</label>
               <input
-                className="border-base bg-app mt-1 w-full rounded-md border px-3 py-2 text-sm"
+                className="input mt-1"
                 placeholder="Search title, description, address..."
                 value={q}
                 onChange={(e) => setQ(e.target.value)}
@@ -275,7 +187,7 @@ export default function JobsPage() {
             <div className="w-full sm:w-56">
               <label className="text-muted text-xs">Status</label>
               <select
-                className="border-base bg-app mt-1 w-full rounded-md border px-3 py-2 text-sm"
+                className="input mt-1"
                 value={status}
                 onChange={(e) => setStatus(e.target.value)}
               >
@@ -290,8 +202,15 @@ export default function JobsPage() {
             </div>
 
             <div className="flex gap-2">
+              <Link
+                href={prefillLeadId ? `/jobs/new?lead_id=${prefillLeadId}` : "/jobs/new"}
+                className="btn"
+              >
+                Full Form
+              </Link>
+
               <button
-                className="border-base bg-surface hover:bg-accent-soft rounded-md border px-3 py-2 text-sm disabled:opacity-60"
+                className="btn disabled:opacity-60"
                 onClick={refreshAll}
                 disabled={loadingJobs || loadingLeads}
               >
@@ -301,7 +220,7 @@ export default function JobsPage() {
           </div>
         </section>
 
-        <section className="bg-surface border-base overflow-hidden rounded-lg border">
+        <section className="card overflow-hidden rounded-lg">
           <div className="border-base text-muted border-b p-4 text-sm">
             {loadingJobs
               ? "Loading…"
@@ -310,7 +229,7 @@ export default function JobsPage() {
 
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
-              <thead className="bg-accent-soft">
+              <thead className="bg-accent">
                 <tr className="text-left">
                   <th className="px-4 py-3 font-medium">Title</th>
                   <th className="px-4 py-3 font-medium">Lead</th>
@@ -332,7 +251,7 @@ export default function JobsPage() {
                   jobs.map((job) => (
                     <tr
                       key={job.id}
-                      className="border-base hover:bg-accent-soft border-t transition"
+                      className="border-base hover:bg-accent border-t transition"
                     >
                       <td className="px-4 py-3">
                         <div className="font-medium">{job.title}</div>
@@ -355,9 +274,7 @@ export default function JobsPage() {
                       </td>
 
                       <td className="px-4 py-3">
-                        <span className="border-base bg-surface inline-flex items-center rounded-full border px-2 py-0.5 text-xs">
-                          {job.status}
-                        </span>
+                        <span className="status-chip">{job.status}</span>
                       </td>
 
                       <td className="px-4 py-3">{job.address ?? "—"}</td>

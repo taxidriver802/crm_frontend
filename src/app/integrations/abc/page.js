@@ -29,7 +29,7 @@ function BoolBadge({ ok }) {
 
 function SectionCard({ title, children, right }) {
   return (
-    <div className="bg-surface border-base rounded-lg border">
+    <div className="card rounded-lg">
       <div className="border-base flex items-center justify-between border-b p-4">
         <div className="text-sm font-medium">{title}</div>
         {right ? <div>{right}</div> : null}
@@ -73,7 +73,7 @@ function getIntegrationHealth(data) {
       label: "Ready for testing",
       tone: "success",
       description:
-        "Core ABC settings are present. You can begin testing item search, branches, invoices, and order workflows.",
+        "Core ABC settings are present. This integration is ready for incremental testing and future workflow expansion.",
     };
   }
 
@@ -82,7 +82,7 @@ function getIntegrationHealth(data) {
       label: "Partially configured",
       tone: "warning",
       description:
-        "Some ABC settings are present, but setup is incomplete. Finish configuration before relying on live API actions.",
+        "Some ABC settings are present, but setup is incomplete. Finish configuration before relying on live actions.",
     };
   }
 
@@ -123,7 +123,7 @@ export default function AbcIntegrationPage() {
     <AppShell title="ABC Supply Integration">
       <div className="space-y-6">
         {error ? (
-          <div className="bg-surface border-base rounded-lg border p-4">
+          <div className="card rounded-lg p-4">
             <div className="text-sm font-medium">Couldn’t load integration</div>
             <div className="text-muted mt-1 text-sm">{error}</div>
           </div>
@@ -155,25 +155,22 @@ export default function AbcIntegrationPage() {
           <div className="lg:col-span-1">
             <SectionCard title="Actions">
               <div className="flex flex-wrap gap-2">
-                <button
-                  className="border-base bg-surface hover:bg-accent-soft rounded-md border px-3 py-2 text-sm"
-                  onClick={load}
-                  disabled={loading}
-                >
+                <button className="btn" onClick={load} disabled={loading}>
                   Refresh
                 </button>
 
                 <button
-                  className="border-base bg-surface rounded-md border px-3 py-2 text-sm opacity-60"
+                  className="btn opacity-60"
                   disabled
-                  title="Coming next"
+                  title="This will make sense once test actions are implemented."
                 >
                   Test Connection
                 </button>
               </div>
 
               <div className="text-muted mt-3 text-sm">
-                This panel is live. The connection test action can be added next.
+                This page currently acts as a readiness panel. Live operational testing
+                can be added when the next ABC workflows are implemented.
               </div>
             </SectionCard>
           </div>
@@ -245,7 +242,7 @@ export default function AbcIntegrationPage() {
               ) : null}
               {!data.accountId ? (
                 <div className="text-muted">
-                  Add `ABC_ACCOUNT_ID` when the supplier account details are available.
+                  Add `ABC_ACCOUNT_ID` when supplier account details are available.
                 </div>
               ) : null}
             </div>

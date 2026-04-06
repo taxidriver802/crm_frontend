@@ -1,19 +1,19 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
+import Link from "next/link";
 import { AppShell } from "@/components/app-shell";
 import { api } from "@/lib/api";
 import {
-  formatBytes,
   buildFileUrl,
+  formatBytes,
   formatDate,
   formatDateTime,
   API_BASE,
   isPreviewableFile,
 } from "@/lib/helper";
-import { FilePreviewModal } from "@/components/file-preview-modal";
+import { FilePreviewModal } from "@/components/modals/file-preview-modal";
 
 function isCompletedTask(task) {
   return String(task?.status || "").toLowerCase() === "completed";
@@ -37,6 +37,31 @@ function statusPillClasses(status) {
   }
 
   return "border-base bg-app text-main";
+}
+
+function StatCard({ label, value, sub }) {
+  return (
+    <div className="card rounded-lg p-4">
+      <div className="text-muted text-xs">{label}</div>
+      <div className="mt-1 text-2xl font-semibold">{value}</div>
+      {sub ? <div className="text-muted mt-1 text-xs">{sub}</div> : null}
+    </div>
+  );
+}
+
+function SectionCard({ title, description, right, children }) {
+  return (
+    <section className="card rounded-lg">
+      <div className="border-base flex items-center justify-between gap-3 border-b p-4">
+        <div className="min-w-0">
+          <h2 className="text-lg font-semibold">{title}</h2>
+          {description ? <p className="text-muted mt-1 text-sm">{description}</p> : null}
+        </div>
+        {right ? <div className="shrink-0">{right}</div> : null}
+      </div>
+      <div className="p-4">{children}</div>
+    </section>
+  );
 }
 
 export default function LeadDetailPage() {
@@ -165,13 +190,11 @@ export default function LeadDetailPage() {
   }, [id]);
 
   const handleDeleteLead = async () => {
-    if (!confirm("Are you sure you want to delete this lead?")) return;
+    if (!window.confirm("Are you sure you want to delete this lead?")) return;
 
     try {
+      await api(`/leads/${id}`, { method: "DELETE" });
       router.push("/leads");
-      api(`/leads/${id}`, { method: "DELETE" }).catch((e) => {
-        alert(e?.message || "Failed to delete lead");
-      });
     } catch (e) {
       alert(e?.message || "Failed to delete lead");
     }
@@ -253,284 +276,245 @@ export default function LeadDetailPage() {
   );
 
   return (
-    <AppShell title={`Lead #${id}`}>
-      <div className="space-y-4">
+    <AppShell
+      title={
+        lead
+          ? `${lead.first_name || ""} ${lead.last_name || ""}`.trim() || `Lead #${id}`
+          : `Lead #${id}`
+      }
+      right={
+        lead ? (
+          <div className="flex gap-2">
+            <Link href={`/leads/${id}/edit`} className="btn text-sm">
+              Edit Lead
+            </Link>
+          </div>
+        ) : null
+      }
+    >
+      <div className="space-y-6">
         {error ? <div className="text-sm text-red-500">{error}</div> : null}
         {success ? <div className="text-sm text-green-600">{success}</div> : null}
 
-        <div className="bg-surface border-base rounded-lg border p-4">
+        <section className="card rounded-lg p-4">
           {loading ? (
-            <div className="text-muted-foreground text-sm">Loading…</div>
+            <div className="text-muted text-sm">Loading…</div>
           ) : !lead ? (
-            <div className="text-muted-foreground text-sm">Not found.</div>
+            <div className="text-muted text-sm">Lead not found.</div>
           ) : (
-            <div className="flex flex-col gap-4 sm:flex-row sm:items-start">
-              <div className="space-y-2">
-                <div className="text-xl font-semibold">
-                  {lead.first_name} {lead.last_name}
-                </div>
-
-                <div className="text-muted-foreground text-sm">
-                  {(lead.email ?? "—") + (lead.phone ? ` • ${lead.phone}` : "")}
-                </div>
-
-                <div className="flex flex-wrap gap-2 pt-1">
-                  <span className="inline-flex items-center rounded-full border px-2 py-0.5 text-xs">
-                    {lead.status ?? "—"}
-                  </span>
-
-                  {lead.source ? (
-                    <span className="inline-flex items-center rounded-full border px-2 py-0.5 text-xs">
-                      Source: {lead.source}
-                    </span>
-                  ) : null}
-
-                  {lead.budget_min != null || lead.budget_max != null ? (
-                    <span className="inline-flex items-center rounded-full border px-2 py-0.5 text-xs">
-                      Budget: {lead.budget_min ?? "—"} - {lead.budget_max ?? "—"}
-                    </span>
-                  ) : null}
-                </div>
-
-                {lead.notes ? (
-                  <div className="pt-3 text-sm">
-                    <div className="text-muted-foreground text-xs">Notes</div>
-                    <div className="mt-1 whitespace-pre-wrap">{lead.notes}</div>
+            <div className="space-y-5">
+              <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+                <div className="min-w-0">
+                  <div className="text-2xl font-semibold">
+                    {lead.first_name} {lead.last_name}
                   </div>
-                ) : null}
+
+                  <div className="text-muted mt-2 text-sm">
+                    {(lead.email ?? "—") + (lead.phone ? ` • ${lead.phone}` : "")}
+                  </div>
+
+                  <div className="mt-3 flex flex-wrap gap-2">
+                    <span className="status-chip">{lead.status ?? "—"}</span>
+
+                    {lead.source ? (
+                      <span className="inline-flex items-center rounded-full border px-2 py-0.5 text-xs">
+                        Source: {lead.source}
+                      </span>
+                    ) : null}
+
+                    {lead.budget_min != null || lead.budget_max != null ? (
+                      <span className="inline-flex items-center rounded-full border px-2 py-0.5 text-xs">
+                        Budget: {lead.budget_min ?? "—"} - {lead.budget_max ?? "—"}
+                      </span>
+                    ) : null}
+                  </div>
+                </div>
+
+                <div className="flex flex-wrap gap-2">
+                  <Link href={`/leads/${id}/edit`} className="btn px-3 py-2 text-xs">
+                    Edit
+                  </Link>
+                  <button
+                    className="btn px-3 py-2 text-xs text-red-600"
+                    onClick={handleDeleteLead}
+                  >
+                    Delete
+                  </button>
+                </div>
               </div>
 
-              <button
-                className="border-base hover:bg-accent-soft flex h-8 w-8 items-center justify-center rounded border p-1 sm:ml-auto"
-                onClick={handleDeleteLead}
-                aria-label="Delete lead"
-                title="Delete lead"
-              >
-                <svg
-                  className="h-4 w-4"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
-                  />
-                </svg>
-              </button>
+              {lead.notes ? (
+                <div>
+                  <div className="text-muted text-xs">Notes</div>
+                  <div className="mt-1 whitespace-pre-wrap text-sm">{lead.notes}</div>
+                </div>
+              ) : null}
+
+              <div className="flex flex-wrap gap-2">
+                <button className="btn" onClick={() => router.push("/leads")}>
+                  Back to Leads
+                </button>
+
+                <Link href={`/jobs?lead_id=${id}&open=create`} className="btn">
+                  New Job
+                </Link>
+
+                <Link href={`/tasks/new?lead_id=${id}`} className="btn">
+                  New Task
+                </Link>
+              </div>
             </div>
           )}
-        </div>
-
-        <div className="flex flex-row justify-between gap-2">
-          <div className="flex flex-wrap gap-2">
-            {/* <Link
-              href={`/tasks/new?lead_id=${id}`}
-              className="hover:bg-accent-soft rounded-md border px-3 py-2 text-sm"
-            >
-              + Create task for this lead
-            </Link>
- */}
-            <button
-              className="hover:bg-accent-soft rounded-md border px-3 py-2 text-sm"
-              onClick={() => router.push("/leads")}
-            >
-              Back to leads
-            </button>
-          </div>
-          <Link
-            href={`/leads/${id}/edit`}
-            className="hover:bg-accent-soft max-w-[50px] rounded-md border px-3 py-2 text-sm sm:max-w-none"
-          >
-            Edit
-          </Link>
-        </div>
-
-        <section className="grid gap-3 sm:grid-cols-3">
-          <div className="bg-surface border-base rounded-lg border p-4">
-            <div className="text-muted text-xs">Open tasks</div>
-            <div className="mt-1 text-2xl font-semibold">{openTasks.length}</div>
-          </div>
-
-          <div className="bg-surface border-base rounded-lg border p-4">
-            <div className="text-muted text-xs">Overdue</div>
-            <div className="mt-1 text-2xl font-semibold">{overdueOpenTasks.length}</div>
-          </div>
-
-          <div className="bg-surface border-base rounded-lg border p-4">
-            <div className="text-muted text-xs">Files</div>
-            <div className="mt-1 text-2xl font-semibold">{files.length}</div>
-          </div>
         </section>
 
-        <section className="bg-surface border-base rounded-lg border">
-          <div className="border-base flex items-center justify-between border-b p-4">
-            <div>
-              <h2 className="text-lg font-semibold">Jobs</h2>
-              <p className="text-muted-foreground mt-1 text-sm">
-                Workspaces tied to this lead.
-              </p>
-            </div>
+        <section className="grid gap-4 sm:grid-cols-3">
+          <StatCard label="Open Tasks" value={openTasks.length} />
+          <StatCard label="Overdue" value={overdueOpenTasks.length} />
+          <StatCard label="Files" value={files.length} />
+        </section>
 
+        <SectionCard
+          title="Jobs"
+          description="Workspaces tied to this lead."
+          right={
             <Link
               href={`/jobs?lead_id=${id}&open=create`}
-              className="hover:bg-accent-soft rounded-md border px-3 py-2 text-sm"
+              className="btn px-3 py-2 text-xs"
             >
-              + New job
+              + New Job
             </Link>
-          </div>
-
-          <div className="space-y-3 p-4">
-            {jobsError ? (
-              <div className="text-sm text-red-500">{jobsError}</div>
-            ) : loadingJobs ? (
-              <div className="text-muted-foreground text-sm">Loading jobs…</div>
-            ) : jobs.length === 0 ? (
-              <div className="text-muted-foreground rounded-lg border border-dashed p-4 text-sm">
-                No jobs for this lead yet.
-              </div>
-            ) : (
-              jobs.map((job) => (
+          }
+        >
+          {jobsError ? (
+            <div className="text-sm text-red-500">{jobsError}</div>
+          ) : loadingJobs ? (
+            <div className="text-muted text-sm">Loading jobs…</div>
+          ) : jobs.length === 0 ? (
+            <div className="text-muted rounded-lg border border-dashed p-4 text-sm">
+              No jobs for this lead yet.
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {jobs.map((job) => (
                 <Link
                   key={job.id}
                   href={`/jobs/${job.id}`}
-                  className="hover:bg-accent-soft block rounded-lg border p-3 transition"
+                  className="hover:bg-accent block rounded-lg border p-3 transition"
                 >
-                  <div className="flex items-center justify-between">
-                    <div>
+                  <div className="flex items-center justify-between gap-3">
+                    <div className="min-w-0">
                       <div className="font-medium">{job.title}</div>
-                      <div className="text-muted-foreground text-sm">
-                        {job.address ?? "—"}
-                      </div>
+                      <div className="text-muted text-sm">{job.address ?? "—"}</div>
                     </div>
 
-                    <span className="border-base bg-surface inline-flex items-center rounded-full border px-2 py-0.5 text-xs">
+                    <span className="inline-flex items-center rounded-full border px-2 py-0.5 text-xs">
                       {job.status}
                     </span>
                   </div>
                 </Link>
-              ))
-            )}
-          </div>
-        </section>
+              ))}
+            </div>
+          )}
+        </SectionCard>
 
         <section className="grid gap-4 xl:grid-cols-[1.2fr_0.8fr]">
-          <div className="bg-surface border-base rounded-lg border">
-            <div className="border-base flex items-center justify-between border-b p-4">
-              <div>
-                <h2 className="text-lg font-semibold">Lead Tasks</h2>
-                <p className="text-muted-foreground mt-1 text-sm">
-                  Open and completed work tied to this lead.
-                </p>
-              </div>
-
-              <Link
-                href={`/tasks/new?lead_id=${id}`}
-                className="hover:bg-accent-soft rounded-md border px-3 py-2 text-sm"
-              >
-                + New task
+          <SectionCard
+            title="Lead Tasks"
+            description="Open and completed work tied to this lead."
+            right={
+              <Link href={`/tasks/new?lead_id=${id}`} className="btn px-3 py-2 text-xs">
+                + New Task
               </Link>
-            </div>
+            }
+          >
+            {tasksError ? (
+              <div className="text-sm text-red-500">{tasksError}</div>
+            ) : loadingTasks ? (
+              <div className="text-muted text-sm">Loading tasks…</div>
+            ) : tasks.length === 0 ? (
+              <div className="text-muted rounded-lg border border-dashed p-4 text-sm">
+                No tasks for this lead yet.
+              </div>
+            ) : (
+              <div className="space-y-6">
+                <div className="space-y-3">
+                  <div className="text-sm font-medium">Open</div>
 
-            <div className="space-y-6 p-4">
-              {tasksError ? (
-                <div className="text-sm text-red-500">{tasksError}</div>
-              ) : loadingTasks ? (
-                <div className="text-muted-foreground text-sm">Loading tasks…</div>
-              ) : tasks.length === 0 ? (
-                <div className="text-muted-foreground rounded-lg border border-dashed p-4 text-sm">
-                  No tasks for this lead yet.
-                </div>
-              ) : (
-                <>
-                  <div className="space-y-3">
-                    <div className="text-sm font-medium">Open</div>
-
-                    {openTasks.length === 0 ? (
-                      <div className="text-muted-foreground text-sm">No open tasks.</div>
-                    ) : (
-                      openTasks.map((task) => (
-                        <Link
-                          key={task.id}
-                          href={`/tasks/${task.id}`}
-                          className="hover:bg-accent-soft block rounded-lg border p-3 transition"
-                        >
-                          <div className="flex items-start justify-between gap-3">
-                            <div className="min-w-0">
-                              <div className="font-medium">{task.title}</div>
-                              <div className="text-muted-foreground mt-1 text-sm">
-                                Due: {formatDateTime(task.due_date)}
-                              </div>
-                            </div>
-
-                            <div className="flex shrink-0 flex-col items-end gap-2">
-                              <span
-                                className={`inline-flex items-center rounded-full border px-2 py-0.5 text-xs ${statusPillClasses(task.status)}`}
-                              >
-                                {task.status ?? "—"}
-                              </span>
-
-                              {isOverdueTask(task) ? (
-                                <span className="text-xs text-red-500">Overdue</span>
-                              ) : null}
+                  {openTasks.length === 0 ? (
+                    <div className="text-muted text-sm">No open tasks.</div>
+                  ) : (
+                    openTasks.map((task) => (
+                      <Link
+                        key={task.id}
+                        href={`/tasks/${task.id}`}
+                        className="hover:bg-accent block rounded-lg border p-3 transition"
+                      >
+                        <div className="flex items-start justify-between gap-3">
+                          <div className="min-w-0">
+                            <div className="font-medium">{task.title}</div>
+                            <div className="text-muted mt-1 text-sm">
+                              Due: {formatDateTime(task.due_date)}
                             </div>
                           </div>
-                        </Link>
-                      ))
-                    )}
-                  </div>
 
-                  <div className="space-y-3">
-                    <div className="text-sm font-medium">Completed</div>
-
-                    {completedTasks.length === 0 ? (
-                      <div className="text-muted-foreground text-sm">
-                        No completed tasks yet.
-                      </div>
-                    ) : (
-                      completedTasks.map((task) => (
-                        <Link
-                          key={task.id}
-                          href={`/tasks/${task.id}`}
-                          className="hover:bg-accent-soft block rounded-lg border p-3 opacity-85 transition"
-                        >
-                          <div className="flex items-start justify-between gap-3">
-                            <div className="min-w-0">
-                              <div className="font-medium">{task.title}</div>
-                              <div className="text-muted-foreground mt-1 text-sm">
-                                Due: {formatDateTime(task.due_date)}
-                              </div>
-                            </div>
-
+                          <div className="flex shrink-0 flex-col items-end gap-2">
                             <span
                               className={`inline-flex items-center rounded-full border px-2 py-0.5 text-xs ${statusPillClasses(task.status)}`}
                             >
                               {task.status ?? "—"}
                             </span>
+
+                            {isOverdueTask(task) ? (
+                              <span className="text-xs text-red-500">Overdue</span>
+                            ) : null}
                           </div>
-                        </Link>
-                      ))
-                    )}
-                  </div>
-                </>
-              )}
-            </div>
-          </div>
+                        </div>
+                      </Link>
+                    ))
+                  )}
+                </div>
 
-          <section className="bg-surface border-base rounded-lg border">
-            <div className="flex flex-col gap-3 border-b p-4 sm:flex-row sm:items-center sm:justify-between">
-              <div>
-                <h2 className="text-lg font-semibold">Attached Files</h2>
-                <p className="text-muted-foreground mt-1 text-sm">
-                  Files uploaded directly to this lead.
-                </p>
+                <div className="space-y-3">
+                  <div className="text-sm font-medium">Completed</div>
+
+                  {completedTasks.length === 0 ? (
+                    <div className="text-muted text-sm">No completed tasks yet.</div>
+                  ) : (
+                    completedTasks.map((task) => (
+                      <Link
+                        key={task.id}
+                        href={`/tasks/${task.id}`}
+                        className="hover:bg-accent block rounded-lg border p-3 opacity-85 transition"
+                      >
+                        <div className="flex items-start justify-between gap-3">
+                          <div className="min-w-0">
+                            <div className="font-medium">{task.title}</div>
+                            <div className="text-muted mt-1 text-sm">
+                              Due: {formatDateTime(task.due_date)}
+                            </div>
+                          </div>
+
+                          <span
+                            className={`inline-flex items-center rounded-full border px-2 py-0.5 text-xs ${statusPillClasses(task.status)}`}
+                          >
+                            {task.status ?? "—"}
+                          </span>
+                        </div>
+                      </Link>
+                    ))
+                  )}
+                </div>
               </div>
+            )}
+          </SectionCard>
 
-              {canManageFiles ? (
-                <label className="hover:bg-accent-soft inline-flex cursor-pointer items-center rounded-md border px-3 py-2 text-sm">
-                  {uploading ? "Uploading…" : "Upload file"}
+          <SectionCard
+            title="Attached Files"
+            description="Files uploaded directly to this lead."
+            right={
+              canManageFiles ? (
+                <label className="btn cursor-pointer px-3 py-2 text-xs">
+                  {uploading ? "Uploading…" : "Upload File"}
                   <input
                     type="file"
                     className="hidden"
@@ -538,76 +522,75 @@ export default function LeadDetailPage() {
                     disabled={uploading}
                   />
                 </label>
-              ) : null}
-            </div>
+              ) : null
+            }
+          >
+            {filesError ? (
+              <div className="mb-3 text-sm text-red-500">{filesError}</div>
+            ) : null}
 
-            <div className="p-4">
-              {filesError ? (
-                <div className="mb-3 text-sm text-red-500">{filesError}</div>
-              ) : null}
-
-              {loadingFiles ? (
-                <div className="text-muted-foreground text-sm">Loading files…</div>
-              ) : files.length === 0 ? (
-                <div className="text-muted-foreground rounded-lg border border-dashed p-4 text-sm">
-                  No files attached to this lead yet.
-                </div>
-              ) : (
-                <div className="space-y-3">
-                  {files.map((file) => (
-                    <div
-                      key={file.id}
-                      className="flex items-start justify-between gap-3 rounded-lg border p-3"
-                    >
-                      <div className="min-w-0">
-                        <div className="truncate font-medium">{file.original_name}</div>
-                        <div className="text-muted-foreground mt-1 text-xs">
-                          {file.mime_type || "Unknown type"} •{" "}
-                          {formatBytes(file.size_bytes)}
-                        </div>
-                        <div className="text-muted-foreground mt-1 text-xs">
-                          Uploaded: {formatDate(file.created_at)}
-                        </div>
+            {loadingFiles ? (
+              <div className="text-muted text-sm">Loading files…</div>
+            ) : files.length === 0 ? (
+              <div className="text-muted rounded-lg border border-dashed p-4 text-sm">
+                No files attached to this lead yet.
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {files.map((file) => (
+                  <div
+                    key={file.id}
+                    className="flex items-start justify-between gap-3 rounded-lg border p-3"
+                  >
+                    <div className="min-w-0">
+                      <div className="truncate font-medium">{file.original_name}</div>
+                      <div className="text-muted mt-1 text-xs">
+                        {file.mime_type || "Unknown type"} •{" "}
+                        {formatBytes(file.size_bytes)}
                       </div>
-
-                      <div className="flex flex-wrap items-center gap-2">
-                        {isPreviewableFile(file) ? (
-                          <button
-                            type="button"
-                            onClick={() => setPreviewFile(file)}
-                            className="hover:bg-accent-soft rounded-md border px-3 py-1.5 text-xs"
-                          >
-                            Preview
-                          </button>
-                        ) : (
-                          <a
-                            href={buildFileUrl(file)}
-                            target="_blank"
-                            rel="noreferrer"
-                            className="hover:bg-accent-soft rounded-md border px-3 py-1.5 text-xs"
-                          >
-                            Open
-                          </a>
-                        )}
-
-                        {canManageFiles ? (
-                          <button
-                            onClick={() => handleDeleteFile(file.id)}
-                            disabled={busyFileId === file.id}
-                            className="rounded-md border px-3 py-1.5 text-xs text-red-600 hover:bg-red-50"
-                          >
-                            {busyFileId === file.id ? "Deleting..." : "Delete"}
-                          </button>
-                        ) : null}
+                      <div className="text-muted mt-1 text-xs">
+                        Uploaded: {formatDate(file.created_at)}
                       </div>
                     </div>
-                  ))}
-                </div>
-              )}
-            </div>
-          </section>
+
+                    <div className="flex flex-wrap items-center gap-2">
+                      {isPreviewableFile(file) ? (
+                        <button
+                          type="button"
+                          onClick={() => setPreviewFile(file)}
+                          className="btn px-3 py-1.5 text-xs"
+                        >
+                          Preview
+                        </button>
+                      ) : (
+                        <a
+                          href={buildFileUrl(file)}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="btn px-3 py-1.5 text-xs"
+                        >
+                          Open
+                        </a>
+                      )}
+
+                      {canManageFiles ? (
+                        <button
+                          onClick={() => handleDeleteFile(file.id)}
+                          disabled={busyFileId === file.id}
+                          className="btn px-3 py-1.5 text-xs text-red-600"
+                        >
+                          {busyFileId === file.id ? "Deleting..." : "Delete"}
+                        </button>
+                      ) : null}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </SectionCard>
         </section>
       </div>
+
       <FilePreviewModal
         open={!!previewFile}
         file={previewFile}

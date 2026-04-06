@@ -10,12 +10,15 @@ export default function LoginPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
+  const [submitting, setSubmitting] = useState(false);
 
   async function handleSubmit(e) {
     e.preventDefault();
     setError("");
 
     try {
+      setSubmitting(true);
+
       await api("/auth/login", {
         method: "POST",
         body: JSON.stringify({ email, password }),
@@ -24,40 +27,54 @@ export default function LoginPage() {
       router.replace("/dashboard");
     } catch (err) {
       setError("Invalid credentials");
+    } finally {
+      setSubmitting(false);
     }
   }
 
   return (
-    <main className="flex min-h-screen items-center justify-center px-4">
-      <div className="w-full max-w-sm rounded-lg border p-8 shadow-sm">
-        <h1 className="mb-6 text-center text-2xl font-semibold">Login</h1>
+    <main className="bg-app text-main flex min-h-screen items-center justify-center px-4">
+      <div className="card w-full max-w-sm rounded-lg p-8">
+        <div className="mb-6">
+          <h1 className="text-center text-2xl font-semibold">Sign In</h1>
+          <p className="text-muted mt-2 text-center text-sm">
+            Access your CRM workspace.
+          </p>
+        </div>
 
-        <form onSubmit={handleSubmit} className="flex flex-col gap-4">
-          <input
-            type="email"
-            placeholder="Email"
-            className="rounded border px-3 py-2"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            required
-          />
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <label className="block">
+            <span className="text-sm font-medium">Email</span>
+            <input
+              type="email"
+              placeholder="you@example.com"
+              className="input mt-1"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              required
+            />
+          </label>
 
-          <input
-            type="password"
-            placeholder="Password"
-            className="rounded border px-3 py-2"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            required
-          />
+          <label className="block">
+            <span className="text-sm font-medium">Password</span>
+            <input
+              type="password"
+              placeholder="Enter your password"
+              className="input mt-1"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              required
+            />
+          </label>
 
-          {error && <p className="text-sm text-red-500">{error}</p>}
+          {error ? (
+            <div className="rounded-lg border border-red-300 bg-red-50 px-3 py-2 text-sm text-red-700">
+              {error}
+            </div>
+          ) : null}
 
-          <button
-            type="submit"
-            className="rounded bg-black px-4 py-2 text-white hover:opacity-90"
-          >
-            Sign In
+          <button type="submit" className="btn btn-primary w-full" disabled={submitting}>
+            {submitting ? "Signing In..." : "Sign In"}
           </button>
         </form>
       </div>

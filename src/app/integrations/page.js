@@ -45,16 +45,14 @@ function getIntegrationHealth(data) {
   return { label: "Not configured", tone: "danger" };
 }
 
-function IntegrationCard({ title, description, href, health, loading }) {
+function IntegrationCard({ title, description, href, health, loading, note }) {
   return (
-    <Link
-      href={href}
-      className="bg-surface border-base hover:bg-accent-soft block rounded-lg border p-4 transition"
-    >
+    <Link href={href} className="card hover:bg-accent block rounded-lg p-4 transition">
       <div className="flex items-start justify-between gap-3">
-        <div>
+        <div className="min-w-0">
           <div className="font-medium">{title}</div>
           <div className="text-muted mt-1 text-sm">{description}</div>
+          {note ? <div className="text-muted mt-3 text-xs">{note}</div> : null}
         </div>
 
         {loading ? (
@@ -96,35 +94,37 @@ export default function IntegrationsPage() {
     <AppShell title="Integrations">
       <div className="space-y-6">
         {error ? (
-          <div className="bg-surface border-base rounded-lg border p-4">
+          <div className="card rounded-lg p-4">
             <div className="text-sm font-medium">Couldn’t load integrations</div>
             <div className="text-muted mt-1 text-sm">{error}</div>
           </div>
         ) : null}
 
-        <div className="bg-surface border-base rounded-lg border p-4">
+        <section className="card rounded-lg p-4">
           <div className="text-sm font-medium">Connected Systems</div>
           <div className="text-muted mt-1 text-sm">
-            Manage third-party providers and prepare future integrations.
+            Manage third-party providers, view setup readiness, and prepare future
+            workflows. Some integrations are still scaffolded rather than fully live.
           </div>
-        </div>
+        </section>
 
         <section className="grid gap-4 md:grid-cols-2">
           <IntegrationCard
             title="ABC Supply"
-            description="Supplier integration for account status, catalog access, branches, invoices, and order workflows."
+            description="Supplier integration for account readiness, catalog access, branches, invoices, and future ordering workflows."
             href="/integrations/abc"
             health={abcHealth}
             loading={loading}
+            note="Current page focuses on setup visibility and status, not full operational flows yet."
           />
 
-          <div className="bg-surface border-base rounded-lg border p-4 opacity-70">
+          <div className="card rounded-lg p-4 opacity-80">
             <div className="flex items-start justify-between gap-3">
               <div>
                 <div className="font-medium">More integrations coming</div>
                 <div className="text-muted mt-1 text-sm">
-                  This space is ready for future providers like email sync, calendar sync,
-                  or listing platforms.
+                  This space is ready for future providers like calendar sync, email sync,
+                  listing platforms, and vendor tools.
                 </div>
               </div>
               <StatusBadge>Planned</StatusBadge>

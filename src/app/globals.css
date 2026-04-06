@@ -6,36 +6,29 @@
 /* THEME TOKENS */
 /* ------------------- */
 :root {
-  /* Core surfaces */
   --bg: #ffffff;
   --surface: #f8fafc;
   --surface-elevated: #ffffff;
 
-  /* Borders */
   --border: #e5e7eb;
   --border-strong: #d1d5db;
 
-  /* Text */
   --text: #111827;
   --text-muted: #6b7280;
   --text-soft: #9ca3af;
 
-  /* Brand / Accent */
   --accent: #2563eb;
   --accent-hover: #1d4ed8;
   --accent-soft: color-mix(in srgb, var(--accent) 12%, transparent);
 
-  /* States */
   --success: #16a34a;
   --warning: #f59e0b;
   --danger: #dc2626;
 
-  /* Radius */
   --radius-sm: 6px;
   --radius-md: 10px;
   --radius-lg: 14px;
 
-  /* Shadows */
   --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.05);
   --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.08);
 }
@@ -89,6 +82,13 @@
   a {
     color: inherit;
     text-decoration: none;
+  }
+
+  button,
+  input,
+  select,
+  textarea {
+    font: inherit;
   }
 }
 
@@ -147,27 +147,42 @@
 /* ------------------- */
 @layer components {
   .btn {
-    @apply inline-flex items-center justify-center text-sm font-medium transition;
+    @apply inline-flex items-center justify-center gap-2 text-sm font-medium transition;
     border-radius: var(--radius-md);
     padding: 0.5rem 0.75rem;
+    border: 1px solid var(--border);
+    background: var(--surface);
+    color: var(--text);
+  }
+
+  .btn:hover {
+    background: var(--accent-soft);
   }
 
   .btn-primary {
     background: var(--accent);
+    border-color: var(--accent);
     color: white;
   }
 
   .btn-primary:hover {
     background: var(--accent-hover);
+    border-color: var(--accent-hover);
   }
 
   .btn-ghost {
     @apply text-muted;
+    background: transparent;
+    border-color: transparent;
   }
 
   .btn-ghost:hover {
     background: var(--accent-soft);
     color: var(--text);
+  }
+
+  .btn-danger {
+    color: var(--danger);
   }
 
   .card {
@@ -190,5 +205,86 @@
     outline: none;
     border-color: var(--accent);
     box-shadow: 0 0 0 2px var(--accent-soft);
+  }
+
+  .icon-btn {
+    @apply inline-flex items-center justify-center transition;
+    width: 2.5rem;
+    height: 2.5rem;
+    border-radius: var(--radius-md);
+    border: 1px solid var(--border);
+    background: var(--surface);
+  }
+
+  .icon-btn:hover {
+    background: var(--accent-soft);
+  }
+
+  .nav-pill {
+    @apply inline-flex items-center rounded-md px-3 py-2 text-sm transition;
+  }
+
+  .nav-pill-active {
+    background: var(--accent-soft);
+    color: var(--text);
+    font-weight: 600;
+  }
+
+  .nav-pill-inactive {
+    color: var(--text-muted);
+  }
+
+  .nav-pill-inactive:hover {
+    background: var(--accent-soft);
+    color: var(--text);
+  }
+
+  .dropdown-panel {
+    background: var(--surface-elevated);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-md);
+  }
+
+  .page-wrap {
+    @apply mx-auto w-full max-w-6xl px-4 py-6;
+  }
+
+  .page-stack {
+    @apply space-y-6;
+  }
+
+  .page-header {
+    @apply flex flex-col gap-4 md:flex-row md:items-start md:justify-between;
+  }
+
+  .page-header-copy {
+    @apply min-w-0;
+  }
+
+  .page-title {
+    @apply text-2xl font-semibold tracking-tight;
+  }
+
+  .page-subtitle {
+    @apply text-muted mt-1 text-sm;
+  }
+
+  .page-actions {
+    @apply flex flex-wrap items-center gap-2;
+  }
+
+  .toolbar {
+    @apply card flex flex-col gap-3 p-4 md:flex-row md:items-center md:justify-between;
+  }
+
+  .toolbar-group {
+    @apply flex flex-wrap items-center gap-2;
+  }
+
+  .status-chip {
+    @apply inline-flex items-center rounded-full px-2.5 py-1 text-xs font-medium;
+    background: var(--accent-soft);
+    color: var(--text);
   }
 }

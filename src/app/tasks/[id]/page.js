@@ -13,7 +13,7 @@ import {
   isPreviewableFile,
   getLinkedEntity,
 } from "@/lib/helper";
-import { FilePreviewModal } from "@/components/file-preview-modal";
+import { FilePreviewModal } from "@/components/modals/file-preview-modal";
 
 function isCompleted(task) {
   return String(task?.status || "").toLowerCase() === "completed";
@@ -33,20 +33,33 @@ function isDueSoon(task) {
   return due > now && due <= now + 1000 * 60 * 60 * 24;
 }
 
-function badgeClass(task) {
+function TaskStatusBadge({ task }) {
   if (isCompleted(task)) {
-    return "border-green-500/30 bg-green-500/10 text-green-700 dark:text-green-300";
+    return (
+      <span className="inline-flex items-center rounded-full border border-green-500/30 bg-green-500/10 px-2 py-0.5 text-xs text-green-700 dark:text-green-300">
+        Completed
+      </span>
+    );
   }
 
   if (isOverdue(task)) {
-    return "border-red-500/30 bg-red-500/10 text-red-700 dark:text-red-300";
+    return (
+      <span className="inline-flex items-center rounded-full border border-red-500/30 bg-red-500/10 px-2 py-0.5 text-xs text-red-700 dark:text-red-300">
+        Pending
+      </span>
+    );
   }
 
-  if (isDueSoon(task)) {
-    return "border-amber-500/30 bg-amber-500/10 text-amber-700 dark:text-amber-300";
-  }
+  return <span className="status-chip">{task?.status ?? "Pending"}</span>;
+}
 
-  return "border-base bg-app text-main";
+function InfoCard({ title, children, className = "" }) {
+  return (
+    <section className={`card rounded-lg p-4 ${className}`}>
+      <h2 className="text-lg font-semibold">{title}</h2>
+      <div className="mt-3">{children}</div>
+    </section>
+  );
 }
 
 export default function TaskDetailPage() {
@@ -63,16 +76,15 @@ export default function TaskDetailPage() {
   const [loadingFiles, setLoadingFiles] = useState(false);
 
   const [busyFileId, setBusyFileId] = useState(null);
-
   const [busy, setBusy] = useState(false);
+
   const [error, setError] = useState("");
   const [leadError, setLeadError] = useState("");
   const [filesError, setFilesError] = useState("");
+  const [success, setSuccess] = useState("");
 
   const [previewFile, setPreviewFile] = useState(null);
   const [currentUser, setCurrentUser] = useState(null);
-
-  const [success, setSuccess] = useState("");
 
   async function loadCurrentUser() {
     const res = await fetch("/api/auth/me", {
@@ -194,7 +206,6 @@ export default function TaskDetailPage() {
         }
 
         if (cancelled) return;
-
         setFiles(res?.files || []);
       } catch (e) {
         if (cancelled) return;
@@ -307,31 +318,30 @@ export default function TaskDetailPage() {
   }
 
   const recentFiles = useMemo(() => files.slice(0, 5), [files]);
-
   const canManageFiles = currentUser?.role === "owner" || currentUser?.role === "admin";
   const linked = getLinkedEntity(task);
 
   return (
-    <AppShell title={`Task #${id}`}>
-      <div className="space-y-4">
+    <AppShell title={task?.title || `Task #${id}`}>
+      <div className="space-y-6">
         {error ? <div className="text-sm text-red-500">{error}</div> : null}
         {success ? <div className="text-sm text-green-600">{success}</div> : null}
 
-        <section className="bg-surface border-base rounded-lg border p-4">
+        <section className="card rounded-lg p-4">
           {loadingTask ? (
-            <div className="text-muted-foreground text-sm">Loading task…</div>
+            <div className="text-muted text-sm">Loading task…</div>
           ) : !task ? (
-            <div className="text-muted-foreground text-sm">Task not found.</div>
+            <div className="text-muted text-sm">Task not found.</div>
           ) : (
-            <div className="flex flex-col gap-6 md:flex-row">
-              <div className="min-w-0 flex-1 space-y-4">
-                <div>
+            <div className="space-y-5">
+              <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+                <div className="min-w-0">
                   <div className="text-2xl font-semibold">{task.title}</div>
 
-                  <div className="text-muted-foreground mt-2 text-sm">
+                  <div className="text-muted mt-2 text-sm">
                     {linked.href ? (
                       <>
-                        Related {linked.kind.toLowerCase()}:{" "}
+                        Related {linked.kind?.toLowerCase()}:{" "}
                         <Link
                           href={linked.href}
                           className="underline underline-offset-4 hover:opacity-80"
@@ -346,11 +356,7 @@ export default function TaskDetailPage() {
                 </div>
 
                 <div className="flex flex-wrap gap-2">
-                  <span
-                    className={`inline-flex items-center rounded-full border px-2 py-0.5 text-xs ${badgeClass(task)}`}
-                  >
-                    {task.status ?? "—"}
-                  </span>
+                  <TaskStatusBadge task={task} />
 
                   <span className="inline-flex items-center rounded-full border px-2 py-0.5 text-xs">
                     {formatDue(task.due_date)}
@@ -366,273 +372,260 @@ export default function TaskDetailPage() {
                     </span>
                   ) : null}
                 </div>
+              </div>
 
-                <div>
-                  <div className="text-muted-foreground text-xs">Description</div>
-                  <div className="mt-1 whitespace-pre-wrap text-sm">
-                    {task.description || "No description provided."}
-                  </div>
+              <div>
+                <div className="text-muted text-xs">Description</div>
+                <div className="mt-1 whitespace-pre-wrap text-sm">
+                  {task.description || "No description provided."}
                 </div>
               </div>
 
-              <button
-                type="button"
-                className="border-base hover:bg-accent-soft self-start rounded-md border p-2 disabled:opacity-60"
-                onClick={handleDelete}
-                disabled={busy}
-                aria-label="Delete task"
-                title="Delete task"
-              >
-                Delete
-              </button>
+              <div className="flex flex-wrap gap-2">
+                <Link href={`/tasks/${id}/edit`} className="btn">
+                  Edit Task
+                </Link>
+
+                <button
+                  type="button"
+                  onClick={() =>
+                    updateStatus(isCompleted(task) ? "Pending" : "Completed")
+                  }
+                  disabled={busy}
+                  className="btn disabled:opacity-60"
+                >
+                  {isCompleted(task) ? "Reopen Task" : "Mark Complete"}
+                </button>
+
+                {task.lead_id ? (
+                  <Link href={`/leads/${task.lead_id}`} className="btn">
+                    View Related Lead
+                  </Link>
+                ) : task.job_id ? (
+                  <Link href={`/jobs/${task.job_id}`} className="btn">
+                    View Related Job
+                  </Link>
+                ) : null}
+
+                {!isCompleted(task) ? (
+                  <>
+                    <button
+                      type="button"
+                      onClick={() => quickReschedule(1)}
+                      disabled={busy}
+                      className="btn disabled:opacity-60"
+                    >
+                      +1 Day
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => quickReschedule(3)}
+                      disabled={busy}
+                      className="btn disabled:opacity-60"
+                    >
+                      +3 Days
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => quickReschedule(7)}
+                      disabled={busy}
+                      className="btn disabled:opacity-60"
+                    >
+                      +1 Week
+                    </button>
+                  </>
+                ) : null}
+
+                <button
+                  type="button"
+                  className="btn text-red-600"
+                  onClick={handleDelete}
+                  disabled={busy}
+                >
+                  Delete Task
+                </button>
+              </div>
             </div>
           )}
         </section>
 
-        {!loadingTask && task ? (
-          <section className="flex flex-wrap gap-2">
-            <Link
-              href={`/tasks/${id}/edit`}
-              className="hover:bg-accent-soft rounded-md border px-3 py-2 text-sm"
-            >
-              Edit task
-            </Link>
-
-            <button
-              type="button"
-              onClick={() => updateStatus(isCompleted(task) ? "Pending" : "Completed")}
-              disabled={busy}
-              className="hover:bg-accent-soft rounded-md border px-3 py-2 text-sm disabled:opacity-60"
-            >
-              {isCompleted(task) ? "Reopen task" : "Mark complete"}
-            </button>
-
-            {task.lead_id ? (
-              <Link
-                href={`/leads/${task.lead_id}`}
-                className="hover:bg-accent-soft rounded-md border px-3 py-2 text-sm"
-              >
-                View related lead
-              </Link>
-            ) : task.job_id ? (
-              <Link
-                href={`/jobs/${task.job_id}`}
-                className="hover:bg-accent-soft rounded-md border px-3 py-2 text-sm"
-              >
-                View related job
-              </Link>
-            ) : null}
-
-            {!isCompleted(task) ? (
-              <>
-                <button
-                  type="button"
-                  onClick={() => quickReschedule(1)}
-                  disabled={busy}
-                  className="hover:bg-accent-soft rounded-md border px-3 py-2 text-sm disabled:opacity-60"
-                >
-                  +1 day
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => quickReschedule(3)}
-                  disabled={busy}
-                  className="hover:bg-accent-soft rounded-md border px-3 py-2 text-sm disabled:opacity-60"
-                >
-                  +3 days
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => quickReschedule(7)}
-                  disabled={busy}
-                  className="hover:bg-accent-soft rounded-md border px-3 py-2 text-sm disabled:opacity-60"
-                >
-                  +1 week
-                </button>
-              </>
-            ) : null}
-
-            <button
-              type="button"
-              onClick={() => router.push("/tasks")}
-              className="hover:bg-accent-soft rounded-md border px-3 py-2 text-sm"
-            >
-              Back to tasks
-            </button>
-          </section>
-        ) : null}
-
-        <section className="grid gap-4 xl:grid-cols-[0.95fr_1.05fr]">
-          {task?.lead && (
-            <div className="bg-surface border-base rounded-lg border p-4">
-              <div className="mb-3">
-                <h2 className="text-lg font-semibold">Lead Snapshot</h2>
-                <p className="text-muted-foreground mt-1 text-sm">
-                  Quick context for doing the work tied to this task.
-                </p>
-              </div>
-
-              {!task?.lead_id ? (
-                <div className="text-muted-foreground text-sm">
-                  No lead linked to this task.
-                </div>
-              ) : loadingLead ? (
-                <div className="text-muted-foreground text-sm">Loading lead details…</div>
-              ) : leadError ? (
-                <div className="text-sm text-red-500">{leadError}</div>
-              ) : !lead ? (
-                <div className="text-muted-foreground text-sm">
-                  Lead details unavailable.
-                </div>
-              ) : (
-                <div className="space-y-3 text-sm">
-                  <div>
-                    <div className="text-muted-foreground text-xs">Name</div>
-                    <div className="mt-1 font-medium">
-                      {lead.first_name} {lead.last_name}
+        {task ? (
+          <section className="grid gap-4 xl:grid-cols-[0.95fr_1.05fr]">
+            {task?.lead ? (
+              <InfoCard title="Lead Snapshot">
+                {!task?.lead_id ? (
+                  <div className="text-muted text-sm">No lead linked to this task.</div>
+                ) : loadingLead ? (
+                  <div className="text-muted text-sm">Loading lead details…</div>
+                ) : leadError ? (
+                  <div className="text-sm text-red-500">{leadError}</div>
+                ) : !lead ? (
+                  <div className="text-muted text-sm">Lead details unavailable.</div>
+                ) : (
+                  <div className="space-y-3 text-sm">
+                    <div>
+                      <div className="text-muted text-xs">Name</div>
+                      <div className="mt-1 font-medium">
+                        {lead.first_name} {lead.last_name}
+                      </div>
                     </div>
-                  </div>
 
-                  <div>
-                    <div className="text-muted-foreground text-xs">Contact</div>
-                    <div className="mt-1">
-                      {lead.email || "—"}
-                      {lead.phone ? ` • ${lead.phone}` : ""}
+                    <div>
+                      <div className="text-muted text-xs">Contact</div>
+                      <div className="mt-1">
+                        {lead.email || "—"}
+                        {lead.phone ? ` • ${lead.phone}` : ""}
+                      </div>
                     </div>
-                  </div>
 
-                  <div className="flex flex-wrap gap-2 pt-1">
-                    <span className="inline-flex items-center rounded-full border px-2 py-0.5 text-xs">
-                      {lead.status ?? "—"}
-                    </span>
-
-                    {lead.source ? (
+                    <div className="flex flex-wrap gap-2 pt-1">
                       <span className="inline-flex items-center rounded-full border px-2 py-0.5 text-xs">
-                        Source: {lead.source}
+                        {lead.status ?? "—"}
                       </span>
+
+                      {lead.source ? (
+                        <span className="inline-flex items-center rounded-full border px-2 py-0.5 text-xs">
+                          Source: {lead.source}
+                        </span>
+                      ) : null}
+                    </div>
+
+                    {lead.notes ? (
+                      <div>
+                        <div className="text-muted text-xs">Notes</div>
+                        <div className="mt-1 whitespace-pre-wrap text-sm">
+                          {lead.notes}
+                        </div>
+                      </div>
                     ) : null}
                   </div>
+                )}
+              </InfoCard>
+            ) : null}
 
-                  {lead.notes ? (
+            {task?.job ? (
+              <InfoCard title="Job Snapshot">
+                <div className="space-y-3 text-sm">
+                  <div>
+                    <div className="text-muted text-xs">Title</div>
+                    <div className="mt-1 font-medium">{task.job.title}</div>
+                  </div>
+
+                  {task.job.address ? (
                     <div>
-                      <div className="text-muted-foreground text-xs">Notes</div>
-                      <div className="mt-1 whitespace-pre-wrap text-sm">{lead.notes}</div>
+                      <div className="text-muted text-xs">Address</div>
+                      <div className="mt-1">{task.job.address}</div>
+                    </div>
+                  ) : null}
+
+                  {task.job.status ? (
+                    <div>
+                      <div className="text-muted text-xs">Status</div>
+                      <div className="mt-1">{task.job.status}</div>
                     </div>
                   ) : null}
                 </div>
-              )}
-            </div>
-          )}
+              </InfoCard>
+            ) : null}
 
-          {task?.job && (
-            <div className="bg-surface border-base rounded-lg border p-4">
-              <h2 className="text-lg font-semibold">Job Snapshot</h2>
-
-              <div className="mt-3 space-y-3 text-sm">
+            <section className="card rounded-lg">
+              <div className="border-base flex items-center justify-between border-b p-4">
                 <div>
-                  <div className="text-muted-foreground text-xs">Title</div>
-                  <div className="mt-1 font-medium">{task.job.title}</div>
+                  <h2 className="text-lg font-semibold">Related Files</h2>
+                  <p className="text-muted mt-1 text-sm">
+                    Recent files connected to this task.
+                  </p>
                 </div>
 
-                {task.job.address && (
-                  <div>
-                    <div className="text-muted-foreground text-xs">Address</div>
-                    <div className="mt-1">{task.job.address}</div>
-                  </div>
-                )}
-
-                {task.job.status && (
-                  <div>
-                    <div className="text-muted-foreground text-xs">Status</div>
-                    <div className="mt-1">{task.job.status}</div>
-                  </div>
-                )}
-              </div>
-            </div>
-          )}
-
-          <div className="bg-surface border-base rounded-lg border">
-            <div className="border-base flex items-center justify-between border-b p-4">
-              <div>
-                <h2 className="text-lg font-semibold">Related Files</h2>
-                <p className="text-muted-foreground mt-1 text-sm">
-                  Recent files connected to this task.
-                </p>
-              </div>
-
-              <div className="flex gap-2">
-                {task?.lead && <Link href={`/leads/${task.lead.id}`}>Open lead</Link>}
-                {task?.job && <Link href={`/jobs/${task.job.id}`}>Open job</Link>}
-              </div>
-            </div>
-
-            <div className="p-4">
-              {loadingFiles ? (
-                <div className="text-muted-foreground text-sm">Loading files…</div>
-              ) : filesError ? (
-                <div className="text-sm text-red-500">{filesError}</div>
-              ) : recentFiles.length === 0 ? (
-                <div className="text-muted-foreground rounded-lg border border-dashed p-4 text-sm">
-                  No files available for this task yet.
-                </div>
-              ) : (
-                <div className="space-y-3">
-                  {recentFiles.map((file) => (
-                    <div
-                      key={file.id}
-                      className="flex items-start justify-between gap-3 rounded-lg border p-3"
+                <div className="flex gap-2">
+                  {task?.lead ? (
+                    <Link
+                      href={`/leads/${task.lead.id}`}
+                      className="text-sm hover:underline"
                     >
-                      <div className="min-w-0">
-                        <div className="truncate font-medium">{file.original_name}</div>
-                        <div className="text-muted-foreground mt-1 text-xs">
-                          {file.mime_type || "Unknown type"} •{" "}
-                          {formatBytes(file.size_bytes)}
-                        </div>
-                        <div className="text-muted-foreground mt-1 text-xs">
-                          Uploaded: {formatDate(file.created_at)}
-                        </div>
-                      </div>
-
-                      <div className="flex flex-wrap items-center gap-2">
-                        {isPreviewableFile(file) ? (
-                          <button
-                            type="button"
-                            onClick={() => setPreviewFile(file)}
-                            className="hover:bg-accent-soft rounded-md border px-3 py-1.5 text-xs"
-                          >
-                            Preview
-                          </button>
-                        ) : (
-                          <a
-                            href={buildFileUrl(file)}
-                            target="_blank"
-                            rel="noreferrer"
-                            className="hover:bg-accent-soft rounded-md border px-3 py-1.5 text-xs"
-                          >
-                            Open
-                          </a>
-                        )}
-
-                        {canManageFiles ? (
-                          <button
-                            onClick={() => handleDeleteFile(file.id)}
-                            disabled={busyFileId === file.id}
-                            className="rounded-md border px-3 py-1.5 text-xs text-red-600 hover:bg-red-50"
-                          >
-                            {busyFileId === file.id ? "Deleting..." : "Delete"}
-                          </button>
-                        ) : null}
-                      </div>
-                    </div>
-                  ))}
+                      Open lead
+                    </Link>
+                  ) : null}
+                  {task?.job ? (
+                    <Link
+                      href={`/jobs/${task.job.id}`}
+                      className="text-sm hover:underline"
+                    >
+                      Open job
+                    </Link>
+                  ) : null}
                 </div>
-              )}
-            </div>
-          </div>
-        </section>
+              </div>
+
+              <div className="p-4">
+                {loadingFiles ? (
+                  <div className="text-muted text-sm">Loading files…</div>
+                ) : filesError ? (
+                  <div className="text-sm text-red-500">{filesError}</div>
+                ) : recentFiles.length === 0 ? (
+                  <div className="text-muted rounded-lg border border-dashed p-4 text-sm">
+                    No files available for this task yet.
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    {recentFiles.map((file) => (
+                      <div
+                        key={file.id}
+                        className="flex items-start justify-between gap-3 rounded-lg border p-3"
+                      >
+                        <div className="min-w-0">
+                          <div className="truncate font-medium">{file.original_name}</div>
+                          <div className="text-muted mt-1 text-xs">
+                            {file.mime_type || "Unknown type"} •{" "}
+                            {formatBytes(file.size_bytes)}
+                          </div>
+                          <div className="text-muted mt-1 text-xs">
+                            Uploaded: {formatDate(file.created_at)}
+                          </div>
+                        </div>
+
+                        <div className="flex flex-wrap items-center gap-2">
+                          {isPreviewableFile(file) ? (
+                            <button
+                              type="button"
+                              onClick={() => setPreviewFile(file)}
+                              className="btn px-3 py-1.5 text-xs"
+                            >
+                              Preview
+                            </button>
+                          ) : (
+                            <a
+                              href={buildFileUrl(file)}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="btn px-3 py-1.5 text-xs"
+                            >
+                              Open
+                            </a>
+                          )}
+
+                          {canManageFiles ? (
+                            <button
+                              onClick={() => handleDeleteFile(file.id)}
+                              disabled={busyFileId === file.id}
+                              className="btn px-3 py-1.5 text-xs text-red-600"
+                            >
+                              {busyFileId === file.id ? "Deleting..." : "Delete"}
+                            </button>
+                          ) : null}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </section>
+          </section>
+        ) : null}
       </div>
+
       <FilePreviewModal
         open={!!previewFile}
         file={previewFile}

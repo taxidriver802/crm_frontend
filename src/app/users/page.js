@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 
 import { AppShell } from "@/components/app-shell";
-import { InviteUserModal } from "@/components/invite-user-modal";
+import { InviteUserModal } from "@/components/modals/invite-user-modal";
 import { api } from "@/lib/api";
 
 function badgeClass(status) {
@@ -21,6 +21,24 @@ function badgeClass(status) {
       return "border-base bg-surface text-main";
   }
 }
+
+function StatCard({ label, value, active = false, onClick }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={`rounded-lg border px-4 py-4 text-left transition ${
+        active
+          ? "bg-accent-soft border-transparent shadow-sm"
+          : "bg-surface hover:bg-accent"
+      }`}
+    >
+      <div className="text-muted text-sm">{label}</div>
+      <div className="mt-2 text-2xl font-semibold">{value}</div>
+    </button>
+  );
+}
+
 export default function UsersPage() {
   const router = useRouter();
 
@@ -101,20 +119,16 @@ export default function UsersPage() {
 
   const filteredUsers = useMemo(() => {
     return users.filter((user) => {
-      // Status filter
       if (statusFilter !== "all" && user.status !== statusFilter) {
         return false;
       }
 
-      // Role filter
       if (roleFilter !== "all" && user.role !== roleFilter) {
         return false;
       }
 
-      // Search filter (name + email)
       if (searchQuery.trim()) {
         const query = searchQuery.toLowerCase();
-
         const fullName = `${user.first_name ?? ""} ${user.last_name ?? ""}`.toLowerCase();
         const email = user.email?.toLowerCase() ?? "";
 
@@ -169,25 +183,6 @@ export default function UsersPage() {
     }
   }
 
-  const isOwner = currentUser?.role === "owner";
-
-  function getDisplayStatus(user) {
-    if (user.status === "active") return "Active";
-    if (user.status === "disabled") return "Disabled";
-
-    if (
-      user.status === "invited" &&
-      user.invite_expires_at &&
-      new Date(user.invite_expires_at) < new Date()
-    ) {
-      return "Expired";
-    }
-
-    if (user.status === "invited") return "Pending Invite";
-
-    return user.status;
-  }
-
   async function resendInvite(id) {
     setBusyId(id);
     setError("");
@@ -206,10 +201,29 @@ export default function UsersPage() {
     }
   }
 
+  function getDisplayStatus(user) {
+    if (user.status === "active") return "Active";
+    if (user.status === "disabled") return "Disabled";
+
+    if (
+      user.status === "invited" &&
+      user.invite_expires_at &&
+      new Date(user.invite_expires_at) < new Date()
+    ) {
+      return "Expired";
+    }
+
+    if (user.status === "invited") return "Pending Invite";
+
+    return user.status;
+  }
+
+  const isOwner = currentUser?.role === "owner";
+
   if (loadingUser) {
     return (
       <AppShell title="Users">
-        <div className="text-muted-foreground text-sm">Loading...</div>
+        <div className="text-muted text-sm">Loading...</div>
       </AppShell>
     );
   }
@@ -218,233 +232,200 @@ export default function UsersPage() {
     <AppShell
       title="Users"
       right={
-        <button
-          onClick={() => setInviteModalOpen(true)}
-          className="hover:bg-accent-soft rounded-lg border px-4 py-2 text-sm font-medium"
-        >
+        <button onClick={() => setInviteModalOpen(true)} className="btn">
           Invite User
         </button>
       }
     >
-      <div className="grid gap-4 sm:grid-cols-4">
-        <StatCard
-          label="Total"
-          value={counts.total}
-          active={statusFilter === "all"}
-          onClick={() => setStatusFilter("all")}
-        />
-        <StatCard
-          label="Active"
-          value={counts.active}
-          active={statusFilter === "active"}
-          onClick={() => setStatusFilter("active")}
-        />
-        <StatCard
-          label="Invited"
-          value={counts.invited}
-          active={statusFilter === "invited"}
-          onClick={() => setStatusFilter("invited")}
-        />
-        <StatCard
-          label="Disabled"
-          value={counts.disabled}
-          active={statusFilter === "disabled"}
-          onClick={() => setStatusFilter("disabled")}
-        />
-      </div>
-      {error ? (
-        <div className="rounded-xl border border-red-300 bg-red-50 px-4 py-3 text-sm text-red-700">
-          {error}
-        </div>
-      ) : null}
+      <div className="space-y-6">
+        <section className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+          <StatCard
+            label="Total"
+            value={counts.total}
+            active={statusFilter === "all"}
+            onClick={() => setStatusFilter("all")}
+          />
+          <StatCard
+            label="Active"
+            value={counts.active}
+            active={statusFilter === "active"}
+            onClick={() => setStatusFilter("active")}
+          />
+          <StatCard
+            label="Invited"
+            value={counts.invited}
+            active={statusFilter === "invited"}
+            onClick={() => setStatusFilter("invited")}
+          />
+          <StatCard
+            label="Disabled"
+            value={counts.disabled}
+            active={statusFilter === "disabled"}
+            onClick={() => setStatusFilter("disabled")}
+          />
+        </section>
 
-      {/* <h2 className="text-lg font-semibold">
-        {statusFilter === "all"
-          ? "Team Members"
-          : `${statusFilter.charAt(0).toUpperCase() + statusFilter.slice(1)} Users`}
-      </h2>
+        {error ? (
+          <div className="rounded-lg border border-red-300 bg-red-50 px-4 py-3 text-sm text-red-700">
+            {error}
+          </div>
+        ) : null}
 
-      <div className="bg-surface rounded-2xl border p-2">
-        <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
-          {[
-            { key: "all", label: "All Users", count: counts.total },
-            { key: "active", label: "Active", count: counts.active },
-            { key: "invited", label: "Invited", count: counts.invited },
-            { key: "disabled", label: "Disabled", count: counts.disabled },
-          ].map((item) => {
-            const active = statusFilter === item.key;
+        <section className="card rounded-lg p-4">
+          <div className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
+            <div className="min-w-0 flex-1">
+              <label className="text-muted text-xs">Search</label>
+              <input
+                type="text"
+                placeholder="Search users..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="input mt-1"
+              />
+            </div>
 
-            return (
-              <button
-                key={item.key}
-                onClick={() => setStatusFilter(item.key)}
-                className={`rounded-xl border px-4 py-3 text-left transition ${
-                  active
-                    ? "bg-accent-soft border-transparent shadow-sm"
-                    : "bg-background hover:bg-muted/60"
-                }`}
+            <div className="w-full lg:w-40">
+              <label className="text-muted text-xs">Role</label>
+              <select
+                value={roleFilter}
+                onChange={(e) => setRoleFilter(e.target.value)}
+                className="input mt-1"
               >
-                <div className="flex items-center justify-between gap-3">
-                  <span className="text-sm font-medium">{item.label}</span>
-                  <span
-                    className={`rounded-full px-2.5 py-1 text-xs font-semibold ${
-                      active
-                        ? "bg-background text-main"
-                        : "bg-muted text-muted-foreground"
-                    }`}
-                  >
-                    {item.count}
-                  </span>
-                </div>
-              </button>
-            );
-          })}
-        </div>
-      </div> */}
+                <option value="all">All Roles</option>
+                <option value="owner">Owner</option>
+                <option value="admin">Admin</option>
+                <option value="agent">Agent</option>
+              </select>
+            </div>
 
-      <section className="bg-surface rounded-2xl border">
-        <div className="flex flex-col gap-3 border-b px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
-          <div>
-            <h2 className="text-lg font-semibold">
-              {statusFilter === "all"
-                ? "Team Members"
-                : `${statusFilter.charAt(0).toUpperCase() + statusFilter.slice(1)} Users`}
-            </h2>
-            <p className="text-muted-foreground mt-1 text-sm">
-              {statusFilter === "all"
-                ? "Manage invited, active, and disabled users."
-                : `Showing users filtered by ${statusFilter}.`}
-            </p>
+            <div className="w-full lg:w-44">
+              <label className="text-muted text-xs">Status</label>
+              <select
+                value={statusFilter}
+                onChange={(e) => setStatusFilter(e.target.value)}
+                className="input mt-1"
+              >
+                <option value="all">All Statuses</option>
+                <option value="active">Active</option>
+                <option value="invited">Invited</option>
+                <option value="disabled">Disabled</option>
+              </select>
+            </div>
+          </div>
+        </section>
+
+        <section className="card overflow-hidden rounded-lg">
+          <div className="border-base text-muted border-b p-4 text-sm">
+            {loadingUsers
+              ? "Loading…"
+              : `${filteredUsers.length} user${filteredUsers.length === 1 ? "" : "s"}`}
           </div>
 
-          {/* Filters */}
-          <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
-            {/* Search */}
-            <input
-              type="text"
-              placeholder="Search users..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="bg-background w-full rounded-lg border px-3 py-2 text-sm sm:w-56"
-            />
+          {loadingUsers ? (
+            <div className="text-muted px-5 py-6 text-sm">Loading users...</div>
+          ) : users.length === 0 ? (
+            <div className="text-muted px-5 py-6 text-sm">No users found yet.</div>
+          ) : filteredUsers.length === 0 ? (
+            <div className="text-muted px-5 py-8 text-sm">
+              No users match the selected filters.
+            </div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="min-w-full text-sm">
+                <thead className="bg-accent border-b text-left">
+                  <tr>
+                    <th className="px-5 py-3 font-medium">User</th>
+                    <th className="px-5 py-3 font-medium">Role</th>
+                    <th className="px-5 py-3 font-medium">Status</th>
+                    <th className="px-5 py-3 font-medium">Invited</th>
+                    <th className="px-5 py-3 font-medium">Last Login</th>
+                    <th className="px-5 py-3 font-medium">Actions</th>
+                  </tr>
+                </thead>
 
-            {/* Role Filter */}
-            <select
-              value={roleFilter}
-              onChange={(e) => setRoleFilter(e.target.value)}
-              className="bg-background rounded-lg border px-3 py-2 text-sm"
-            >
-              <option value="all">All Roles</option>
-              <option value="owner">Owner</option>
-              <option value="admin">Admin</option>
-              <option value="agent">Agent</option>
-            </select>
-          </div>
-        </div>
+                <tbody>
+                  {filteredUsers.map((user) => {
+                    const isSelf = currentUser?.id === user.id;
+                    const canDelete =
+                      user.status === "invited" || user.status === "disabled";
+                    const displayStatus = getDisplayStatus(user);
+                    const canResend = user.status === "invited";
+                    const isExpired =
+                      user.status === "invited" &&
+                      user.invite_expires_at &&
+                      new Date(user.invite_expires_at) < new Date();
 
-        {loadingUsers ? (
-          <div className="text-muted-foreground px-5 py-6 text-sm">Loading users...</div>
-        ) : users.length === 0 ? (
-          <div className="text-muted-foreground px-5 py-6 text-sm">
-            No users found yet.
-          </div>
-        ) : filteredUsers.length === 0 ? (
-          <div className="text-muted-foreground px-5 py-8 text-sm">
-            No users match the selected filter.
-          </div>
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="min-w-full text-sm">
-              <thead className="bg-muted/40 border-b text-left">
-                <tr>
-                  <th className="px-5 py-3 font-medium">User</th>
-                  <th className="px-5 py-3 font-medium">Role</th>
-                  <th className="px-5 py-3 font-medium">Status</th>
-                  <th className="px-5 py-3 font-medium">Invited</th>
-                  <th className="px-5 py-3 font-medium">Last Login</th>
-                  <th className="px-5 py-3 font-medium">Actions</th>
-                </tr>
-              </thead>
-
-              <tbody>
-                {filteredUsers.map((user) => {
-                  const isSelf = currentUser?.id === user.id;
-                  const canDelete =
-                    user.status === "invited" || user.status === "disabled";
-                  const displayStatus = getDisplayStatus(user);
-                  const canResend = user.status === "invited";
-                  const isExpired =
-                    user.status === "invited" &&
-                    user.invite_expires_at &&
-                    new Date(user.invite_expires_at) < new Date();
-
-                  return (
-                    <tr key={user.id} className="border-b last:border-b-0">
-                      <td className="px-5 py-4 align-top">
-                        <div className="min-w-0">
-                          <div className="truncate font-medium">
-                            {[user.first_name, user.last_name]
-                              .filter(Boolean)
-                              .join(" ") || "Unnamed User"}
-                          </div>
-                          <div className="text-muted-foreground truncate text-xs sm:text-sm">
-                            {user.email}
-                          </div>
-                          {isSelf ? (
-                            <div className="text-muted-foreground mt-1 text-xs">
-                              Current account
+                    return (
+                      <tr
+                        key={user.id}
+                        className="border-base hover:bg-accent border-t transition"
+                      >
+                        <td className="px-5 py-4 align-top">
+                          <div className="min-w-0">
+                            <div className="truncate font-medium">
+                              {[user.first_name, user.last_name]
+                                .filter(Boolean)
+                                .join(" ") || "Unnamed User"}
                             </div>
-                          ) : null}
-                        </div>
-                      </td>
+                            <div className="text-muted truncate text-xs sm:text-sm">
+                              {user.email}
+                            </div>
+                            {isSelf ? (
+                              <div className="text-muted mt-1 text-xs">
+                                Current account
+                              </div>
+                            ) : null}
+                          </div>
+                        </td>
 
-                      <td className="px-5 py-4 align-top">
-                        <select
-                          value={user.role}
-                          disabled={busyId === user.id || isSelf}
-                          onChange={(e) => updateUser(user.id, { role: e.target.value })}
-                          className="bg-background rounded-md border px-2 py-1"
-                        >
-                          <option value="agent">Agent</option>
-                          <option value="admin">Admin</option>
-                          {isOwner && <option value="owner">Owner</option>}
-                        </select>
-                      </td>
-
-                      <td className="px-5 py-4 align-top">
-                        <div className="flex flex-col gap-1">
-                          <span
-                            className={`inline-flex w-fit rounded-full border px-2.5 py-1 text-xs font-medium ${badgeClass(displayStatus)}`}
+                        <td className="px-5 py-4 align-top">
+                          <select
+                            value={user.role}
+                            disabled={busyId === user.id || isSelf}
+                            onChange={(e) =>
+                              updateUser(user.id, { role: e.target.value })
+                            }
+                            className="input max-w-[140px] py-1"
                           >
-                            {displayStatus}
-                          </span>
+                            <option value="agent">Agent</option>
+                            <option value="admin">Admin</option>
+                            {isOwner ? <option value="owner">Owner</option> : null}
+                          </select>
+                        </td>
 
-                          {user.status === "invited" && user.invite_expires_at ? (
-                            <span className="text-muted-foreground text-xs">
-                              {isExpired
-                                ? "Invite expired"
-                                : `Expires ${new Date(user.invite_expires_at).toLocaleDateString()}`}
+                        <td className="px-5 py-4 align-top">
+                          <div className="flex flex-col gap-1">
+                            <span
+                              className={`inline-flex w-fit rounded-full border px-2.5 py-1 text-xs font-medium ${badgeClass(displayStatus)}`}
+                            >
+                              {displayStatus}
                             </span>
-                          ) : null}
-                        </div>
-                      </td>
 
-                      <td className="text-muted-foreground px-5 py-4 align-top">
-                        {user.invited_at
-                          ? new Date(user.invited_at).toLocaleDateString()
-                          : "—"}
-                      </td>
+                            {user.status === "invited" && user.invite_expires_at ? (
+                              <span className="text-muted text-xs">
+                                {isExpired
+                                  ? "Invite expired"
+                                  : `Expires ${new Date(user.invite_expires_at).toLocaleDateString()}`}
+                              </span>
+                            ) : null}
+                          </div>
+                        </td>
 
-                      <td className="text-muted-foreground px-5 py-4 align-top">
-                        {user.last_login_at
-                          ? new Date(user.last_login_at).toLocaleDateString()
-                          : user.status === "invited"
-                            ? "Pending"
+                        <td className="text-muted px-5 py-4 align-top">
+                          {user.invited_at
+                            ? new Date(user.invited_at).toLocaleDateString()
                             : "—"}
-                      </td>
+                        </td>
 
-                      <td className="px-5 py-4 align-top">
-                        <div className="flex w-full items-start justify-between gap-3">
+                        <td className="text-muted px-5 py-4 align-top">
+                          {user.last_login_at
+                            ? new Date(user.last_login_at).toLocaleDateString()
+                            : user.status === "invited"
+                              ? "Pending"
+                              : "—"}
+                        </td>
+
+                        <td className="px-5 py-4 align-top">
                           <div className="flex flex-wrap items-center gap-2">
                             {user.status === "active" && !isSelf ? (
                               <button
@@ -452,7 +433,7 @@ export default function UsersPage() {
                                   updateUser(user.id, { status: "disabled" })
                                 }
                                 disabled={busyId === user.id}
-                                className="hover:bg-accent-soft rounded-md border px-3 py-1.5 text-xs"
+                                className="btn px-3 py-1.5 text-xs"
                               >
                                 Disable
                               </button>
@@ -462,7 +443,7 @@ export default function UsersPage() {
                               <button
                                 onClick={() => updateUser(user.id, { status: "active" })}
                                 disabled={busyId === user.id}
-                                className="hover:bg-accent-soft rounded-md border px-3 py-1.5 text-xs"
+                                className="btn px-3 py-1.5 text-xs"
                               >
                                 Re-enable
                               </button>
@@ -472,65 +453,42 @@ export default function UsersPage() {
                               <button
                                 onClick={() => resendInvite(user.id)}
                                 disabled={busyId === user.id}
-                                className="hover:bg-accent-soft rounded-md border px-3 py-1.5 text-xs"
+                                className="btn px-3 py-1.5 text-xs"
                               >
                                 {busyId === user.id ? "Sending..." : "Resend Invite"}
                               </button>
                             ) : null}
-                          </div>
 
-                          <div>
                             {canDelete && !isSelf ? (
                               <button
                                 onClick={() => deleteUser(user.id)}
                                 disabled={busyId === user.id}
-                                className="rounded-md border px-3 py-1.5 text-xs text-red-600 hover:bg-red-50"
+                                className="btn px-3 py-1.5 text-xs text-red-600"
                               >
                                 Delete
                               </button>
                             ) : isSelf ? (
-                              <span className="text-muted-foreground text-xs">
-                                Current account
-                              </span>
-                            ) : (
-                              <span />
-                            )}
+                              <span className="text-muted text-xs">Current account</span>
+                            ) : null}
                           </div>
-                        </div>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </section>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </section>
 
-      <InviteUserModal
-        open={inviteModalOpen}
-        onClose={() => {
-          setInviteModalOpen(false);
-          loadUsers();
-        }}
-      />
+        <InviteUserModal
+          open={inviteModalOpen}
+          onClose={() => {
+            setInviteModalOpen(false);
+            loadUsers();
+          }}
+        />
+      </div>
     </AppShell>
-  );
-}
-
-function StatCard({ label, value, active = false, onClick }) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      className={`rounded-2xl border px-4 py-4 text-left transition ${
-        active
-          ? "bg-accent-soft border-transparent shadow-sm"
-          : "bg-surface hover:bg-muted/50"
-      }`}
-    >
-      <div className="text-muted-foreground text-sm">{label}</div>
-      <div className="mt-2 text-2xl font-semibold">{value}</div>
-    </button>
   );
 }

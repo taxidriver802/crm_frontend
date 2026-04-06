@@ -3,10 +3,10 @@
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { useTheme } from "next-themes";
 
-import { useToast } from "./toast-provider";
-import { InviteUserModal } from "@/components/invite-user-modal";
+import { useToast } from "./toast/toast-provider";
+import { InviteUserModal } from "@/components/modals/invite-user-modal";
+import { ThemeToggle } from "@/components/theme/theme-toggle";
 
 import MainLogo from "@/assets/mainlogo.svg";
 import { api } from "@/lib/api";
@@ -69,7 +69,7 @@ function getNotificationHref(notification) {
   return null;
 }
 
-export function AppShell({ children, title, right }) {
+export function AppShell({ children, title, description, right }) {
   const pathname = usePathname();
   const router = useRouter();
 
@@ -85,7 +85,6 @@ export function AppShell({ children, title, right }) {
   const [notificationsLoading, setNotificationsLoading] = useState(false);
   const [markingAllRead, setMarkingAllRead] = useState(false);
 
-  const { theme, setTheme, systemTheme } = useTheme();
   const [prevNotifications, setPrevNotifications] = useState([]);
 
   const { showToast } = useToast();
@@ -98,11 +97,6 @@ export function AppShell({ children, title, right }) {
 
     return () => clearInterval(interval);
   }, []);
-
-  function handleToggleTheme() {
-    const activeTheme = theme === "system" ? systemTheme : theme;
-    setTheme(activeTheme === "dark" ? "light" : "dark");
-  }
 
   async function loadUser() {
     try {
@@ -140,15 +134,12 @@ export function AppShell({ children, title, right }) {
       });
 
       const newNotifications = data?.notifications ?? [];
-
       const newItems = newNotifications.filter(
         (n) => !prevNotifications.some((p) => p.id === n.id),
       );
 
       if (prevNotifications.length > 0) {
-        newItems.forEach((n) => {
-          showToast(n.title);
-        });
+        newItems.forEach((n) => showToast(n.title));
       }
 
       setPrevNotifications(newNotifications);
@@ -167,24 +158,13 @@ export function AppShell({ children, title, right }) {
 
   useEffect(() => {
     function handleClickOutside(e) {
-      if (!e.target.closest(".actions-menu")) {
-        setActionsOpen(false);
-      }
-
-      if (!e.target.closest(".more-menu")) {
-        setMoreOpen(false);
-      }
-
-      if (!e.target.closest(".notifications-menu")) {
-        setNotificationsOpen(false);
-      }
+      if (!e.target.closest(".actions-menu")) setActionsOpen(false);
+      if (!e.target.closest(".more-menu")) setMoreOpen(false);
+      if (!e.target.closest(".notifications-menu")) setNotificationsOpen(false);
     }
 
     document.addEventListener("click", handleClickOutside);
-
-    return () => {
-      document.removeEventListener("click", handleClickOutside);
-    };
+    return () => document.removeEventListener("click", handleClickOutside);
   }, []);
 
   useEffect(() => {
@@ -300,15 +280,15 @@ export function AppShell({ children, title, right }) {
   const hasReadNotifications = notifications.some((n) => n.read_at);
 
   return (
-    <div className={s.app}>
-      <header className={s.header}>
-        <div className={s.headerInner}>
-          <div className={s.left}>
-            <Link href="/dashboard" className={s.brand}>
-              <MainLogo className="text-main h-16 w-16 sm:h-20 sm:w-20" />
+    <div className="bg-app text-main min-h-screen">
+      <header className="border-base bg-surface/95 supports-[backdrop-filter]:bg-surface/80 sticky top-0 z-20 border-b backdrop-blur">
+        <div className="mx-auto flex max-w-6xl items-center justify-between gap-3 px-4 py-3">
+          <div className="flex min-w-0 items-center gap-3 lg:gap-6">
+            <Link href="/dashboard" className="shrink-0">
+              <MainLogo className="text-main h-14 w-14 sm:h-16 sm:w-16" />
             </Link>
 
-            <nav className={s.navDesktopWide}>
+            <nav className="hidden items-center gap-2 md:flex">
               {primaryNavItems.map((item) => {
                 const active = isActivePath(pathname, item.href);
 
@@ -317,8 +297,8 @@ export function AppShell({ children, title, right }) {
                     key={item.href}
                     href={item.href}
                     className={cx(
-                      s.navItem,
-                      active ? s.navItemActive : s.navItemInactive,
+                      "nav-pill",
+                      active ? "nav-pill-active" : "nav-pill-inactive",
                     )}
                   >
                     {item.label}
@@ -333,15 +313,15 @@ export function AppShell({ children, title, right }) {
                     onClick={() => setMoreOpen((prev) => !prev)}
                     aria-expanded={moreOpen}
                     className={cx(
-                      s.navItem,
-                      moreMenuHasActiveItem ? s.navItemActive : s.navItemInactive,
+                      "nav-pill",
+                      moreMenuHasActiveItem ? "nav-pill-active" : "nav-pill-inactive",
                     )}
                   >
                     Tools ▾
                   </button>
 
                   {moreOpen && (
-                    <div className={s.dropdown}>
+                    <div className="dropdown-panel absolute right-0 z-50 mt-2 min-w-[12rem] overflow-hidden">
                       {secondaryNavItems.map((item) => {
                         const active = isActivePath(pathname, item.href);
 
@@ -350,64 +330,10 @@ export function AppShell({ children, title, right }) {
                             key={item.href}
                             href={item.href}
                             className={cx(
-                              s.dropdownItem,
-                              active ? "bg-accent" : "hover:bg-muted",
-                            )}
-                          >
-                            {item.label}
-                          </Link>
-                        );
-                      })}
-                    </div>
-                  )}
-                </div>
-              )}
-            </nav>
-
-            <nav className={s.navDesktopMedium}>
-              {primaryNavItems.map((item) => {
-                const active = isActivePath(pathname, item.href);
-
-                return (
-                  <Link
-                    key={item.href}
-                    href={item.href}
-                    className={cx(
-                      s.navItem,
-                      active ? s.navItemActive : s.navItemInactive,
-                    )}
-                  >
-                    {item.label}
-                  </Link>
-                );
-              })}
-
-              {secondaryNavItems.length > 0 && (
-                <div className="more-menu relative">
-                  <button
-                    type="button"
-                    onClick={() => setMoreOpen((prev) => !prev)}
-                    aria-expanded={moreOpen}
-                    className={cx(
-                      s.navItem,
-                      moreMenuHasActiveItem ? s.navItemActive : s.navItemInactive,
-                    )}
-                  >
-                    Tools ▾
-                  </button>
-
-                  {moreOpen && (
-                    <div className={s.dropdown}>
-                      {secondaryNavItems.map((item) => {
-                        const active = isActivePath(pathname, item.href);
-
-                        return (
-                          <Link
-                            key={item.href}
-                            href={item.href}
-                            className={cx(
-                              s.dropdownItem,
-                              active ? "bg-accent-soft" : "hover:bg-muted",
+                              "block px-4 py-2 text-sm transition",
+                              active
+                                ? "bg-accent text-main"
+                                : "hover:bg-accent text-muted",
                             )}
                           >
                             {item.label}
@@ -421,8 +347,10 @@ export function AppShell({ children, title, right }) {
             </nav>
           </div>
 
-          <div className={s.right}>
-            {right ? <div className={s.rightSlot}>{right}</div> : null}
+          <div className="flex shrink-0 items-center gap-2">
+            {right ? (
+              <div className="hidden items-center gap-2 lg:flex">{right}</div>
+            ) : null}
 
             <div className="notifications-menu relative">
               <button
@@ -430,17 +358,19 @@ export function AppShell({ children, title, right }) {
                 onClick={handleToggleNotifications}
                 aria-label="Open notifications"
                 aria-expanded={notificationsOpen}
-                className={s.iconButton}
+                className="icon-btn relative"
               >
-                <span className={s.bellIcon}>🔔</span>
+                <span className="leading-none">🔔</span>
                 {unreadCount > 0 && (
-                  <span className={s.badge}>{unreadCount > 9 ? "9+" : unreadCount}</span>
+                  <span className="bg-accent-solid absolute -right-1 -top-1 inline-flex min-h-[1.1rem] min-w-[1.1rem] items-center justify-center rounded-full px-1 text-[10px] font-semibold">
+                    {unreadCount > 9 ? "9+" : unreadCount}
+                  </span>
                 )}
               </button>
 
               {notificationsOpen && (
-                <div className={s.notificationsDropdown}>
-                  <div className={s.notificationsHeader}>
+                <div className="dropdown-panel absolute right-0 z-50 mt-2 w-[22rem] max-w-[calc(100vw-2rem)] overflow-hidden">
+                  <div className="border-base flex items-start justify-between gap-3 border-b px-4 py-3">
                     <div>
                       <p className="text-sm font-semibold">Notifications</p>
                       <p className="text-muted text-xs">Recent activity and reminders</p>
@@ -452,7 +382,7 @@ export function AppShell({ children, title, right }) {
                         onClick={handleMarkAllRead}
                         disabled={markingAllRead || unreadCount === 0}
                         className={cx(
-                          s.inlineAction,
+                          "text-muted hover:text-main text-xs transition",
                           (markingAllRead || unreadCount === 0) &&
                             "cursor-not-allowed opacity-50",
                         )}
@@ -464,7 +394,7 @@ export function AppShell({ children, title, right }) {
                         <button
                           type="button"
                           onClick={handleClearRead}
-                          className={s.inlineAction}
+                          className="text-muted hover:text-main text-xs transition"
                         >
                           Clear read
                         </button>
@@ -472,11 +402,15 @@ export function AppShell({ children, title, right }) {
                     </div>
                   </div>
 
-                  <div className={s.notificationsList}>
+                  <div className="max-h-[24rem] overflow-y-auto">
                     {notificationsLoading ? (
-                      <div className={s.notificationsEmpty}>Loading notifications...</div>
+                      <div className="text-muted px-4 py-6 text-center text-sm">
+                        Loading notifications...
+                      </div>
                     ) : notifications.length === 0 ? (
-                      <div className={s.notificationsEmpty}>You’re all caught up.</div>
+                      <div className="text-muted px-4 py-6 text-center text-sm">
+                        You’re all caught up.
+                      </div>
                     ) : (
                       notifications.map((notification) => {
                         const unread = !notification.read_at;
@@ -486,33 +420,33 @@ export function AppShell({ children, title, right }) {
                           <div
                             key={notification.id}
                             className={cx(
-                              s.notificationItem,
-                              unread && s.notificationItemUnread,
+                              "border-base border-b last:border-b-0",
+                              unread && "bg-accent/40",
                             )}
                           >
                             <button
                               type="button"
                               onClick={() => handleNotificationClick(notification)}
-                              className={s.notificationMainButton}
+                              className="hover:bg-accent block w-full px-4 py-3 text-left transition"
                             >
                               <div className="flex items-start gap-3">
                                 <span
                                   className={cx(
-                                    s.notificationDot,
+                                    "bg-accent-solid mt-1.5 h-2 w-2 shrink-0 rounded-full transition-opacity",
                                     unread ? "opacity-100" : "opacity-0",
                                   )}
                                 />
                                 <div className="min-w-0 flex-1 text-left">
                                   <div className="flex items-center justify-between gap-3">
-                                    <p className={s.notificationTitle}>
+                                    <p className="truncate text-sm font-medium">
                                       {notification.title}
                                     </p>
-                                    <span className={s.notificationTime}>
+                                    <span className="text-muted shrink-0 text-xs">
                                       {formatNotificationTime(notification.created_at)}
                                     </span>
                                   </div>
 
-                                  <p className={s.notificationMessage}>
+                                  <p className="text-muted mt-1 text-sm">
                                     {notification.message}
                                   </p>
 
@@ -531,7 +465,7 @@ export function AppShell({ children, title, right }) {
                                 onClick={() =>
                                   handleMarkNotificationRead(notification.id)
                                 }
-                                className={s.readButton}
+                                className="text-muted hover:text-main px-4 pb-3 text-xs hover:underline"
                               >
                                 Mark read
                               </button>
@@ -546,33 +480,33 @@ export function AppShell({ children, title, right }) {
             </div>
 
             <div className="actions-menu relative hidden md:block">
-              <button onClick={() => setActionsOpen((prev) => !prev)} className={s.btn}>
+              <button onClick={() => setActionsOpen((prev) => !prev)} className="btn">
                 Menu ▾
               </button>
 
               {actionsOpen && (
-                <div className={s.dropdown}>
+                <div className="dropdown-panel absolute right-0 z-50 mt-2 min-w-[12rem] overflow-hidden">
                   {isAdminUser && (
                     <button
                       onClick={() => {
                         setActionsOpen(false);
                         setInviteModalOpen(true);
                       }}
-                      className={s.dropdownButton}
+                      className="hover:bg-accent block w-full px-4 py-2 text-left text-sm transition"
                     >
                       Invite User
                     </button>
                   )}
 
-                  <button onClick={handleToggleTheme} className={s.dropdownButton}>
-                    Toggle Theme
-                  </button>
+                  <div className="px-2 py-2">
+                    <ThemeToggle className="w-full justify-start" />
+                  </div>
 
-                  <div className="border-base my-1 border-t" />
+                  <div className="border-base border-t" />
 
                   <button
                     onClick={handleLogout}
-                    className="hover:bg-muted w-full px-4 py-2 text-left text-sm text-red-500"
+                    className="hover:bg-accent block w-full px-4 py-2 text-left text-sm text-red-500 transition"
                   >
                     Log out
                   </button>
@@ -585,7 +519,7 @@ export function AppShell({ children, title, right }) {
               aria-label={mobileMenuOpen ? "Close menu" : "Open menu"}
               aria-expanded={mobileMenuOpen}
               onClick={() => setMobileMenuOpen((prev) => !prev)}
-              className={cx(s.btn, "md:hidden")}
+              className="btn md:hidden"
             >
               {mobileMenuOpen ? "Close" : "Menu"}
             </button>
@@ -593,9 +527,12 @@ export function AppShell({ children, title, right }) {
         </div>
 
         {mobileMenuOpen && (
-          <div className={s.mobileMenuWrap}>
-            <nav className={s.mobileMenu}>
-              <div className={s.mobileSectionLabel}>Workflow</div>
+          <div className="border-base border-t px-4 pb-3 md:hidden">
+            <nav className="mx-auto flex max-w-6xl flex-col gap-2 pt-3">
+              <div className="text-muted px-3 pt-1 text-[11px] font-semibold uppercase tracking-wide">
+                Workflow
+              </div>
+
               {primaryNavItems.map((item) => {
                 const active = isActivePath(pathname, item.href);
 
@@ -604,8 +541,8 @@ export function AppShell({ children, title, right }) {
                     key={item.href}
                     href={item.href}
                     className={cx(
-                      s.mobileNavItem,
-                      active ? s.navItemActive : s.navItemInactive,
+                      "nav-pill",
+                      active ? "nav-pill-active" : "nav-pill-inactive",
                     )}
                   >
                     {item.label}
@@ -615,8 +552,10 @@ export function AppShell({ children, title, right }) {
 
               {secondaryNavItems.length > 0 && (
                 <>
-                  <div className={s.mobileSectionDivider} />
-                  <div className={s.mobileSectionLabel}>Tools</div>
+                  <div className="border-base mt-2 border-t pt-2" />
+                  <div className="text-muted px-3 pt-1 text-[11px] font-semibold uppercase tracking-wide">
+                    Tools
+                  </div>
 
                   {secondaryNavItems.map((item) => {
                     const active = isActivePath(pathname, item.href);
@@ -626,8 +565,8 @@ export function AppShell({ children, title, right }) {
                         key={item.href}
                         href={item.href}
                         className={cx(
-                          s.mobileNavItem,
-                          active ? s.navItemActive : s.navItemInactive,
+                          "nav-pill",
+                          active ? "nav-pill-active" : "nav-pill-inactive",
                         )}
                       >
                         {item.label}
@@ -637,8 +576,10 @@ export function AppShell({ children, title, right }) {
                 </>
               )}
 
-              <div className={s.mobileSectionDivider} />
-              <div className={s.mobileSectionLabel}>Account</div>
+              <div className="border-base mt-2 border-t pt-2" />
+              <div className="text-muted px-3 pt-1 text-[11px] font-semibold uppercase tracking-wide">
+                Account
+              </div>
 
               {isAdminUser && (
                 <button
@@ -646,23 +587,15 @@ export function AppShell({ children, title, right }) {
                     setMobileMenuOpen(false);
                     setInviteModalOpen(true);
                   }}
-                  className="hover:bg-accent-soft block w-full rounded-md px-3 py-2 text-left text-sm"
+                  className="btn justify-start"
                 >
                   Invite User
                 </button>
               )}
 
-              <button
-                onClick={handleToggleTheme}
-                className="hover:bg-accent-soft block w-full rounded-md px-3 py-2 text-left text-sm"
-              >
-                Toggle Theme
-              </button>
+              <ThemeToggle className="justify-start" />
 
-              <button
-                onClick={handleLogout}
-                className="hover:bg-accent-soft block w-full rounded-md px-3 py-2 text-left text-sm text-red-500"
-              >
+              <button onClick={handleLogout} className="btn btn-danger justify-start">
                 Log out
               </button>
             </nav>
@@ -670,9 +603,19 @@ export function AppShell({ children, title, right }) {
         )}
       </header>
 
-      <main className={s.main}>
-        <div className={s.mainInner}>
-          {title ? <h1 className={s.h1}>{title}</h1> : null}
+      <main className="page-wrap">
+        <div className="page-stack">
+          {title ? (
+            <div className="page-header">
+              <div className="page-header-copy">
+                <h1 className="page-title">{title}</h1>
+                {description ? <p className="page-subtitle">{description}</p> : null}
+              </div>
+
+              {right ? <div className="page-actions lg:hidden">{right}</div> : null}
+            </div>
+          ) : null}
+
           {children}
         </div>
       </main>
@@ -681,68 +624,3 @@ export function AppShell({ children, title, right }) {
     </div>
   );
 }
-
-const s = {
-  app: "min-h-screen bg-app text-main",
-
-  header:
-    "sticky top-0 z-20 border-b border-base bg-surface/95 backdrop-blur supports-[backdrop-filter]:bg-surface/80",
-  headerInner: "mx-auto flex max-w-6xl items-center justify-between gap-3 px-4 py-3",
-
-  left: "flex min-w-0 items-center gap-3 lg:gap-6",
-  brand: "shrink-0 text-lg font-semibold tracking-tight",
-
-  navDesktopWide: "hidden items-center gap-2 xl:flex",
-  navDesktopMedium: "hidden items-center gap-2 md:flex xl:hidden",
-
-  navItem: "whitespace-nowrap rounded-md px-3 py-2 text-sm transition",
-  navItemActive: "bg-accent-soft text-main",
-  navItemInactive: "text-muted hover:bg-accent-soft",
-
-  right: "flex shrink-0 items-center gap-2",
-  rightSlot: "hidden items-center gap-2 lg:flex",
-
-  btn: "inline-flex items-center justify-center rounded-md border border-base bg-surface px-3 py-2 text-sm hover:bg-accent-soft",
-  iconButton:
-    "relative inline-flex h-10 w-10 items-center justify-center rounded-md border border-base bg-surface text-base hover:bg-accent-soft",
-
-  badge:
-    "absolute -right-1 -top-1 inline-flex min-h-[1.1rem] min-w-[1.1rem] items-center justify-center rounded-full bg-main px-1 text-[10px] font-semibold text-white",
-  bellIcon: "leading-none",
-
-  dropdown:
-    "bg-surface absolute right-0 z-50 mt-2 min-w-[12rem] rounded-lg border border-base shadow-lg",
-  dropdownItem: "block w-full px-4 py-2 text-left text-sm",
-  dropdownButton: "hover:bg-muted w-full px-4 py-2 text-left text-sm",
-
-  notificationsDropdown:
-    "bg-surface absolute right-0 z-50 mt-2 w-[22rem] max-w-[calc(100vw-2rem)] overflow-hidden rounded-xl border border-base shadow-lg",
-  notificationsHeader:
-    "flex items-start justify-between gap-3 border-b border-base px-4 py-3",
-  notificationsList: "max-h-[24rem] overflow-y-auto",
-  notificationsEmpty: "px-4 py-6 text-sm text-muted text-center",
-
-  notificationItem: "border-b border-base last:border-b-0",
-  notificationItemUnread: "bg-accent-soft/40",
-  notificationMainButton:
-    "block w-full px-4 py-3 text-left transition hover:bg-accent-soft/60",
-  notificationDot: "mt-1.5 h-2 w-2 shrink-0 rounded-full bg-main transition-opacity",
-  notificationTitle: "truncate text-sm font-medium",
-  notificationMessage: "mt-1 text-sm text-muted",
-  notificationTime: "shrink-0 text-xs text-muted",
-  readButton: "px-4 pb-3 text-xs text-muted hover:text-main hover:underline",
-
-  inlineAction: "text-xs text-muted hover:text-main transition",
-
-  mobileMenuWrap: "border-t border-base px-4 pb-3 md:hidden",
-  mobileMenu: "mx-auto flex max-w-6xl flex-col gap-2 pt-3",
-  mobileNavItem: "rounded-md px-3 py-2 text-sm transition",
-  mobileSectionLabel:
-    "px-3 pt-1 text-[11px] font-semibold uppercase tracking-wide text-muted",
-  mobileSectionDivider: "border-base mt-2 border-t pt-2",
-
-  main: "mx-auto max-w-6xl px-4 py-6",
-  mainInner: "space-y-6",
-
-  h1: "text-2xl font-semibold",
-};

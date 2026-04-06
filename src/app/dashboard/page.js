@@ -5,18 +5,23 @@ import Link from "next/link";
 import { AppShell } from "@/components/app-shell";
 import { api } from "@/lib/api";
 import { formatDue } from "@/lib/helper";
+import { CollapsibleSection } from "@/components/forms/collapsible-section";
+
+function cx(...classes) {
+  return classes.filter(Boolean).join(" ");
+}
 
 function StatCard({ label, value, sub, href }) {
   const inner = (
-    <div className="bg-surface border-base hover:bg-accent/30 rounded-lg border p-4 transition-colors">
-      <div className="text-muted-foreground text-sm">{label}</div>
-      <div className="mt-2 text-2xl font-semibold">{value}</div>
-      {sub ? <div className="text-muted-foreground mt-1 text-sm">{sub}</div> : null}
+    <div className="card hover:bg-accent h-full rounded-lg p-3 transition-colors sm:p-4">
+      <div className="text-muted text-xs sm:text-sm">{label}</div>
+      <div className="mt-1 text-xl font-semibold sm:mt-2 sm:text-2xl">{value}</div>
+      {sub ? <div className="text-muted mt-1 hidden text-xs sm:block">{sub}</div> : null}
     </div>
   );
 
   return href ? (
-    <Link href={href} className="block">
+    <Link href={href} className="block h-full">
       {inner}
     </Link>
   ) : (
@@ -24,47 +29,49 @@ function StatCard({ label, value, sub, href }) {
   );
 }
 
-function SectionCard({ title, right, children }) {
+function SectionCard({ title, right, children, className = "" }) {
   return (
-    <div className="bg-surface border-base rounded-lg border">
-      <div className="border-base flex items-center justify-between border-b p-4">
+    <section className={cx("card rounded-lg", className)}>
+      <div className="border-base flex items-center justify-between gap-3 border-b p-4">
         <div className="text-sm font-medium">{title}</div>
         {right ? <div className="text-sm">{right}</div> : null}
       </div>
       <div className="p-4">{children}</div>
-    </div>
+    </section>
   );
 }
 
 function Badge({ children }) {
-  return (
-    <span className="text-muted-foreground inline-flex items-center rounded-full border px-2 py-0.5 text-xs">
-      {children}
-    </span>
-  );
+  return <span className="status-chip">{children}</span>;
+}
+
+function getTaskLeadLabel(task) {
+  if (task.lead_first_name && task.lead_last_name) {
+    return `${task.lead_first_name} ${task.lead_last_name}`;
+  }
+
+  if (task.lead_id) {
+    return `Lead #${task.lead_id}`;
+  }
+
+  return null;
 }
 
 function TaskRow({ t }) {
-  const leadName =
-    t.lead_first_name && t.lead_last_name
-      ? `${t.lead_first_name} ${t.lead_last_name}`
-      : t.lead_id
-        ? `Lead #${t.lead_id}`
-        : null;
+  const leadName = getTaskLeadLabel(t);
 
   return (
-    <div className="rounded-lg border p-3">
+    <div className="border-base hover:bg-accent rounded-lg border p-3 transition">
       <div className="flex items-start justify-between gap-3">
-        <div>
+        <div className="min-w-0">
           <div className="font-medium">{t.title}</div>
-          <div className="text-muted-foreground mt-1 text-sm">
+          <div className="text-muted mt-1 text-sm">
             {(leadName ? `${leadName} • ` : "") + formatDue(t.due_date)}
           </div>
         </div>
 
-        {/* You can wire this to PATCH /tasks/:id later */}
         <button
-          className="hover:bg-accent shrink-0 rounded-md border px-3 py-2 text-xs transition-colors"
+          className="btn shrink-0 px-3 py-2 text-xs"
           onClick={() => alert("Wire me to mark complete 🙂")}
         >
           Done
@@ -74,35 +81,113 @@ function TaskRow({ t }) {
   );
 }
 
+function getActivityHref(item) {
+  if (!item?.entity_type || !item?.entity_id) return null;
+
+  if (item.entity_type === "lead") return `/leads/${item.entity_id}`;
+  if (item.entity_type === "job") return `/jobs/${item.entity_id}`;
+  if (item.entity_type === "task") return `/tasks/${item.entity_id}`;
+
+  return null;
+}
+
+function formatActivityMeta(item) {
+  const entityLabel =
+    item?.entity_type && item?.entity_id
+      ? `${item.entity_type} #${item.entity_id}`
+      : "System";
+
+  const typeLabel = item?.type ? item.type.replaceAll("_", " ") : "activity";
+
+  return `${entityLabel} • ${typeLabel}`;
+}
+
+function ActivityItem({ item }) {
+  const href = getActivityHref(item);
+
+  const content = (
+    <div className="border-base hover:bg-accent rounded-lg border p-2.5 transition sm:p-3">
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0 flex-1">
+          <div className="text-sm font-medium">{item.title}</div>
+
+          {item.message ? (
+            <div className="text-muted mt-1 line-clamp-2 text-xs leading-5">
+              {item.message}
+            </div>
+          ) : null}
+
+          <div className="text-muted mt-2 text-[11px] uppercase tracking-wide">
+            {formatActivityMeta(item)}
+          </div>
+        </div>
+
+        <div className="text-muted shrink-0 text-[11px] sm:text-xs">
+          {new Date(item.created_at).toLocaleDateString([], {
+            month: "short",
+            day: "numeric",
+          })}
+        </div>
+      </div>
+    </div>
+  );
+
+  return href ? <Link href={href}>{content}</Link> : content;
+}
+
 export default function DashboardPage() {
-  const [data, setData] = useState(null); // dashboard payload
-  const [loading, setLoading] = useState(true);
-  const [err, setErr] = useState("");
-  const [tab, setTab] = useState("due_today"); // overdue | due_today | next_up
-  const [user, setUser] = useState(null);
+  const [data, setData] = useState(null);
   const [activity, setActivity] = useState([]);
-  const [loadingActivity, setLoadingActivity] = useState(false);
+  const [user, setUser] = useState(null);
+
+  const [loading, setLoading] = useState(true);
+  const [loadingActivity, setLoadingActivity] = useState(true);
+  const [err, setErr] = useState("");
+  const [tab, setTab] = useState("due_today");
 
   useEffect(() => {
     let alive = true;
 
-    async function run() {
+    async function loadDashboard() {
       try {
         setLoading(true);
+        setLoadingActivity(true);
         setErr("");
-        const res = await api("/dashboard");
+
+        const [dashboardRes, authRes, activityRes] = await Promise.allSettled([
+          api("/dashboard"),
+          api("/auth/me", { credentials: "include" }),
+          api("/dashboard/activities"),
+        ]);
+
         if (!alive) return;
-        setData(res);
-      } catch (e) {
-        if (!alive) return;
-        setErr(e?.message || "Failed to load dashboard");
+
+        if (dashboardRes.status === "fulfilled") {
+          setData(dashboardRes.value);
+        } else {
+          setErr(dashboardRes.reason?.message || "Failed to load dashboard");
+        }
+
+        if (authRes.status === "fulfilled") {
+          setUser(authRes.value?.user || null);
+        } else {
+          setUser(null);
+        }
+
+        if (activityRes.status === "fulfilled") {
+          setActivity(activityRes.value?.activity || []);
+        } else {
+          setActivity([]);
+        }
       } finally {
         if (!alive) return;
         setLoading(false);
+        setLoadingActivity(false);
       }
     }
 
-    run();
+    loadDashboard();
+
     return () => {
       alive = false;
     };
@@ -150,231 +235,170 @@ export default function DashboardPage() {
 
   const currentTasks = useMemo(() => {
     if (!data?.ok) return [];
-    const t = data.tasks || {};
-    if (tab === "overdue") return t.overdueTasks || [];
-    if (tab === "due_today") return t.dueTodayTasks || [];
-    return t.nextUp || [];
+
+    const taskData = data.tasks || {};
+
+    if (tab === "overdue") return taskData.overdueTasks || [];
+    if (tab === "due_today") return taskData.dueTodayTasks || [];
+    return taskData.nextUp || [];
   }, [data, tab]);
 
   const statusSummary = useMemo(() => {
-    const rows = Array.isArray(data?.leads?.byStatus) ? data.leads.byStatus : [];
-    // rows look like: { status: "New", count: 3 }
-    return rows;
+    return Array.isArray(data?.leads?.byStatus) ? data.leads.byStatus : [];
   }, [data]);
 
-  const fetchUser = async () => {
-    try {
-      const data = await api("/auth/me", {
-        credentials: "include",
-      });
+  const greeting = user?.first_name ? `Welcome back, ${user.first_name}` : "Welcome back";
+  const recentTitle =
+    activity.length > 0 ? (
+      <div className="flex gap-5">
+        <span>Recent activity</span>
+      </div>
+    ) : (
+      <span>No recent activity</span>
+    );
+  const leadTitle =
+    statusSummary.length > 0 ? (
+      <Link className="hover:underline" href="/leads">
+        All leads
+      </Link>
+    ) : (
+      <Link className="text-muted hover:underline" href="/leads">
+        No leads yet
+      </Link>
+    );
 
-      setUser(data?.user || null);
-    } catch {
-      setUser(null);
-    }
-  };
-
-  async function loadActivity() {
-    setLoadingActivity(true);
-    try {
-      const res = await api(`/dashboard/activities`);
-      setActivity(res.activity || []);
-    } finally {
-      setLoadingActivity(false);
-    }
-  }
-
-  async function loadPage() {
-    try {
-      setLoading(true);
-      await Promise.all([fetchUser(), loadActivity()]);
-    } catch (e) {
-      setErr(e?.message || "Failed to load dashboard");
-    } finally {
-      setLoading(false);
-    }
-  }
-
-  useEffect(() => {
-    loadPage();
-  }, []);
-
-  const greeting = user?.first_name
-    ? `Hello ${user.first_name}, welcome back!`
-    : "Hello, welcome back!";
+  const taskTitle = (
+    <div className="flex gap-5">
+      <Link className="hover:underline" href="/tasks">
+        Tasks
+      </Link>
+    </div>
+  );
 
   return (
     <AppShell
-      title={
-        <div className="flex items-end justify-between">
-          <span>Dashboard</span>
-          <span className="text-main pt-auto pl-[40px] align-bottom text-sm">
-            {greeting}
-          </span>
-        </div>
-      }
+      title="Dashboard"
+      right={<div className="text-muted text-sm">{greeting}</div>}
     >
       <div className="space-y-6">
-        {/* KPI row */}
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
           {loading
             ? Array.from({ length: 4 }).map((_, i) => (
-                <div key={i} className="bg-surface border-base rounded-lg border p-4">
-                  <div className="bg-muted/40 h-4 w-24 rounded" />
-                  <div className="bg-muted/40 mt-3 h-7 w-20 rounded" />
-                  <div className="bg-muted/40 mt-2 h-4 w-28 rounded" />
+                <div key={i} className="card rounded-lg p-4">
+                  <div className="bg-accent h-4 w-24 rounded opacity-20" />
+                  <div className="bg-accent mt-3 h-7 w-20 rounded opacity-20" />
+                  <div className="bg-accent mt-2 h-4 w-28 rounded opacity-20" />
                 </div>
               ))
             : stats.map((s) => <StatCard key={s.label} {...s} />)}
         </div>
 
-        {/* Error */}
         {!loading && err ? (
-          <div className="bg-surface border-base rounded-lg border p-4">
-            <div className="text-sm font-medium">Couldn't load dashboard</div>
-            <div className="text-muted-foreground mt-1 text-sm">{err}</div>
+          <div className="card rounded-lg p-4">
+            <div className="text-sm font-medium">Couldn&apos;t load dashboard</div>
+            <div className="text-muted mt-1 text-sm">{err}</div>
           </div>
         ) : null}
 
-        {/* Main grid */}
-        <div className="grid gap-4 lg:min-h-[600px] lg:grid-cols-3">
-          {/* Tasks */}
-          <div className="space-y-4 lg:col-span-2">
-            <SectionCard
-              title="Activity feed"
-              /* right={
-                <Link className="text-muted-foreground hover:underline" href="/tasks">
-                  View all
-                </Link>
-              } */
-            >
-              <div className="space-y-3">
-                {loadingActivity ? (
-                  <div className="text-muted-foreground text-sm">Loading...</div>
-                ) : activity.length === 0 ? (
-                  <div className="text-muted-foreground text-sm">No recent activity</div>
-                ) : (
-                  activity.map((a) => (
-                    <div key={a.id} className="rounded-lg border p-3">
-                      <div className="flex items-start justify-between">
-                        <div className="flex-1">
-                          <div className="text-sm font-medium">{a.title}</div>
-                          {a.message && (
-                            <div className="text-muted-foreground mt-1 text-xs">
-                              {a.message}
-                            </div>
-                          )}
-                          <div className="text-muted-foreground mt-1 text-xs">
-                            {a.entity_type} #{a.entity_id} • {a.type.replace("_", " ")}
-                          </div>
-                        </div>
-                        <div className="text-muted-foreground text-xs">
-                          {new Date(a.created_at).toLocaleString()}
-                        </div>
-                      </div>
-                    </div>
-                  ))
-                )}
-              </div>
-            </SectionCard>
+        <div className="grid gap-4 xl:grid-cols-[minmax(0,2fr)_minmax(320px,1fr)]">
+          <div className="space-y-4">
+            <CollapsibleSection title={taskTitle} defaultOpen={true}>
+              <div className="mb-4 flex items-center justify-between">
+                <div className="flex flex-wrap gap-2">
+                  <button
+                    className={cx(
+                      "btn px-3 py-2 text-xs",
+                      tab === "overdue" && "bg-accent text-main",
+                    )}
+                    onClick={() => setTab("overdue")}
+                  >
+                    Overdue
+                  </button>
 
-            <SectionCard
-              title="Tasks"
-              right={
-                <Link className="text-muted-foreground hover:underline" href="/tasks">
+                  <button
+                    className={cx(
+                      "btn px-3 py-2 text-xs",
+                      tab === "due_today" && "bg-accent text-main",
+                    )}
+                    onClick={() => setTab("due_today")}
+                  >
+                    Due Today
+                  </button>
+
+                  <button
+                    className={cx(
+                      "btn px-3 py-2 text-xs",
+                      tab === "next_up" && "bg-accent text-main",
+                    )}
+                    onClick={() => setTab("next_up")}
+                  >
+                    Next Up
+                  </button>
+                </div>
+                <Link className="text-muted hover:underline" href="/tasks">
                   View all
                 </Link>
-              }
-            >
-              <div className="flex flex-wrap gap-2">
-                <button
-                  className={`rounded-md border px-3 py-2 text-xs transition-colors ${
-                    tab === "overdue" ? "bg-accent" : "hover:bg-accent"
-                  }`}
-                  onClick={() => setTab("overdue")}
-                >
-                  Overdue
-                </button>
-                <button
-                  className={`rounded-md border px-3 py-2 text-xs transition-colors ${
-                    tab === "due_today" ? "bg-accent" : "hover:bg-accent"
-                  }`}
-                  onClick={() => setTab("due_today")}
-                >
-                  Due Today
-                </button>
-                <button
-                  className={`rounded-md border px-3 py-2 text-xs transition-colors ${
-                    tab === "next_up" ? "bg-accent" : "hover:bg-accent"
-                  }`}
-                  onClick={() => setTab("next_up")}
-                >
-                  Next Up
-                </button>
               </div>
 
               <div className="mt-4 space-y-3">
                 {loading ? (
-                  <div className="text-muted-foreground text-sm">Loading…</div>
+                  <div className="text-muted text-sm">Loading…</div>
                 ) : currentTasks.length === 0 ? (
-                  <div className="text-muted-foreground text-sm">Nothing here 🎉</div>
+                  <div className="text-muted text-sm">Nothing here 🎉</div>
                 ) : (
                   currentTasks.map((t) => <TaskRow key={t.id} t={t} />)
                 )}
               </div>
-            </SectionCard>
+            </CollapsibleSection>
           </div>
 
-          {/* Lead status breakdown */}
-          <div className="flex flex-col space-y-4 lg:col-span-1">
-            <SectionCard
-              title="Leads by status"
-              right={
-                <Link className="text-muted-foreground hover:underline" href="/leads">
-                  See leads
+          <div className="space-y-4">
+            <SectionCard title="Quick actions">
+              <div className="flex flex-wrap gap-2">
+                <Link href="/leads/new" className="btn">
+                  New Lead
                 </Link>
-              }
-            >
+                <Link href="/tasks/new" className="btn">
+                  New Task
+                </Link>
+              </div>
+            </SectionCard>
+            <CollapsibleSection title={recentTitle} defaultOpen={true}>
+              <div className="space-y-3">
+                {loadingActivity ? (
+                  <div className="text-muted text-sm">Loading activity…</div>
+                ) : activity.length === 0 ? (
+                  <div className="text-muted text-sm">No recent activity</div>
+                ) : (
+                  activity
+                    .slice(0, 6)
+                    .map((item) => <ActivityItem key={item.id} item={item} />)
+                )}
+              </div>
+            </CollapsibleSection>
+
+            <CollapsibleSection title={leadTitle} defaultOpen={true}>
               {loading ? (
-                <div className="text-muted-foreground text-sm">Loading…</div>
+                <div className="text-muted text-sm">Loading…</div>
               ) : statusSummary.length === 0 ? (
-                <div className="text-muted-foreground text-sm">No leads yet</div>
+                <div className="text-muted text-sm">No leads yet</div>
               ) : (
                 <div className="space-y-2">
                   {statusSummary.map((row) => (
-                    <div
+                    <Link
                       key={row.status}
-                      className="flex items-center justify-between rounded-lg border p-3"
+                      className="border-base flex items-center justify-between rounded-lg border p-3"
+                      href={`/leads?status=${row.status}`}
                     >
                       <div className="flex items-center gap-2">
                         <Badge>{row.status}</Badge>
                       </div>
                       <div className="text-sm font-semibold">{row.count}</div>
-                    </div>
+                    </Link>
                   ))}
                 </div>
               )}
-            </SectionCard>
-
-            {/* Quick actions */}
-            <div className="bg-surface border-base mt-auto rounded-lg border p-4">
-              <div className="text-sm font-medium">Quick actions</div>
-              <div className="text-muted-foreground mt-1 text-sm">Add new work fast.</div>
-              <div className="mt-3 flex flex-wrap gap-2">
-                <Link
-                  href="/leads/new"
-                  className="border-base bg-surface hover:bg-accent-soft rounded-md border px-3 py-2 text-sm"
-                >
-                  New Lead
-                </Link>
-                <Link
-                  href="/tasks/new"
-                  className="border-base bg-surface hover:bg-accent-soft rounded-md border px-3 py-2 text-sm"
-                >
-                  New Task
-                </Link>
-              </div>
-            </div>
+            </CollapsibleSection>
           </div>
         </div>
       </div>

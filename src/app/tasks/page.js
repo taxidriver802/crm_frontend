@@ -2,11 +2,44 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import { AppShell } from "@/components/app-shell";
+import { ToggleFormSection } from "@/components/toggle-form-section";
+import { TaskForm, createEmptyTaskForm } from "@/components/forms/task-form";
 import { api } from "@/lib/api";
-import { formatDue, getLinkedEntity, LinkedEntityCell } from "@/lib/helper";
+import { formatDue, LinkedEntityCell } from "@/lib/helper";
+
+function SummaryCard({ label, value, sub }) {
+  return (
+    <div className="card rounded-lg p-4">
+      <div className="text-muted text-sm">{label}</div>
+      <div className="mt-2 text-2xl font-semibold">{value}</div>
+      {sub ? <div className="text-muted mt-1 text-xs">{sub}</div> : null}
+    </div>
+  );
+}
+
+function TaskStatusBadge({ status }) {
+  const normalized = String(status || "").toLowerCase();
+
+  if (normalized === "completed") {
+    return (
+      <span className="inline-flex items-center rounded-full border border-green-500/30 bg-green-500/10 px-2 py-0.5 text-xs text-green-700 dark:text-green-300">
+        Completed
+      </span>
+    );
+  }
+
+  return <span className="status-chip">{status || "Pending"}</span>;
+}
 
 export default function TasksPage() {
+  const searchParams = useSearchParams();
+
+  const prefillLeadId = searchParams.get("lead_id") || "";
+  const prefillJobId = searchParams.get("job_id") || "";
+  const shouldOpenCreate = searchParams.get("open") === "create";
+
   const [summary, setSummary] = useState(null);
   const [tasks, setTasks] = useState([]);
   const [loadingSummary, setLoadingSummary] = useState(true);
@@ -18,6 +51,52 @@ export default function TasksPage() {
   const [linkedFilter, setLinkedFilter] = useState("");
   const [leadId, setLeadId] = useState("");
   const [jobId, setJobId] = useState("");
+
+  const [leads, setLeads] = useState([]);
+  const [jobs, setJobs] = useState([]);
+  const [loadingLeads, setLoadingLeads] = useState(true);
+  const [loadingJobs, setLoadingJobs] = useState(true);
+
+  const [isCreateOpen, setIsCreateOpen] = useState(false);
+  const [creatingTask, setCreatingTask] = useState(false);
+  const [createError, setCreateError] = useState("");
+
+  const [contextType, setContextType] = useState(prefillJobId ? "job" : "lead");
+  const [taskForm, setTaskForm] = useState(
+    createEmptyTaskForm({
+      lead_id: prefillLeadId,
+      job_id: prefillJobId,
+    }),
+  );
+
+  useEffect(() => {
+    if (shouldOpenCreate) {
+      setIsCreateOpen(true);
+    }
+  }, [shouldOpenCreate]);
+
+  useEffect(() => {
+    if (prefillLeadId) {
+      setTaskForm((prev) => ({ ...prev, lead_id: prefillLeadId }));
+      setContextType("lead");
+    }
+  }, [prefillLeadId]);
+
+  useEffect(() => {
+    if (prefillJobId) {
+      setTaskForm((prev) => ({ ...prev, job_id: prefillJobId }));
+      setContextType("job");
+    }
+  }, [prefillJobId]);
+
+  function handleContextChange(type) {
+    setContextType(type);
+    setTaskForm((prev) => ({
+      ...prev,
+      lead_id: type === "lead" ? prev.lead_id : "",
+      job_id: type === "job" ? prev.job_id : "",
+    }));
+  }
 
   const queryString = useMemo(() => {
     const params = new URLSearchParams();
@@ -46,7 +125,6 @@ export default function TasksPage() {
     params.set("offset", "0");
 
     const s = params.toString();
-
     return s ? `?${s}` : "";
   }, [status, linkedFilter, leadId, jobId, title]);
 
@@ -74,9 +152,33 @@ export default function TasksPage() {
     }
   }
 
+  async function loadLeads() {
+    setLoadingLeads(true);
+    try {
+      const data = await api("/leads?limit=200&offset=0");
+      setLeads(data.leads || []);
+    } catch (e) {
+      setError(e.message || "Failed to load leads");
+    } finally {
+      setLoadingLeads(false);
+    }
+  }
+
+  async function loadJobs() {
+    setLoadingJobs(true);
+    try {
+      const data = await api("/jobs?limit=200&offset=0");
+      setJobs(data.jobs || []);
+    } catch (e) {
+      setError(e.message || "Failed to load jobs");
+    } finally {
+      setLoadingJobs(false);
+    }
+  }
+
   async function refreshAll() {
     setError("");
-    await Promise.all([loadSummary(), loadTasks()]);
+    await Promise.all([loadSummary(), loadTasks(), loadLeads(), loadJobs()]);
   }
 
   useEffect(() => {
@@ -101,41 +203,134 @@ export default function TasksPage() {
     }
   }
 
+  async function handleCreateTask(e) {
+    e.preventDefault();
+    setCreateError("");
+
+    if (contextType === "lead" && !taskForm.lead_id.trim()) {
+      setCreateError("Please choose a lead.");
+      return;
+    }
+
+    if (contextType === "job" && !taskForm.job_id.trim()) {
+      setCreateError("Please choose a job.");
+      return;
+    }
+
+    if (!taskForm.title.trim()) {
+      setCreateError("Title is required.");
+      return;
+    }
+
+    const payload = {
+      lead_id: contextType === "lead" ? Number(taskForm.lead_id) : null,
+      job_id: contextType === "job" ? Number(taskForm.job_id) : null,
+      title: taskForm.title.trim(),
+      description: taskForm.description.trim() || null,
+      status: taskForm.status || "Pending",
+      due_date: taskForm.due_date ? new Date(taskForm.due_date).toISOString() : null,
+    };
+
+    try {
+      setCreatingTask(true);
+
+      const data = await api("/tasks", {
+        method: "POST",
+        body: JSON.stringify(payload),
+      });
+
+      const createdTask = data?.task ?? null;
+
+      setTaskForm(
+        createEmptyTaskForm({
+          lead_id: contextType === "lead" ? taskForm.lead_id : "",
+          job_id: contextType === "job" ? taskForm.job_id : "",
+        }),
+      );
+      setIsCreateOpen(false);
+
+      if (createdTask) {
+        setTasks((prev) => [createdTask, ...prev]);
+      }
+
+      await loadSummary();
+    } catch (e) {
+      setCreateError(e?.message || "Failed to create task");
+    } finally {
+      setCreatingTask(false);
+    }
+  }
+
+  const overdueCount = summary?.counts?.overdue ?? summary?.overdueTasks?.length ?? 0;
+  const dueTodayCount = summary?.counts?.due_today ?? summary?.dueTodayTasks?.length ?? 0;
+  const nextUpCount = summary?.counts?.next_7_days ?? summary?.nextUp?.length ?? 0;
+
   return (
     <AppShell title="Tasks">
       <div className="space-y-6">
         {error ? <div className="text-sm text-red-500">{error}</div> : null}
 
-        <section className="grid grid-cols-1 gap-4 md:grid-cols-3">
-          <Bucket
-            title="Overdue"
-            tone="danger"
-            loading={loadingSummary}
-            items={summary?.overdueTasks || []}
-            onComplete={(id) => setTaskStatus(id, "Completed")}
+        <section className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+          <SummaryCard
+            label="Overdue"
+            value={loadingSummary ? "…" : String(overdueCount)}
+            sub="Needs attention"
           />
-          <Bucket
-            title="Due today"
-            tone="warning"
-            loading={loadingSummary}
-            items={summary?.dueTodayTasks || []}
-            onComplete={(id) => setTaskStatus(id, "Completed")}
+          <SummaryCard
+            label="Due Today"
+            value={loadingSummary ? "…" : String(dueTodayCount)}
+            sub="Due this day"
           />
-          <Bucket
-            title="Next up"
-            tone="neutral"
-            loading={loadingSummary}
-            items={summary?.nextUp || []}
-            onComplete={(id) => setTaskStatus(id, "Completed")}
+          <SummaryCard
+            label="Next Up"
+            value={loadingSummary ? "…" : String(nextUpCount)}
+            sub="Upcoming work"
           />
         </section>
 
-        <section className="bg-surface border-base rounded-lg border p-4">
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
-            <div className="w-full sm:w-56">
+        <ToggleFormSection
+          title="Create Task"
+          description="Quickly add a task tied to a lead or job without leaving the page."
+          isOpen={isCreateOpen}
+          onToggle={() => setIsCreateOpen((prev) => !prev)}
+          openLabel="+ New Task"
+          closeLabel="Hide Form"
+        >
+          <TaskForm
+            form={taskForm}
+            onChange={setTaskForm}
+            onSubmit={handleCreateTask}
+            saving={creatingTask}
+            error={createError}
+            submitLabel="Create task"
+            cancelLabel="Clear"
+            onCancel={() => {
+              setTaskForm(
+                createEmptyTaskForm({
+                  lead_id: prefillLeadId || "",
+                  job_id: prefillJobId || "",
+                }),
+              );
+              setContextType(prefillJobId ? "job" : "lead");
+              setCreateError("");
+            }}
+            contextType={contextType}
+            onContextChange={handleContextChange}
+            leads={leads}
+            jobs={jobs}
+            loadingLeads={loadingLeads}
+            loadingJobs={loadingJobs}
+            isContextLocked={false}
+            layout="compact"
+          />
+        </ToggleFormSection>
+
+        <section className="card rounded-lg p-4">
+          <div className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
+            <div className="w-full lg:w-44">
               <label className="text-muted text-xs">Status</label>
               <select
-                className="border-base bg-app mt-1 w-full rounded-md border px-3 py-2 text-sm"
+                className="input mt-1"
                 value={status}
                 onChange={(e) => setStatus(e.target.value)}
               >
@@ -145,14 +340,12 @@ export default function TasksPage() {
               </select>
             </div>
 
-            <div className="w-full sm:w-56">
+            <div className="w-full lg:w-44">
               <label className="text-muted text-xs">Linked To</label>
               <select
-                className="border-base bg-app mt-1 w-full rounded-md border px-3 py-2 text-sm"
+                className="input mt-1"
                 value={linkedFilter}
-                onChange={(e) => {
-                  setLinkedFilter(e.target.value);
-                }}
+                onChange={(e) => setLinkedFilter(e.target.value)}
               >
                 <option value="">All</option>
                 <option value="job">Job</option>
@@ -160,10 +353,32 @@ export default function TasksPage() {
               </select>
             </div>
 
-            <div className="flex-1">
+            <div className="w-full lg:w-36">
+              <label className="text-muted text-xs">Lead ID</label>
+              <input
+                className="input mt-1"
+                placeholder="e.g. 12"
+                value={leadId}
+                onChange={(e) => setLeadId(e.target.value)}
+                inputMode="numeric"
+              />
+            </div>
+
+            <div className="w-full lg:w-36">
+              <label className="text-muted text-xs">Job ID</label>
+              <input
+                className="input mt-1"
+                placeholder="e.g. 7"
+                value={jobId}
+                onChange={(e) => setJobId(e.target.value)}
+                inputMode="numeric"
+              />
+            </div>
+
+            <div className="min-w-0 flex-1">
               <label className="text-muted text-xs">Title</label>
               <input
-                className="border-base bg-app mt-1 w-full rounded-md border px-3 py-2 text-sm"
+                className="input mt-1"
                 placeholder="Filter by title"
                 value={title}
                 onChange={(e) => setTitle(e.target.value)}
@@ -171,16 +386,13 @@ export default function TasksPage() {
             </div>
 
             <div className="flex gap-2">
-              <Link
-                href="/tasks/new"
-                className="border-base bg-surface hover:bg-accent rounded-md border px-3 py-2 text-sm"
-              >
-                New Task
+              <Link href="/tasks/new" className="btn">
+                Full Form
               </Link>
               <button
-                className="border-base bg-surface hover:bg-accent rounded-md border px-3 py-2 text-sm"
+                className="btn disabled:opacity-60"
                 onClick={refreshAll}
-                disabled={loadingSummary || loadingTasks}
+                disabled={loadingSummary || loadingTasks || loadingLeads || loadingJobs}
               >
                 Refresh
               </button>
@@ -188,7 +400,7 @@ export default function TasksPage() {
           </div>
         </section>
 
-        <section className="bg-surface border-base overflow-hidden rounded-lg border">
+        <section className="card overflow-hidden rounded-lg">
           <div className="border-base text-muted border-b p-4 text-sm">
             {loadingTasks
               ? "Loading…"
@@ -215,61 +427,64 @@ export default function TasksPage() {
                     </td>
                   </tr>
                 ) : (
-                  tasks.map((t) => (
+                  tasks.map((task) => (
                     <tr
-                      key={t.id}
+                      key={task.id}
                       className="border-base hover:bg-accent border-t transition"
                     >
                       <td className="px-4 py-3">
-                        <Link href={`/tasks/${t.id}`} className="block hover:opacity-80">
+                        <Link
+                          href={`/tasks/${task.id}`}
+                          className="block hover:opacity-80"
+                        >
                           <div className="font-medium underline underline-offset-4">
-                            {t.title}
+                            {task.title}
                           </div>
-                          {t.description ? (
-                            <div className="text-muted mt-1 text-xs">{t.description}</div>
+                          {task.description ? (
+                            <div className="text-muted mt-1 text-xs">
+                              {task.description}
+                            </div>
                           ) : null}
                         </Link>
                       </td>
 
                       <td className="px-4 py-3">
-                        <LinkedEntityCell task={t} />
+                        <LinkedEntityCell task={task} />
                       </td>
 
-                      <td className="px-4 py-3">{formatDue(t.due_date)}</td>
+                      <td className="px-4 py-3">{formatDue(task.due_date)}</td>
 
                       <td className="px-4 py-3">
-                        <span className="border-base bg-surface inline-flex items-center rounded-full border px-2 py-0.5 text-xs">
-                          {t.status}
-                        </span>
+                        <TaskStatusBadge status={task.status} />
                       </td>
 
                       <td className="px-4 py-3 text-right">
                         <div className="flex justify-end gap-2">
                           <Link
-                            href={`/tasks/${t.id}`}
-                            className="border-base bg-surface hover:bg-accent rounded-md border px-3 py-2 text-xs"
+                            href={`/tasks/${task.id}`}
+                            className="btn px-3 py-2 text-xs"
                           >
                             View
                           </Link>
 
                           <Link
-                            href={`/tasks/${t.id}/edit`}
-                            className="border-base bg-surface hover:bg-accent rounded-md border px-3 py-2 text-xs"
+                            href={`/tasks/${task.id}/edit`}
+                            className="btn px-3 py-2 text-xs"
                           >
                             Edit
                           </Link>
 
-                          {t.status === "Completed" ? (
+                          {task.status === "Completed" ? (
                             <button
-                              className="border-base bg-surface hover:bg-accent rounded-md border px-3 py-2 text-xs"
-                              onClick={() => setTaskStatus(t.id, "Pending")}
+                              className="btn px-3 py-2 text-xs"
+                              onClick={() => setTaskStatus(task.id, "Pending")}
                             >
                               Mark pending
                             </button>
                           ) : (
                             <button
-                              className="border-base bg-surface hover:bg-accent rounded-md border px-3 py-2 text-xs"
-                              onClick={() => setTaskStatus(t.id, "Completed")}
+                              className="btn px-3 py-2 text-xs"
+                              onClick={() => setTaskStatus(task.id, "Completed")}
                             >
                               Mark completed
                             </button>
@@ -285,61 +500,5 @@ export default function TasksPage() {
         </section>
       </div>
     </AppShell>
-  );
-}
-
-function Bucket({ title, tone, loading, items, onComplete }) {
-  const toneClass =
-    tone === "danger"
-      ? "border-l-4 border-l-red-500/70"
-      : tone === "warning"
-        ? "border-l-4 border-l-yellow-500/70"
-        : "";
-
-  return (
-    <div
-      className={`bg-surface border-base rounded-lg border ${toneClass} flex h-[320px] flex-col overflow-hidden`}
-    >
-      <div className="border-base shrink-0 border-b px-4 py-3">
-        <div className="font-semibold">{title}</div>
-        <div className="text-muted text-sm">
-          {loading ? "Loading…" : `${items.length} item${items.length === 1 ? "" : "s"}`}
-        </div>
-      </div>
-
-      <div className="min-h-0 flex-1 space-y-3 overflow-auto p-4">
-        {loading ? (
-          <div className="text-muted text-sm">Loading…</div>
-        ) : items.length === 0 ? (
-          <div className="text-muted text-sm">None</div>
-        ) : (
-          items.map((t) => {
-            const linked = getLinkedEntity(t);
-
-            return (
-              <div key={t.id} className="border-base bg-surface rounded-lg border p-3">
-                <div className="flex items-start justify-between gap-3">
-                  <div>
-                    <div className="font-medium">{t.title}</div>
-                    <div className="text-muted text-sm">
-                      {linked.label} • {formatDue(t.due_date)}
-                    </div>
-                  </div>
-
-                  {t.status !== "Completed" ? (
-                    <button
-                      className="border-base bg-surface hover:bg-accent shrink-0 rounded-md border px-3 py-2 text-xs"
-                      onClick={() => onComplete(t.id)}
-                    >
-                      Done
-                    </button>
-                  ) : null}
-                </div>
-              </div>
-            );
-          })
-        )}
-      </div>
-    </div>
   );
 }

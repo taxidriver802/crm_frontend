@@ -1,12 +1,10 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { AppShell } from "@/components/app-shell";
+import { TaskForm, createEmptyTaskForm } from "@/components/forms/task-form";
 import { api } from "@/lib/api";
-
-const STATUS_OPTIONS = ["Pending", "Completed"];
 
 function toDatetimeLocal(value) {
   if (!value) return "";
@@ -34,19 +32,14 @@ export default function EditTaskPage() {
   const [error, setError] = useState("");
 
   const [task, setTask] = useState(null);
+  const [form, setForm] = useState(createEmptyTaskForm());
 
-  const [form, setForm] = useState({
-    lead_id: "",
-    job_id: "",
-    title: "",
-    description: "",
-    due_date: "",
-    status: "Pending",
-  });
+  const [leads, setLeads] = useState([]);
+  const [jobs, setJobs] = useState([]);
+  const [loadingLeads, setLoadingLeads] = useState(true);
+  const [loadingJobs, setLoadingJobs] = useState(true);
 
-  function setField(key, value) {
-    setForm((f) => ({ ...f, [key]: value }));
-  }
+  const [contextType, setContextType] = useState("lead");
 
   useEffect(() => {
     let alive = true;
@@ -62,14 +55,19 @@ export default function EditTaskPage() {
         const nextTask = res?.task ?? res;
         setTask(nextTask);
 
-        setForm({
-          lead_id: nextTask?.lead_id ? String(nextTask.lead_id) : "",
-          job_id: nextTask?.job_id ? String(nextTask.job_id) : "",
-          title: nextTask?.title || "",
-          description: nextTask?.description || "",
-          due_date: toDatetimeLocal(nextTask?.due_date),
-          status: nextTask?.status || "Pending",
-        });
+        const nextContextType = nextTask?.job_id ? "job" : "lead";
+        setContextType(nextContextType);
+
+        setForm(
+          createEmptyTaskForm({
+            lead_id: nextTask?.lead_id ? String(nextTask.lead_id) : "",
+            job_id: nextTask?.job_id ? String(nextTask.job_id) : "",
+            title: nextTask?.title || "",
+            description: nextTask?.description || "",
+            due_date: toDatetimeLocal(nextTask?.due_date),
+            status: nextTask?.status || "Pending",
+          }),
+        );
       } catch (e) {
         if (!alive) return;
         setError(e?.message || "Failed to load task");
@@ -79,8 +77,40 @@ export default function EditTaskPage() {
       }
     }
 
+    async function loadLeads() {
+      try {
+        setLoadingLeads(true);
+        const res = await api("/leads?limit=200&offset=0");
+        if (!alive) return;
+        setLeads(res?.leads || []);
+      } catch (e) {
+        if (!alive) return;
+        setError((prev) => prev || e?.message || "Failed to load leads");
+      } finally {
+        if (!alive) return;
+        setLoadingLeads(false);
+      }
+    }
+
+    async function loadJobs() {
+      try {
+        setLoadingJobs(true);
+        const res = await api("/jobs?limit=200&offset=0");
+        if (!alive) return;
+        setJobs(res?.jobs || []);
+      } catch (e) {
+        if (!alive) return;
+        setError((prev) => prev || e?.message || "Failed to load jobs");
+      } finally {
+        if (!alive) return;
+        setLoadingJobs(false);
+      }
+    }
+
     if (id) {
       loadTask();
+      loadLeads();
+      loadJobs();
     }
 
     return () => {
@@ -88,22 +118,22 @@ export default function EditTaskPage() {
     };
   }, [id]);
 
-  const isLeadTask = !!task?.lead_id;
-  const isJobTask = !!task?.job_id;
-
   async function onSubmit(e) {
     e.preventDefault();
     setError("");
 
-    if (!form.title.trim()) return setError("Title is required.");
+    if (!form.title.trim()) {
+      setError("Title is required.");
+      return;
+    }
 
     const payload = {
       title: form.title.trim(),
       description: form.description.trim() || null,
       status: form.status,
       due_date: form.due_date ? new Date(form.due_date).toISOString() : null,
-      lead_id: isLeadTask ? Number(form.lead_id) : null,
-      job_id: isJobTask ? Number(form.job_id) : null,
+      lead_id: contextType === "lead" ? Number(form.lead_id) : null,
+      job_id: contextType === "job" ? Number(form.job_id) : null,
     };
 
     try {
@@ -125,124 +155,29 @@ export default function EditTaskPage() {
   return (
     <AppShell title={`Edit Task #${id}`}>
       {loading ? (
-        <div className="text-muted-foreground text-sm">Loading…</div>
+        <div className="text-muted text-sm">Loading…</div>
       ) : !task ? (
-        <div className="text-muted-foreground text-sm">Task not found.</div>
+        <div className="text-muted text-sm">Task not found.</div>
       ) : (
-        <form onSubmit={onSubmit} className="space-y-6">
-          {error ? <div className="text-sm text-red-500">{error}</div> : null}
-
-          <section className="bg-surface border-base rounded-lg border p-4">
-            <div className="grid gap-4 sm:grid-cols-2">
-              <div className="sm:col-span-2">
-                {/* <label className="text-muted text-xs">Lead *</label>
-                <select
-                  className="border-base bg-app mt-1 w-full rounded-md border px-3 py-2 text-sm"
-                  value={form.lead_id}
-                  onChange={(e) => setField("lead_id", e.target.value)}
-                  disabled={loadingLeads}
-                >
-                  <option value="">
-                    {loadingLeads
-                      ? "Loading leads…"
-                      : leadOptions.length
-                        ? "Select a lead…"
-                        : "No leads found"}
-                  </option>
-
-                  {leadOptions.map((o) => (
-                    <option key={o.id} value={o.id}>
-                      {o.label} (#{o.id}){o.status ? ` • ${o.status}` : ""}
-                    </option>
-                  ))}
-                </select> */}
-
-                <div className="sm:col-span-2">
-                  <label className="text-muted text-xs">Linked To</label>
-
-                  <div className="border-base bg-app mt-1 w-full rounded-md border px-3 py-2 text-sm">
-                    {isLeadTask && `Lead #${form.lead_id}`}
-                    {isJobTask && `Job #${form.job_id}`}
-                  </div>
-
-                  <div className="text-muted-foreground mt-1 text-xs">
-                    Ownership cannot be changed after creation.
-                  </div>
-                </div>
-              </div>
-
-              <div className="sm:col-span-2">
-                <label className="text-muted text-xs">Title *</label>
-                <input
-                  className="border-base bg-app mt-1 w-full rounded-md border px-3 py-2 text-sm"
-                  value={form.title}
-                  onChange={(e) => setField("title", e.target.value)}
-                  placeholder="Call client, send follow-up, confirm showing..."
-                />
-              </div>
-
-              <div>
-                <label className="text-muted text-xs">Status</label>
-                <select
-                  className="border-base bg-app mt-1 w-full rounded-md border px-3 py-2 text-sm"
-                  value={form.status}
-                  onChange={(e) => setField("status", e.target.value)}
-                >
-                  {STATUS_OPTIONS.map((s) => (
-                    <option key={s} value={s}>
-                      {s}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              <div>
-                <label className="text-muted text-xs">Due date</label>
-                <input
-                  type="datetime-local"
-                  className="border-base bg-app mt-1 w-full rounded-md border px-3 py-2 text-sm"
-                  value={form.due_date}
-                  onChange={(e) => setField("due_date", e.target.value)}
-                />
-              </div>
-
-              <div className="sm:col-span-2">
-                <label className="text-muted text-xs">Description</label>
-                <textarea
-                  className="border-base bg-app mt-1 min-h-[140px] w-full rounded-md border px-3 py-2 text-sm"
-                  value={form.description}
-                  onChange={(e) => setField("description", e.target.value)}
-                  placeholder="Notes, next steps, reminders..."
-                />
-              </div>
-            </div>
-          </section>
-
-          <div className="flex flex-wrap gap-2">
-            <button
-              type="submit"
-              className="border-base bg-surface hover:bg-accent-soft rounded-md border px-4 py-2 text-sm disabled:opacity-60"
-              disabled={saving}
-            >
-              {saving ? "Saving…" : "Save changes"}
-            </button>
-
-            <button
-              type="button"
-              className="border-base bg-surface hover:bg-accent-soft rounded-md border px-4 py-2 text-sm"
-              onClick={() => router.push(`/tasks/${id}`)}
-            >
-              Cancel
-            </button>
-
-            <Link
-              href="/tasks"
-              className="border-base bg-surface hover:bg-accent-soft rounded-md border px-4 py-2 text-sm"
-            >
-              Back to tasks
-            </Link>
-          </div>
-        </form>
+        <section className="card rounded-lg p-4">
+          <TaskForm
+            form={form}
+            onChange={setForm}
+            onSubmit={onSubmit}
+            saving={saving}
+            error={error}
+            submitLabel="Save Changes"
+            cancelLabel="Cancel"
+            onCancel={() => router.push(`/tasks/${id}`)}
+            contextType={contextType}
+            onContextChange={() => {}}
+            leads={leads}
+            jobs={jobs}
+            loadingLeads={loadingLeads}
+            loadingJobs={loadingJobs}
+            isContextLocked={true}
+          />
+        </section>
       )}
     </AppShell>
   );

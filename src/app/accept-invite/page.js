@@ -69,68 +69,66 @@ export default function AcceptInvitePage() {
   }
 
   return (
-    <main className="bg-app text-main min-h-screen px-4 py-10">
-      <div className="mx-auto w-full max-w-md">
-        <div className="bg-background rounded-2xl border shadow-sm">
-          <div className="border-b px-6 py-5">
-            <h1 className="text-2xl font-semibold">Accept Invite</h1>
-            <p className="text-muted-foreground mt-2 text-sm">
-              Set your password to activate your account.
-            </p>
-          </div>
+    <main className="bg-app text-main flex min-h-screen items-center justify-center px-4">
+      <div className="card w-full max-w-md overflow-hidden rounded-lg">
+        <div className="border-base border-b px-6 py-5">
+          <h1 className="text-2xl font-semibold">Accept Invite</h1>
+          <p className="text-muted mt-2 text-sm">
+            Set your password to activate your account.
+          </p>
+        </div>
 
-          <div className="px-6 py-5">
-            {!token ? (
-              <div className="rounded-lg border border-red-300 bg-red-50 px-3 py-2 text-sm text-red-700">
-                This invite link is missing a token or is invalid.
-              </div>
-            ) : (
-              <form onSubmit={handleSubmit} className="space-y-4">
-                <label className="block">
-                  <span className="mb-1 block text-sm font-medium">New password</span>
-                  <input
-                    type="password"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    className="bg-background w-full rounded-lg border px-3 py-2 text-sm outline-none"
-                    placeholder="At least 8 characters"
-                    required
-                  />
-                </label>
+        <div className="px-6 py-5">
+          {!token ? (
+            <div className="rounded-lg border border-red-300 bg-red-50 px-3 py-2 text-sm text-red-700">
+              This invite link is missing a token or is invalid.
+            </div>
+          ) : (
+            <form onSubmit={handleSubmit} className="space-y-4">
+              <label className="block">
+                <span className="text-sm font-medium">New password</span>
+                <input
+                  type="password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  className="input mt-1"
+                  placeholder="At least 8 characters"
+                  required
+                />
+              </label>
 
-                <label className="block">
-                  <span className="mb-1 block text-sm font-medium">Confirm password</span>
-                  <input
-                    type="password"
-                    value={confirmPassword}
-                    onChange={(e) => setConfirmPassword(e.target.value)}
-                    className="bg-background w-full rounded-lg border px-3 py-2 text-sm outline-none"
-                    required
-                  />
-                </label>
+              <label className="block">
+                <span className="text-sm font-medium">Confirm password</span>
+                <input
+                  type="password"
+                  value={confirmPassword}
+                  onChange={(e) => setConfirmPassword(e.target.value)}
+                  className="input mt-1"
+                  required
+                />
+              </label>
 
-                {error ? (
-                  <div className="rounded-lg border border-red-300 bg-red-50 px-3 py-2 text-sm text-red-700">
-                    {error}
-                  </div>
-                ) : null}
+              {error ? (
+                <div className="rounded-lg border border-red-300 bg-red-50 px-3 py-2 text-sm text-red-700">
+                  {error}
+                </div>
+              ) : null}
 
-                {success ? (
-                  <div className="rounded-lg border border-green-300 bg-green-50 px-3 py-2 text-sm text-green-700">
-                    {success}
-                  </div>
-                ) : null}
+              {success ? (
+                <div className="rounded-lg border border-green-300 bg-green-50 px-3 py-2 text-sm text-green-700">
+                  {success}
+                </div>
+              ) : null}
 
-                <button
-                  type="submit"
-                  disabled={submitting}
-                  className="w-full rounded-lg border px-4 py-2 text-sm font-medium"
-                >
-                  {submitting ? "Activating..." : "Activate Account"}
-                </button>
-              </form>
-            )}
-          </div>
+              <button
+                type="submit"
+                disabled={submitting}
+                className="btn btn-primary w-full"
+              >
+                {submitting ? "Activating..." : "Activate Account"}
+              </button>
+            </form>
+          )}
         </div>
       </div>
     </main>
