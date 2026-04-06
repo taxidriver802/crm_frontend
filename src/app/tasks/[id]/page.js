@@ -14,6 +14,7 @@ import {
   getLinkedEntity,
 } from "@/lib/helper";
 import { FilePreviewModal } from "@/components/modals/file-preview-modal";
+import { CollapsibleSection } from "@/components/forms/collapsible-section";
 
 function isCompleted(task) {
   return String(task?.status || "").toLowerCase() === "completed";
@@ -530,98 +531,90 @@ export default function TaskDetailPage() {
               </InfoCard>
             ) : null}
 
-            <section className="card rounded-lg">
-              <div className="border-base flex items-center justify-between border-b p-4">
-                <div>
-                  <h2 className="text-lg font-semibold">Related Files</h2>
-                  <p className="text-muted mt-1 text-sm">
-                    Recent files connected to this task.
-                  </p>
-                </div>
-
-                <div className="flex gap-2">
+            <CollapsibleSection
+              title="Related Files"
+              description="Recent files connected to this task."
+              defaultOpen={true}
+              actions={
+                <>
                   {task?.lead ? (
                     <Link
                       href={`/leads/${task.lead.id}`}
-                      className="text-sm hover:underline"
+                      className="btn px-3 py-2 text-xs"
                     >
                       Open lead
                     </Link>
                   ) : null}
+
                   {task?.job ? (
-                    <Link
-                      href={`/jobs/${task.job.id}`}
-                      className="text-sm hover:underline"
-                    >
+                    <Link href={`/jobs/${task.job.id}`} className="btn px-3 py-2 text-xs">
                       Open job
                     </Link>
                   ) : null}
+                </>
+              }
+            >
+              {loadingFiles ? (
+                <div className="text-muted text-sm">Loading files…</div>
+              ) : filesError ? (
+                <div className="text-sm text-red-500">{filesError}</div>
+              ) : recentFiles.length === 0 ? (
+                <div className="text-muted rounded-lg border border-dashed p-4 text-sm">
+                  No files available for this task yet.
                 </div>
-              </div>
-
-              <div className="p-4">
-                {loadingFiles ? (
-                  <div className="text-muted text-sm">Loading files…</div>
-                ) : filesError ? (
-                  <div className="text-sm text-red-500">{filesError}</div>
-                ) : recentFiles.length === 0 ? (
-                  <div className="text-muted rounded-lg border border-dashed p-4 text-sm">
-                    No files available for this task yet.
-                  </div>
-                ) : (
-                  <div className="space-y-3">
-                    {recentFiles.map((file) => (
-                      <div
-                        key={file.id}
-                        className="flex items-start justify-between gap-3 rounded-lg border p-3"
-                      >
-                        <div className="min-w-0">
-                          <div className="truncate font-medium">{file.original_name}</div>
-                          <div className="text-muted mt-1 text-xs">
-                            {file.mime_type || "Unknown type"} •{" "}
-                            {formatBytes(file.size_bytes)}
-                          </div>
-                          <div className="text-muted mt-1 text-xs">
-                            Uploaded: {formatDate(file.created_at)}
-                          </div>
+              ) : (
+                <div className="space-y-3">
+                  {recentFiles.map((file) => (
+                    <div
+                      key={file.id}
+                      className="flex items-start justify-between gap-3 rounded-lg border p-3"
+                    >
+                      {" "}
+                      <div className="min-w-0">
+                        <div className="truncate font-medium">{file.original_name}</div>
+                        <div className="text-muted mt-1 text-xs">
+                          {file.mime_type || "Unknown type"} •{" "}
+                          {formatBytes(file.size_bytes)}
                         </div>
-
-                        <div className="flex flex-wrap items-center gap-2">
-                          {isPreviewableFile(file) ? (
-                            <button
-                              type="button"
-                              onClick={() => setPreviewFile(file)}
-                              className="btn px-3 py-1.5 text-xs"
-                            >
-                              Preview
-                            </button>
-                          ) : (
-                            <a
-                              href={buildFileUrl(file)}
-                              target="_blank"
-                              rel="noreferrer"
-                              className="btn px-3 py-1.5 text-xs"
-                            >
-                              Open
-                            </a>
-                          )}
-
-                          {canManageFiles ? (
-                            <button
-                              onClick={() => handleDeleteFile(file.id)}
-                              disabled={busyFileId === file.id}
-                              className="btn px-3 py-1.5 text-xs text-red-600"
-                            >
-                              {busyFileId === file.id ? "Deleting..." : "Delete"}
-                            </button>
-                          ) : null}
+                        <div className="text-muted mt-1 text-xs">
+                          Uploaded: {formatDate(file.created_at)}
                         </div>
                       </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-            </section>
+                      <div className="flex flex-wrap items-center gap-2">
+                        {isPreviewableFile(file) ? (
+                          <button
+                            type="button"
+                            onClick={() => setPreviewFile(file)}
+                            className="btn px-3 py-1.5 text-xs"
+                          >
+                            Preview
+                          </button>
+                        ) : (
+                          <a
+                            href={buildFileUrl(file)}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="btn px-3 py-1.5 text-xs"
+                          >
+                            Open
+                          </a>
+                        )}
+
+                        {canManageFiles ? (
+                          <button
+                            onClick={() => handleDeleteFile(file.id)}
+                            disabled={busyFileId === file.id}
+                            className="btn px-3 py-1.5 text-xs text-red-600"
+                          >
+                            {busyFileId === file.id ? "Deleting..." : "Delete"}
+                          </button>
+                        ) : null}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </CollapsibleSection>
           </section>
         ) : null}
       </div>

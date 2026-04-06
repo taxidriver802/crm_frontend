@@ -8,6 +8,7 @@ import { ToggleFormSection } from "@/components/toggle-form-section";
 import { JobForm, createEmptyJobForm } from "@/components/forms/job-form";
 import { api } from "@/lib/api";
 import { formatDate } from "@/lib/helper";
+import { CollapsibleSection } from "@/components/forms/collapsible-section";
 
 export default function JobsPage() {
   const [q, setQ] = useState("");
@@ -141,6 +142,12 @@ export default function JobsPage() {
     }
   }
 
+  const jobTitle = (
+    <div>
+      {loadingJobs ? "Loading…" : `${jobs.length} job${jobs.length === 1 ? "" : "s"}`}
+    </div>
+  );
+
   return (
     <AppShell title="Jobs">
       <div className="space-y-6">
@@ -220,13 +227,7 @@ export default function JobsPage() {
           </div>
         </section>
 
-        <section className="card overflow-hidden rounded-lg">
-          <div className="border-base text-muted border-b p-4 text-sm">
-            {loadingJobs
-              ? "Loading…"
-              : `${jobs.length} job${jobs.length === 1 ? "" : "s"}`}
-          </div>
-
+        <CollapsibleSection title={jobTitle} defaultOpen={true}>
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead className="bg-accent">
@@ -294,7 +295,7 @@ export default function JobsPage() {
               </tbody>
             </table>
           </div>
-        </section>
+        </CollapsibleSection>
       </div>
     </AppShell>
   );

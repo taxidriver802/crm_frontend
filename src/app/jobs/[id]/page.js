@@ -17,6 +17,8 @@ import {
 import { ToggleFormSection } from "@/components/toggle-form-section";
 import { FilePreviewModal } from "@/components/modals/file-preview-modal";
 import { TaskForm, createEmptyTaskForm } from "@/components/forms/task-form";
+import { ActivityList } from "@/components/activity-list";
+import { CollapsibleSection } from "@/components/forms/collapsible-section";
 
 const JOB_STATUSES = [
   "New",
@@ -48,7 +50,6 @@ function JobStatusBadge({ status }) {
 
 export default function JobDetailPage() {
   const { id } = useParams();
-  const router = useRouter();
 
   const [job, setJob] = useState(null);
   const [tasks, setTasks] = useState([]);
@@ -277,6 +278,7 @@ export default function JobDetailPage() {
       });
 
       setFiles((prev) => prev.filter((file) => file.id !== fileId));
+      await loadActivity();
     } catch (e) {
       console.error(e);
       setFilesError(e?.message || "Failed to delete file");
@@ -441,9 +443,12 @@ export default function JobDetailPage() {
                             "rounded-full border px-3 py-1.5 text-xs font-medium transition",
                             !isLocked && "cursor-pointer hover:opacity-80",
                             isLocked && "cursor-not-allowed",
-                            isActive && "bg-accent-solid border-base text-white cursor-default",
+                            isActive &&
+                              "bg-accent-solid border-base cursor-default text-white",
                             isCompleted && "bg-accent border-base text-main",
-                            !isActive && !isCompleted && "bg-surface border-base text-muted",
+                            !isActive &&
+                              !isCompleted &&
+                              "bg-surface border-base text-muted",
                             isTooFarAhead && "opacity-50",
                             updatingStatus === status && "opacity-60",
                           ]
@@ -457,7 +462,9 @@ export default function JobDetailPage() {
                           <div
                             className={[
                               "mx-2 h-px w-8",
-                              index < currentIndex ? "bg-[var(--accent)]" : "bg-[var(--border)]",
+                              index < currentIndex
+                                ? "bg-[var(--accent)]"
+                                : "bg-[var(--border)]",
                             ]
                               .filter(Boolean)
                               .join(" ")}
@@ -468,39 +475,24 @@ export default function JobDetailPage() {
                   })}
                 </div>
               </SectionCard>
-
-              <SectionCard title="Activity" description="Recent changes and actions on this job">
+              <CollapsibleSection
+                title="Activity"
+                description="Recent changes and actions on this job"
+                defaultOpen={true}
+              >
                 {loadingActivity ? (
                   <div className="text-muted text-sm">Loading activity...</div>
                 ) : activity.length === 0 ? (
                   <div className="text-muted text-sm">No activity yet.</div>
                 ) : (
-                  <div className="space-y-3">
-                    {activity.map((a) => (
-                      <div key={a.id} className="rounded-lg border p-3">
-                        <div className="flex items-start justify-between gap-3">
-                          <div className="min-w-0 flex-1">
-                            <div className="text-sm font-medium">{a.title}</div>
-                            {a.message ? (
-                              <div className="text-muted mt-1 text-xs">{a.message}</div>
-                            ) : null}
-                            <div className="text-muted mt-1 text-xs">
-                              {a.entity_type} #{a.entity_id} • {a.type.replace("_", " ")}
-                            </div>
-                          </div>
-                          <div className="text-muted shrink-0 text-xs">
-                            {new Date(a.created_at).toLocaleString()}
-                          </div>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
+                  <ActivityList activity={activity} loading={loadingActivity} />
                 )}
-              </SectionCard>
+              </CollapsibleSection>
 
-              <SectionCard
+              <CollapsibleSection
                 title="Tasks"
                 description="Create and manage tasks tied directly to this job"
+                defaultOpen={true}
               >
                 <div className="space-y-4">
                   <ToggleFormSection
@@ -549,7 +541,10 @@ export default function JobDetailPage() {
                           className="border-base bg-surface flex items-start justify-between gap-3 rounded-lg border p-3"
                         >
                           <div className="min-w-0">
-                            <Link href={`/tasks/${task.id}`} className="block hover:opacity-80">
+                            <Link
+                              href={`/tasks/${task.id}`}
+                              className="block hover:opacity-80"
+                            >
                               <div className="font-medium underline underline-offset-4">
                                 {task.title}
                               </div>
@@ -584,7 +579,7 @@ export default function JobDetailPage() {
                     </div>
                   )}
                 </div>
-              </SectionCard>
+              </CollapsibleSection>
             </div>
 
             <div className="space-y-6">
@@ -607,7 +602,7 @@ export default function JobDetailPage() {
                 </dl>
               </SectionCard>
 
-              <section className="card rounded-lg transition hover:bg-accent">
+              <section className="card hover:bg-accent rounded-lg transition">
                 <Link href={`/leads/${job.lead_id}`} className="block p-4">
                   <div className="mb-3">
                     <h2 className="text-lg font-semibold">Lead Snapshot</h2>
@@ -656,7 +651,9 @@ export default function JobDetailPage() {
                       {lead.notes ? (
                         <div>
                           <div className="text-muted text-xs">Notes</div>
-                          <div className="mt-1 whitespace-pre-wrap text-sm">{lead.notes}</div>
+                          <div className="mt-1 whitespace-pre-wrap text-sm">
+                            {lead.notes}
+                          </div>
                         </div>
                       ) : null}
                     </div>
@@ -701,7 +698,8 @@ export default function JobDetailPage() {
                         <div className="min-w-0">
                           <div className="truncate font-medium">{file.original_name}</div>
                           <div className="text-muted mt-1 text-xs">
-                            {file.mime_type || "Unknown type"} • {formatBytes(file.size_bytes)}
+                            {file.mime_type || "Unknown type"} •{" "}
+                            {formatBytes(file.size_bytes)}
                           </div>
                           <div className="text-muted mt-1 text-xs">
                             Uploaded: {formatDate(file.created_at)}

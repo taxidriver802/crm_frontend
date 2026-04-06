@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { AppShell } from "@/components/app-shell";
 import { InviteUserModal } from "@/components/modals/invite-user-modal";
 import { api } from "@/lib/api";
+import { CollapsibleSection } from "@/components/forms/collapsible-section";
 
 function badgeClass(status) {
   switch (status) {
@@ -177,7 +178,7 @@ export default function UsersPage() {
       await loadUsers();
     } catch (err) {
       console.error(err);
-      setError("Failed to delete user.");
+      setError(err.message || "Failed to delete user.");
     } finally {
       setBusyId(null);
     }
@@ -227,6 +228,16 @@ export default function UsersPage() {
       </AppShell>
     );
   }
+
+  const usersTitle = (
+    <div>
+      {loadingUsers
+        ? "Loading…"
+        : filteredUsers.length === 0
+          ? "No users yet"
+          : `${filteredUsers.length} user${filteredUsers.length === 1 ? "" : "s"}`}
+    </div>
+  );
 
   return (
     <AppShell
@@ -314,13 +325,7 @@ export default function UsersPage() {
           </div>
         </section>
 
-        <section className="card overflow-hidden rounded-lg">
-          <div className="border-base text-muted border-b p-4 text-sm">
-            {loadingUsers
-              ? "Loading…"
-              : `${filteredUsers.length} user${filteredUsers.length === 1 ? "" : "s"}`}
-          </div>
-
+        <CollapsibleSection title={usersTitle} defaultOpen={true}>
           {loadingUsers ? (
             <div className="text-muted px-5 py-6 text-sm">Loading users...</div>
           ) : users.length === 0 ? (
@@ -479,7 +484,7 @@ export default function UsersPage() {
               </table>
             </div>
           )}
-        </section>
+        </CollapsibleSection>
 
         <InviteUserModal
           open={inviteModalOpen}

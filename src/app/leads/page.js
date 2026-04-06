@@ -7,6 +7,7 @@ import { ToggleFormSection } from "@/components/toggle-form-section";
 import { LeadForm, createEmptyLeadForm } from "@/components/forms/lead-form";
 import { api } from "@/lib/api";
 import { formatDate } from "@/lib/helper";
+import { CollapsibleSection } from "@/components/forms/collapsible-section";
 
 export default function LeadsPage() {
   const [q, setQ] = useState("");
@@ -149,6 +150,12 @@ export default function LeadsPage() {
     }
   }
 
+  const leadTitle = (
+    <div>
+      {loadingLeads ? "Loading…" : `${leads.length} lead${leads.length === 1 ? "" : "s"}`}
+    </div>
+  );
+
   return (
     <AppShell title="Leads">
       <div className="space-y-6">
@@ -250,13 +257,7 @@ export default function LeadsPage() {
           </div>
         </section>
 
-        <section className="card overflow-hidden rounded-lg">
-          <div className="border-base text-muted border-b p-4 text-sm">
-            {loadingLeads
-              ? "Loading…"
-              : `${leads.length} lead${leads.length === 1 ? "" : "s"}`}
-          </div>
-
+        <CollapsibleSection title={leadTitle} defaultOpen={true}>
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead className="bg-accent">
@@ -312,7 +313,7 @@ export default function LeadsPage() {
               </tbody>
             </table>
           </div>
-        </section>
+        </CollapsibleSection>
       </div>
     </AppShell>
   );

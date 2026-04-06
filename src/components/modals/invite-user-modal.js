@@ -43,10 +43,7 @@ export function InviteUserModal({ open, onClose }) {
       if (e.key === "Escape") onClose();
     }
 
-    if (open) {
-      window.addEventListener("keydown", onKeyDown);
-    }
-
+    if (open) window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
   }, [open, onClose]);
 
@@ -82,7 +79,7 @@ export function InviteUserModal({ open, onClose }) {
       if (!data.email_sent && data.email_error) {
         setError(data.email_error);
       }
-    } catch (err) {
+    } catch {
       setError("Something went wrong while creating the invite");
     } finally {
       setSubmitting(false);
@@ -95,10 +92,7 @@ export function InviteUserModal({ open, onClose }) {
     try {
       await navigator.clipboard.writeText(inviteUrl);
       setHasCopied(true);
-
-      setTimeout(() => {
-        setHasCopied(false);
-      }, 2000);
+      setTimeout(() => setHasCopied(false), 2000);
     } catch {
       setError("Could not copy invite link");
     }
@@ -112,28 +106,26 @@ export function InviteUserModal({ open, onClose }) {
         type="button"
         aria-label="Close invite modal backdrop"
         onClick={onClose}
-        className="absolute inset-0 bg-black/45"
+        className="absolute inset-0 bg-black/60"
       />
 
-      <div className="bg-surface relative z-[101] w-full max-w-lg rounded-2xl border shadow-2xl">
-        <div className="flex items-start justify-between border-b px-5 py-4">
+      <div className="card relative z-[101] w-full max-w-lg overflow-hidden rounded-2xl">
+        {/* HEADER */}
+        <div className="border-base flex items-start justify-between gap-4 border-b p-4">
           <div>
             <h2 className="text-lg font-semibold">Invite User</h2>
-            <p className="text-muted-foreground mt-1 text-sm">
+            <p className="text-muted mt-1 text-sm">
               Create an invited account and generate a one-time invite link.
             </p>
           </div>
 
-          <button
-            type="button"
-            onClick={onClose}
-            className="hover:bg-muted rounded-md px-2 py-1 text-sm"
-          >
+          <button onClick={onClose} className="btn btn-ghost text-sm">
             Close
           </button>
         </div>
 
-        <div className="px-5 py-4">
+        {/* CONTENT */}
+        <div className="p-4">
           {!successUser ? (
             <form onSubmit={handleSubmit} className="space-y-4">
               <div className="grid gap-4 sm:grid-cols-2">
@@ -144,7 +136,7 @@ export function InviteUserModal({ open, onClose }) {
                     onChange={(e) =>
                       setForm((prev) => ({ ...prev, first_name: e.target.value }))
                     }
-                    className="bg-background w-full rounded-lg border px-3 py-2 text-sm outline-none"
+                    className="input"
                     required
                   />
                 </label>
@@ -156,7 +148,7 @@ export function InviteUserModal({ open, onClose }) {
                     onChange={(e) =>
                       setForm((prev) => ({ ...prev, last_name: e.target.value }))
                     }
-                    className="bg-background w-full rounded-lg border px-3 py-2 text-sm outline-none"
+                    className="input"
                     required
                   />
                 </label>
@@ -170,7 +162,7 @@ export function InviteUserModal({ open, onClose }) {
                   onChange={(e) =>
                     setForm((prev) => ({ ...prev, email: e.target.value }))
                   }
-                  className="bg-background w-full rounded-lg border px-3 py-2 text-sm outline-none"
+                  className="input"
                   required
                 />
               </label>
@@ -180,7 +172,7 @@ export function InviteUserModal({ open, onClose }) {
                 <select
                   value={form.role}
                   onChange={(e) => setForm((prev) => ({ ...prev, role: e.target.value }))}
-                  className="bg-background w-full rounded-lg border px-3 py-2 text-sm outline-none"
+                  className="input"
                 >
                   {ROLE_OPTIONS.map((option) => (
                     <option key={option.value} value={option.value}>
@@ -190,48 +182,39 @@ export function InviteUserModal({ open, onClose }) {
                 </select>
               </label>
 
-              {error ? (
-                <div className="rounded-lg border border-red-300 bg-red-50 px-3 py-2 text-sm text-red-700">
-                  {typeof error === "string" ? error : "Failed to create invite"}
+              {error && (
+                <div className="rounded-md border border-red-300 bg-red-50 px-3 py-2 text-sm text-red-700">
+                  {error}
                 </div>
-              ) : null}
+              )}
 
               <div className="flex items-center justify-end gap-2 pt-2">
-                <button
-                  type="button"
-                  onClick={onClose}
-                  className="rounded-lg border px-4 py-2 text-sm"
-                >
+                <button type="button" onClick={onClose} className="btn">
                   Cancel
                 </button>
 
-                <button
-                  type="submit"
-                  disabled={submitting}
-                  className="rounded-lg border px-4 py-2 text-sm font-medium"
-                >
+                <button type="submit" disabled={submitting} className="btn btn-primary">
                   {submitting ? "Creating..." : "Create Invite"}
                 </button>
               </div>
             </form>
           ) : (
             <div className="space-y-4">
-              <div className="rounded-xl border px-4 py-3">
+              <div className="card p-3">
                 <div className="font-medium">
                   Invite created for {successUser.first_name} {successUser.last_name}
                 </div>
-                <div className="text-muted-foreground mt-1 text-sm">
+                <div className="text-muted mt-1 text-sm">
                   {successUser.email} · {successUser.role} · {successUser.status}
                 </div>
               </div>
 
-              <div className="rounded-xl border px-4 py-3">
+              <div className="card p-3">
                 {emailSent ? (
                   <>
                     <div className="font-medium">Invite email sent</div>
-                    <p className="text-muted-foreground mt-1 text-sm">
-                      An invite has been sent to <strong>{successUser.email}</strong>.
-                      They can use it to set up their account.
+                    <p className="text-muted mt-1 text-sm">
+                      Sent to <strong>{successUser.email}</strong>.
                     </p>
                   </>
                 ) : (
@@ -240,38 +223,29 @@ export function InviteUserModal({ open, onClose }) {
                       Email failed — manual link
                     </div>
 
-                    <div className="bg-muted overflow-x-auto break-all rounded-lg border px-3 py-2 text-sm">
+                    <div className="bg-surface border-base overflow-x-auto break-all rounded-md border px-3 py-2 text-sm">
                       {inviteUrl}
                     </div>
 
-                    <p className="text-muted-foreground mt-2 text-xs">
-                      Copy and send this link manually. It will only be shown once.
-                    </p>
+                    <p className="text-muted mt-2 text-xs">Copy and send manually.</p>
                   </>
                 )}
               </div>
-              {error ? (
-                <div className="rounded-lg border border-red-300 bg-red-50 px-3 py-2 text-sm text-red-700">
+
+              {error && (
+                <div className="rounded-md border border-red-300 bg-red-50 px-3 py-2 text-sm text-red-700">
                   {error}
                 </div>
-              ) : null}
+              )}
 
               <div className="flex items-center justify-end gap-2">
                 {!emailSent && (
-                  <button
-                    type="button"
-                    onClick={handleCopy}
-                    className="rounded-lg border px-4 py-2 text-sm"
-                  >
-                    {!hasCopied ? "Copy Link" : "Copied!"}
+                  <button onClick={handleCopy} className="btn">
+                    {hasCopied ? "Copied!" : "Copy Link"}
                   </button>
                 )}
 
-                <button
-                  type="button"
-                  onClick={onClose}
-                  className="rounded-lg border px-4 py-2 text-sm font-medium"
-                >
+                <button onClick={onClose} className="btn btn-primary">
                   Done
                 </button>
               </div>

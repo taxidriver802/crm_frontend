@@ -14,6 +14,7 @@ import {
   isPreviewableFile,
   API_BASE,
 } from "@/lib/helper";
+import { CollapsibleSection } from "@/components/forms/collapsible-section";
 
 function StatCard({ label, value, sub }) {
   return (
@@ -254,6 +255,16 @@ export default function FilesPage() {
     );
   }
 
+  const fileTitle = (
+    <div>
+      {loadingFiles
+        ? "Loading…"
+        : filteredFiles.length === 0
+          ? "No files yet"
+          : `${filteredFiles.length} file${filteredFiles.length === 1 ? "" : "s"}`}
+    </div>
+  );
+
   return (
     <AppShell
       title="Files"
@@ -334,13 +345,7 @@ export default function FilesPage() {
           </div>
         </section>
 
-        <section className="card overflow-hidden rounded-lg">
-          <div className="border-base text-muted border-b p-4 text-sm">
-            {loadingFiles
-              ? "Loading…"
-              : `${filteredFiles.length} file${filteredFiles.length === 1 ? "" : "s"}`}
-          </div>
-
+        <CollapsibleSection title={fileTitle} defaultOpen={true}>
           {loadingFiles ? (
             <div className="text-muted px-5 py-6 text-sm">Loading files...</div>
           ) : files.length === 0 ? (
@@ -443,7 +448,7 @@ export default function FilesPage() {
               </table>
             </div>
           )}
-        </section>
+        </CollapsibleSection>
       </div>
 
       <FilePreviewModal

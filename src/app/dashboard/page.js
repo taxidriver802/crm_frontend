@@ -6,6 +6,8 @@ import { AppShell } from "@/components/app-shell";
 import { api } from "@/lib/api";
 import { formatDue } from "@/lib/helper";
 import { CollapsibleSection } from "@/components/forms/collapsible-section";
+import { ActivityList } from "@/components/activity-list";
+import { useParams } from "next/navigation";
 
 function cx(...classes) {
   return classes.filter(Boolean).join(" ");
@@ -57,141 +59,14 @@ function getTaskLeadLabel(task) {
   return null;
 }
 
-function TaskRow({ t }) {
-  const leadName = getTaskLeadLabel(t);
-
-  return (
-    <div className="border-base hover:bg-accent rounded-lg border p-3 transition">
-      <div className="flex items-start justify-between gap-3">
-        <div className="min-w-0">
-          <div className="font-medium">{t.title}</div>
-          <div className="text-muted mt-1 text-sm">
-            {(leadName ? `${leadName} • ` : "") + formatDue(t.due_date)}
-          </div>
-        </div>
-
-        <button
-          className="btn shrink-0 px-3 py-2 text-xs"
-          onClick={() => alert("Wire me to mark complete 🙂")}
-        >
-          Done
-        </button>
-      </div>
-    </div>
-  );
-}
-
-function getActivityHref(item) {
-  if (!item?.entity_type || !item?.entity_id) return null;
-
-  if (item.entity_type === "lead") return `/leads/${item.entity_id}`;
-  if (item.entity_type === "job") return `/jobs/${item.entity_id}`;
-  if (item.entity_type === "task") return `/tasks/${item.entity_id}`;
-
-  return null;
-}
-
-function formatActivityMeta(item) {
-  const entityLabel =
-    item?.entity_type && item?.entity_id
-      ? `${item.entity_type} #${item.entity_id}`
-      : "System";
-
-  const typeLabel = item?.type ? item.type.replaceAll("_", " ") : "activity";
-
-  return `${entityLabel} • ${typeLabel}`;
-}
-
-function ActivityItem({ item }) {
-  const href = getActivityHref(item);
-
-  const content = (
-    <div className="border-base hover:bg-accent rounded-lg border p-2.5 transition sm:p-3">
-      <div className="flex items-start justify-between gap-3">
-        <div className="min-w-0 flex-1">
-          <div className="text-sm font-medium">{item.title}</div>
-
-          {item.message ? (
-            <div className="text-muted mt-1 line-clamp-2 text-xs leading-5">
-              {item.message}
-            </div>
-          ) : null}
-
-          <div className="text-muted mt-2 text-[11px] uppercase tracking-wide">
-            {formatActivityMeta(item)}
-          </div>
-        </div>
-
-        <div className="text-muted shrink-0 text-[11px] sm:text-xs">
-          {new Date(item.created_at).toLocaleDateString([], {
-            month: "short",
-            day: "numeric",
-          })}
-        </div>
-      </div>
-    </div>
-  );
-
-  return href ? <Link href={href}>{content}</Link> : content;
-}
-
 export default function DashboardPage() {
   const [data, setData] = useState(null);
   const [activity, setActivity] = useState([]);
   const [user, setUser] = useState(null);
-
   const [loading, setLoading] = useState(true);
   const [loadingActivity, setLoadingActivity] = useState(true);
   const [err, setErr] = useState("");
   const [tab, setTab] = useState("due_today");
-
-  useEffect(() => {
-    let alive = true;
-
-    async function loadDashboard() {
-      try {
-        setLoading(true);
-        setLoadingActivity(true);
-        setErr("");
-
-        const [dashboardRes, authRes, activityRes] = await Promise.allSettled([
-          api("/dashboard"),
-          api("/auth/me", { credentials: "include" }),
-          api("/dashboard/activities"),
-        ]);
-
-        if (!alive) return;
-
-        if (dashboardRes.status === "fulfilled") {
-          setData(dashboardRes.value);
-        } else {
-          setErr(dashboardRes.reason?.message || "Failed to load dashboard");
-        }
-
-        if (authRes.status === "fulfilled") {
-          setUser(authRes.value?.user || null);
-        } else {
-          setUser(null);
-        }
-
-        if (activityRes.status === "fulfilled") {
-          setActivity(activityRes.value?.activity || []);
-        } else {
-          setActivity([]);
-        }
-      } finally {
-        if (!alive) return;
-        setLoading(false);
-        setLoadingActivity(false);
-      }
-    }
-
-    loadDashboard();
-
-    return () => {
-      alive = false;
-    };
-  }, []);
 
   const stats = useMemo(() => {
     if (!data?.ok) return [];
@@ -274,6 +149,105 @@ export default function DashboardPage() {
       </Link>
     </div>
   );
+
+  function TaskRow({ t }) {
+    const leadName = getTaskLeadLabel(t);
+
+    return (
+      <div className="border-base hover:bg-accent rounded-lg border p-3 transition">
+        <div className="flex items-start justify-between gap-3">
+          <div className="min-w-0">
+            <div className="font-medium">{t.title}</div>
+            <div className="text-muted mt-1 text-sm">
+              {(leadName ? `${leadName} • ` : "") + formatDue(t.due_date)}
+            </div>
+          </div>
+
+          {t.status === "Completed" ? (
+            <button
+              className="btn px-3 py-2 text-xs"
+              onClick={() => setTaskStatus(t.id, "Pending")}
+            >
+              Mark pending
+            </button>
+          ) : (
+            <button
+              className="btn px-3 py-2 text-xs"
+              onClick={() => setTaskStatus(t.id, "Completed")}
+            >
+              Mark completed
+            </button>
+          )}
+        </div>
+      </div>
+    );
+  }
+
+  async function refreshDashboardSections() {
+    setLoading(true);
+    setLoadingActivity(true);
+    setErr("");
+
+    const [dashboardRes, authRes, activityRes] = await Promise.allSettled([
+      api("/dashboard"),
+      api("/auth/me", { credentials: "include" }),
+      api("/dashboard/activities"),
+    ]);
+
+    if (dashboardRes.status === "fulfilled") {
+      setData(dashboardRes.value);
+    } else {
+      setErr(dashboardRes.reason?.message || "Failed to load dashboard");
+    }
+
+    if (authRes.status === "fulfilled") {
+      setUser(authRes.value?.user || null);
+    } else {
+      setUser(null);
+    }
+
+    if (activityRes.status === "fulfilled") {
+      setActivity(activityRes.value?.activity || []);
+    } else {
+      setActivity([]);
+    }
+
+    setLoading(false);
+    setLoadingActivity(false);
+  }
+
+  async function setTaskStatus(taskId, nextStatus) {
+    try {
+      setErr("");
+
+      await api(`/tasks/${taskId}`, {
+        method: "PATCH",
+        body: JSON.stringify({ status: nextStatus }),
+      });
+
+      await refreshDashboardSections();
+    } catch (e) {
+      setErr(e.message || "Failed to update task");
+    }
+  }
+
+  useEffect(() => {
+    let alive = true;
+
+    async function loadDashboard() {
+      try {
+        await refreshDashboardSections();
+      } finally {
+        if (!alive) return;
+      }
+    }
+
+    loadDashboard();
+
+    return () => {
+      alive = false;
+    };
+  }, []);
 
   return (
     <AppShell
@@ -364,17 +338,17 @@ export default function DashboardPage() {
               </div>
             </SectionCard>
             <CollapsibleSection title={recentTitle} defaultOpen={true}>
-              <div className="space-y-3">
-                {loadingActivity ? (
+              {loadingActivity ? (
+                <div className="space-y-3">
                   <div className="text-muted text-sm">Loading activity…</div>
-                ) : activity.length === 0 ? (
+                </div>
+              ) : activity.length === 0 ? (
+                <div className="space-y-3">
                   <div className="text-muted text-sm">No recent activity</div>
-                ) : (
-                  activity
-                    .slice(0, 6)
-                    .map((item) => <ActivityItem key={item.id} item={item} />)
-                )}
-              </div>
+                </div>
+              ) : (
+                <ActivityList activity={activity.slice(0, 6)} loading={loadingActivity} />
+              )}
             </CollapsibleSection>
 
             <CollapsibleSection title={leadTitle} defaultOpen={true}>

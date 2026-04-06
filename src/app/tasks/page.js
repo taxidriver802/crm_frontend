@@ -8,6 +8,7 @@ import { ToggleFormSection } from "@/components/toggle-form-section";
 import { TaskForm, createEmptyTaskForm } from "@/components/forms/task-form";
 import { api } from "@/lib/api";
 import { formatDue, LinkedEntityCell } from "@/lib/helper";
+import { CollapsibleSection } from "@/components/forms/collapsible-section";
 
 function SummaryCard({ label, value, sub }) {
   return (
@@ -264,6 +265,15 @@ export default function TasksPage() {
   const overdueCount = summary?.counts?.overdue ?? summary?.overdueTasks?.length ?? 0;
   const dueTodayCount = summary?.counts?.due_today ?? summary?.dueTodayTasks?.length ?? 0;
   const nextUpCount = summary?.counts?.next_7_days ?? summary?.nextUp?.length ?? 0;
+  const taskTitle = (
+    <div>
+      {loadingTasks
+        ? "Loading…"
+        : tasks.length === 0
+          ? "No tasks yet"
+          : `${tasks.length} task${tasks.length === 1 ? "" : "s"}`}
+    </div>
+  );
 
   return (
     <AppShell title="Tasks">
@@ -400,13 +410,7 @@ export default function TasksPage() {
           </div>
         </section>
 
-        <section className="card overflow-hidden rounded-lg">
-          <div className="border-base text-muted border-b p-4 text-sm">
-            {loadingTasks
-              ? "Loading…"
-              : `${tasks.length} task${tasks.length === 1 ? "" : "s"}`}
-          </div>
-
+        <CollapsibleSection title={taskTitle} defaultOpen={true}>
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead className="bg-accent">
@@ -497,7 +501,7 @@ export default function TasksPage() {
               </tbody>
             </table>
           </div>
-        </section>
+        </CollapsibleSection>
       </div>
     </AppShell>
   );

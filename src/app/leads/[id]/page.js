@@ -14,6 +14,7 @@ import {
   isPreviewableFile,
 } from "@/lib/helper";
 import { FilePreviewModal } from "@/components/modals/file-preview-modal";
+import { CollapsibleSection } from "@/components/forms/collapsible-section";
 
 function isCompletedTask(task) {
   return String(task?.status || "").toLowerCase() === "completed";
@@ -373,10 +374,11 @@ export default function LeadDetailPage() {
           <StatCard label="Files" value={files.length} />
         </section>
 
-        <SectionCard
+        <CollapsibleSection
           title="Jobs"
           description="Workspaces tied to this lead."
-          right={
+          defaultOpen={true}
+          actions={
             <Link
               href={`/jobs?lead_id=${id}&open=create`}
               className="btn px-3 py-2 text-xs"
@@ -415,13 +417,14 @@ export default function LeadDetailPage() {
               ))}
             </div>
           )}
-        </SectionCard>
+        </CollapsibleSection>
 
         <section className="grid gap-4 xl:grid-cols-[1.2fr_0.8fr]">
-          <SectionCard
+          <CollapsibleSection
             title="Lead Tasks"
             description="Open and completed work tied to this lead."
-            right={
+            defaultOpen={true}
+            actions={
               <Link href={`/tasks/new?lead_id=${id}`} className="btn px-3 py-2 text-xs">
                 + New Task
               </Link>
@@ -506,12 +509,13 @@ export default function LeadDetailPage() {
                 </div>
               </div>
             )}
-          </SectionCard>
+          </CollapsibleSection>
 
-          <SectionCard
+          <CollapsibleSection
             title="Attached Files"
             description="Files uploaded directly to this lead."
-            right={
+            defaultOpen={true}
+            actions={
               canManageFiles ? (
                 <label className="btn cursor-pointer px-3 py-2 text-xs">
                   {uploading ? "Uploading…" : "Upload File"}
@@ -587,7 +591,7 @@ export default function LeadDetailPage() {
                 ))}
               </div>
             )}
-          </SectionCard>
+          </CollapsibleSection>
         </section>
       </div>
 
