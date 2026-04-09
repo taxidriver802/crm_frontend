@@ -66,6 +66,10 @@ function getNotificationHref(notification) {
     return `/jobs/${notification.entity_id}`;
   }
 
+  if (notification.type === "FILE_UPLOADED" && !notification.entity_type) {
+    return "/files";
+  }
+
   return null;
 }
 
@@ -125,6 +129,14 @@ export function AppShell({ children, title, description, right }) {
     }
   }
 
+  function getNotificationActionLabel(notification) {
+    if (!notification) return null;
+    if (notification.entity_type === "task") return "Open task";
+    if (notification.entity_type === "lead") return "Open lead";
+    if (notification.entity_type === "job") return "Open job";
+    return null;
+  }
+
   async function loadNotifications() {
     try {
       setNotificationsLoading(true);
@@ -138,8 +150,10 @@ export function AppShell({ children, title, description, right }) {
         (n) => !prevNotifications.some((p) => p.id === n.id),
       );
 
-      if (prevNotifications.length > 0) {
-        newItems.forEach((n) => showToast(n.title));
+      if (prevNotifications.length > 0 && !notificationsOpen) {
+        newItems
+          .filter((n) => !n.read_at)
+          .forEach((n) => showToast(`${n.title}: ${n.message}`));
       }
 
       setPrevNotifications(newNotifications);
@@ -421,7 +435,7 @@ export function AppShell({ children, title, description, right }) {
                             key={notification.id}
                             className={cx(
                               "border-base border-b last:border-b-0",
-                              unread && "bg-accent/40",
+                              unread && "bg-accent/60",
                             )}
                           >
                             <button
@@ -452,7 +466,7 @@ export function AppShell({ children, title, description, right }) {
 
                                   {href ? (
                                     <p className="text-main mt-1 text-xs">
-                                      Open related item
+                                      {getNotificationActionLabel(notification)}
                                     </p>
                                   ) : null}
                                 </div>
