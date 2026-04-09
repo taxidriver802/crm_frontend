@@ -6,7 +6,9 @@ export function CollapsibleSection({
   title,
   description,
   actions,
+  secondaryActions,
   defaultOpen = true,
+
   children,
   contentClassName = "",
 }) {
@@ -36,7 +38,14 @@ export function CollapsibleSection({
         </div>
       </div>
 
-      {open ? <div className={`p-4 ${contentClassName}`.trim()}>{children}</div> : null}
+      {open ? (
+        <div className={`p-4 ${contentClassName}`.trim()}>
+          {children}
+          {secondaryActions ? (
+            <div className="mt-4 flex justify-end">{secondaryActions}</div>
+          ) : null}
+        </div>
+      ) : null}
     </section>
   );
 }

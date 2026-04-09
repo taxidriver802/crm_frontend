@@ -361,7 +361,7 @@ export default function DashboardPage() {
                   {statusSummary.map((row) => (
                     <Link
                       key={row.status}
-                      className="border-base flex items-center justify-between rounded-lg border p-3"
+                      className="border-base hover:bg-accent flex items-center justify-between rounded-lg border p-3 transition"
                       href={`/leads?status=${row.status}`}
                     >
                       <div className="flex items-center gap-2">

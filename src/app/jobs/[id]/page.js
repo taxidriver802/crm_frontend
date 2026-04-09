@@ -18,6 +18,7 @@ import { ToggleFormSection } from "@/components/toggle-form-section";
 import { FilePreviewModal } from "@/components/modals/file-preview-modal";
 import { TaskForm, createEmptyTaskForm } from "@/components/forms/task-form";
 import { CollapsibleSection } from "@/components/forms/collapsible-section";
+import { EstimateForm } from "@/components/forms/estimate-form";
 
 const JOB_STATUSES = [
   "New",
@@ -297,6 +298,10 @@ export default function JobDetailPage() {
   const [activity, setActivity] = useState([]);
   const [loadingActivity, setLoadingActivity] = useState(true);
 
+  const [estimates, setEstimates] = useState([]);
+  const [loadingEstimates, setLoadingEstimates] = useState(true);
+  const [estimatesError, setEstimatesError] = useState("");
+
   const [error, setError] = useState(null);
   const [updatingStatus, setUpdatingStatus] = useState(null);
 
@@ -346,6 +351,20 @@ export default function JobDetailPage() {
     }
   }
 
+  async function loadEstimates() {
+    setLoadingEstimates(true);
+    setEstimatesError("");
+
+    try {
+      const res = await api(`/estimates/job/${id}`);
+      setEstimates(res.estimates || []);
+    } catch (e) {
+      setEstimatesError(e.message || "Failed to load estimates");
+    } finally {
+      setLoadingEstimates(false);
+    }
+  }
+
   async function loadFiles() {
     try {
       setLoadingFiles(true);
@@ -363,7 +382,13 @@ export default function JobDetailPage() {
       setLoading(true);
       setError(null);
 
-      await Promise.all([loadJob(), loadTasks(), loadFiles(), loadActivity()]);
+      await Promise.all([
+        loadJob(),
+        loadTasks(),
+        loadFiles(),
+        loadActivity(),
+        loadEstimates(),
+      ]);
     } catch (e) {
       setError(e.message || "Failed to load job");
     } finally {
@@ -600,6 +625,10 @@ export default function JobDetailPage() {
     : sortedTasks.slice(0, DEFAULT_VISIBLE_TASKS);
 
   const hiddenTaskCount = Math.max(0, sortedTasks.length - visibleTasks.length);
+  const sortedEstimates = [...estimates].sort(
+    (a, b) =>
+      new Date(b.updated_at || b.created_at) - new Date(a.updated_at || a.created_at),
+  );
 
   return (
     <AppShell
@@ -623,7 +652,7 @@ export default function JobDetailPage() {
 
         {error ? (
           <div className="card rounded-lg p-4">
-            <div className="text-sm font-medium text-red-600">Couldn’t load job</div>
+            <div className="text-sm font-medium text-red-600">Couldn't load job</div>
             <div className="text-muted mt-1 text-sm">{error}</div>
           </div>
         ) : null}
@@ -721,16 +750,66 @@ export default function JobDetailPage() {
                 </div>
               </SectionCard>
               <CollapsibleSection
-                title="Activity"
-                description="Recent changes and actions on this job"
+                title="Estimates"
+                description="Pricing and scope tied to this job"
                 defaultOpen={true}
+                actions={
+                  <Link
+                    href={`/estimates/new?job_id=${id}`}
+                    className="btn px-3 py-2 text-xs"
+                  >
+                    + New Estimate
+                  </Link>
+                }
               >
-                {loadingActivity ? (
-                  <div className="text-muted text-sm">Loading activity...</div>
-                ) : activity.length === 0 ? (
-                  <div className="text-muted text-sm">No activity yet.</div>
+                {loadingEstimates ? (
+                  <div className="text-muted text-sm">Loading estimates...</div>
+                ) : estimatesError ? (
+                  <div className="text-sm text-red-500">{estimatesError}</div>
+                ) : estimates.length === 0 ? (
+                  <div className="text-muted rounded-lg border border-dashed p-4 text-sm">
+                    No estimates for this job yet.
+                  </div>
                 ) : (
-                  <ActivityTimeline activity={activity} jobId={job.id} />
+                  <div className="space-y-3">
+                    {sortedEstimates.map((estimate) => (
+                      <Link
+                        key={estimate.id}
+                        href={`/estimates/${estimate.id}`}
+                        className="hover:bg-accent flex items-start justify-between gap-3 rounded-lg border p-4 transition"
+                      >
+                        <div className="min-w-0 flex-1">
+                          <div className="font-medium">{estimate.title}</div>
+
+                          <div className="text-muted mt-1 flex flex-wrap items-center gap-2 text-xs">
+                            <span>
+                              {formatDate(estimate.updated_at || estimate.created_at)}
+                            </span>
+
+                            {estimate.job?.address ? (
+                              <>
+                                <span>•</span>
+                                <span className="truncate">{estimate.job.address}</span>
+                              </>
+                            ) : null}
+                          </div>
+
+                          {estimate.notes ? (
+                            <div className="text-muted mt-2 line-clamp-2 text-sm">
+                              {estimate.notes}
+                            </div>
+                          ) : null}
+                        </div>
+
+                        <div className="flex shrink-0 flex-col items-end gap-2">
+                          <span className="status-chip text-xs">{estimate.status}</span>
+                          <div className="text-sm font-semibold">
+                            ${Number(estimate.grand_total || 0).toFixed(2)}
+                          </div>
+                        </div>
+                      </Link>
+                    ))}
+                  </div>
                 )}
               </CollapsibleSection>
 
@@ -1004,6 +1083,19 @@ export default function JobDetailPage() {
                   </div>
                 )}
               </SectionCard>
+              <CollapsibleSection
+                title="Activity"
+                description="Recent changes and actions on this job"
+                defaultOpen={true}
+              >
+                {loadingActivity ? (
+                  <div className="text-muted text-sm">Loading activity...</div>
+                ) : activity.length === 0 ? (
+                  <div className="text-muted text-sm">No activity yet.</div>
+                ) : (
+                  <ActivityTimeline activity={activity} jobId={job.id} />
+                )}
+              </CollapsibleSection>
             </div>
           </div>
         ) : null}
