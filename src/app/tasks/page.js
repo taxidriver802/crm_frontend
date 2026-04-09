@@ -280,24 +280,6 @@ export default function TasksPage() {
       <div className="space-y-6">
         {error ? <div className="text-sm text-red-500">{error}</div> : null}
 
-        <section className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-          <SummaryCard
-            label="Overdue"
-            value={loadingSummary ? "…" : String(overdueCount)}
-            sub="Needs attention"
-          />
-          <SummaryCard
-            label="Due Today"
-            value={loadingSummary ? "…" : String(dueTodayCount)}
-            sub="Due this day"
-          />
-          <SummaryCard
-            label="Next Up"
-            value={loadingSummary ? "…" : String(nextUpCount)}
-            sub="Upcoming work"
-          />
-        </section>
-
         <ToggleFormSection
           title="Create Task"
           description="Quickly add a task tied to a lead or job without leaving the page."
@@ -334,6 +316,24 @@ export default function TasksPage() {
             layout="compact"
           />
         </ToggleFormSection>
+
+        <section className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+          <SummaryCard
+            label="Overdue"
+            value={loadingSummary ? "…" : String(overdueCount)}
+            sub="Needs attention"
+          />
+          <SummaryCard
+            label="Due Today"
+            value={loadingSummary ? "…" : String(dueTodayCount)}
+            sub="Due this day"
+          />
+          <SummaryCard
+            label="Next Up"
+            value={loadingSummary ? "…" : String(nextUpCount)}
+            sub="Upcoming work"
+          />
+        </section>
 
         <section className="card rounded-lg p-4">
           <div className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
