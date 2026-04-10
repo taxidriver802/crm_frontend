@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
 import { AppShell } from "@/components/app-shell";
@@ -18,7 +18,12 @@ import { ToggleFormSection } from "@/components/toggle-form-section";
 import { FilePreviewModal } from "@/components/modals/file-preview-modal";
 import { TaskForm, createEmptyTaskForm } from "@/components/forms/task-form";
 import { CollapsibleSection } from "@/components/forms/collapsible-section";
-import { EstimateForm } from "@/components/forms/estimate-form";
+import { ActivityList } from "@/components/activity-list";
+import {
+  LoadingSpinner,
+  SectionSkeleton,
+  Skeleton,
+} from "@/components/loading/loadingSkeletons";
 
 const JOB_STATUSES = [
   "New",
@@ -48,228 +53,6 @@ function SectionCard({ title, description, right, children, className = "" }) {
 
 function JobStatusBadge({ status }) {
   return <span className="status-chip">{status || "—"}</span>;
-}
-
-function formatActivityTime(value) {
-  if (!value) return "";
-  return new Date(value).toLocaleTimeString([], {
-    hour: "numeric",
-    minute: "2-digit",
-  });
-}
-
-function getActivityDateLabel(value) {
-  if (!value) return "Older";
-
-  const date = new Date(value);
-  const now = new Date();
-
-  const activityDay = new Date(date.getFullYear(), date.getMonth(), date.getDate());
-  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-
-  const diffMs = today.getTime() - activityDay.getTime();
-  const diffDays = Math.floor(diffMs / 86400000);
-
-  if (diffDays === 0) return "Today";
-  if (diffDays === 1) return "Yesterday";
-  if (diffDays < 7) return "Last 7 Days";
-  if (diffDays < 30) return "Last 30 Days";
-
-  return date.toLocaleDateString([], {
-    month: "short",
-    day: "numeric",
-    year: today.getFullYear() !== activityDay.getFullYear() ? "numeric" : undefined,
-  });
-}
-
-function groupActivityByDate(items) {
-  return items.reduce((groups, item) => {
-    const label = getActivityDateLabel(item.created_at);
-    if (!groups[label]) groups[label] = [];
-    groups[label].push(item);
-    return groups;
-  }, {});
-}
-
-function getActivityMeta(activity) {
-  const type = activity?.type || "";
-
-  if (type.includes("FILE")) {
-    return {
-      icon: "📄",
-      iconClass: "bg-blue-500/15 text-blue-400 border-blue-400/20",
-    };
-  }
-
-  if (type.includes("TASK_COMPLETED")) {
-    return {
-      icon: "✅",
-      iconClass: "bg-green-500/15 text-green-400 border-green-400/20",
-    };
-  }
-
-  if (type.includes("TASK")) {
-    return {
-      icon: "🗂️",
-      iconClass: "bg-amber-500/15 text-amber-300 border-amber-400/20",
-    };
-  }
-
-  if (type.includes("STATUS") || type.includes("JOB")) {
-    return {
-      icon: "🔄",
-      iconClass: "bg-cyan-500/15 text-cyan-300 border-cyan-400/20",
-    };
-  }
-
-  return {
-    icon: "•",
-    iconClass: "bg-surface text-muted border-base",
-  };
-}
-
-function getActivityHref(activity, jobId) {
-  if (!activity) return null;
-
-  if (activity.entity_type === "task" && activity.entity_id) {
-    return `/tasks/${activity.entity_id}`;
-  }
-
-  if (activity.entity_type === "file" && jobId) {
-    return `/jobs/${jobId}`;
-  }
-
-  if (activity.entity_type === "job" && jobId) {
-    return `/jobs/${jobId}`;
-  }
-
-  return null;
-}
-
-function getActivityActionLabel(activity) {
-  if (!activity) return null;
-
-  if (activity.entity_type === "task") return "Open task →";
-  if (activity.entity_type === "file") return "View files →";
-  if (activity.entity_type === "job") return "View job →";
-
-  return null;
-}
-
-function getDefaultVisibleActivityCount(label) {
-  if (label === "Today") return 4;
-  if (label === "Yesterday") return 3;
-  if (label === "Last 7 Days") return 3;
-  if (label === "Last 30 Days") return 2;
-  return 2;
-}
-
-function getHiddenActivityCount(items, visibleCount) {
-  return Math.max(0, items.length - visibleCount);
-}
-
-function ActivityTimeline({ activity = [], jobId }) {
-  const grouped = useMemo(() => groupActivityByDate(activity), [activity]);
-  const [expandedGroups, setExpandedGroups] = useState({});
-
-  function toggleGroup(label) {
-    setExpandedGroups((prev) => ({
-      ...prev,
-      [label]: !prev[label],
-    }));
-  }
-
-  return (
-    <div className="space-y-6">
-      {Object.entries(grouped).map(([label, items]) => {
-        const defaultVisible = getDefaultVisibleActivityCount(label);
-        const isExpanded = !!expandedGroups[label];
-        const visibleItems = isExpanded ? items : items.slice(0, defaultVisible);
-        const hiddenCount = getHiddenActivityCount(items, visibleItems.length);
-
-        return (
-          <div key={label} className="space-y-3">
-            <div className="flex items-center justify-between gap-3">
-              <div className="text-muted text-xs font-semibold uppercase tracking-wide">
-                {label}
-              </div>
-
-              {items.length > defaultVisible ? (
-                <button
-                  type="button"
-                  onClick={() => toggleGroup(label)}
-                  className="btn px-3 py-1.5 text-xs"
-                >
-                  {isExpanded
-                    ? "Show fewer"
-                    : `Show more${hiddenCount > 0 ? ` (${hiddenCount})` : ""}`}
-                </button>
-              ) : null}
-            </div>
-
-            <div className="card overflow-hidden">
-              {visibleItems.map((item, index) => {
-                const meta = getActivityMeta(item);
-                const href = getActivityHref(item, jobId);
-                const Wrapper = href ? Link : "div";
-                const wrapperProps = href
-                  ? {
-                      href,
-                      className: "block cursor-pointer transition hover:bg-accent",
-                    }
-                  : {};
-
-                return (
-                  <Wrapper key={item.id} {...wrapperProps}>
-                    <div
-                      className={[
-                        "flex items-start gap-4 px-4 py-4",
-                        index !== visibleItems.length - 1 ? "border-base border-b" : "",
-                      ]
-                        .filter(Boolean)
-                        .join(" ")}
-                    >
-                      <div
-                        className={[
-                          "mt-0.5 inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full border text-sm",
-                          meta.iconClass,
-                        ].join(" ")}
-                      >
-                        {meta.icon}
-                      </div>
-
-                      <div className="min-w-0 flex-1">
-                        <div className="flex items-start justify-between gap-3">
-                          <div className="min-w-0">
-                            <p className="truncate text-sm font-semibold">{item.title}</p>
-                            {item.message ? (
-                              <p className="text-muted mt-1 text-sm leading-5">
-                                {item.message}
-                              </p>
-                            ) : null}
-                          </div>
-
-                          <div className="text-muted shrink-0 text-xs">
-                            {formatActivityTime(item.created_at)}
-                          </div>
-                        </div>
-
-                        {href ? (
-                          <div className="text-main mt-2 text-xs font-medium">
-                            {getActivityActionLabel(item)}
-                          </div>
-                        ) : null}
-                      </div>
-                    </div>
-                  </Wrapper>
-                );
-              })}
-            </div>
-          </div>
-        );
-      })}
-    </div>
-  );
 }
 
 export default function JobDetailPage() {
@@ -302,6 +85,9 @@ export default function JobDetailPage() {
   const [loadingEstimates, setLoadingEstimates] = useState(true);
   const [estimatesError, setEstimatesError] = useState("");
 
+  const [limit, setLimit] = useState(50);
+  const [hasMoreActivity, setHasMoreActivity] = useState(false);
+
   const [error, setError] = useState(null);
   const [updatingStatus, setUpdatingStatus] = useState(null);
 
@@ -324,18 +110,47 @@ export default function JobDetailPage() {
     }));
   }, [id]);
 
+  const [miniLoadingActivity, setMiniLoadingActivity] = useState(false);
+
   async function loadJob() {
     const data = await api(`/jobs/${id}`);
     setJob(data.job);
   }
 
-  async function loadActivity() {
-    setLoadingActivity(true);
+  async function loadActivity({ append = false } = {}) {
+    if (!append) {
+      setLoadingActivity(true);
+    } else {
+      setMiniLoadingActivity(true);
+    }
+
     try {
-      const res = await api(`/jobs/${id}/activity`);
-      setActivity(res.activity || []);
+      const res = await api(`/jobs/${id}/activity?limit=${limit}`);
+      const payload = res.result || {};
+      const newActivity = payload.activity || [];
+
+      setActivity((prev) => {
+        if (!append) return newActivity;
+
+        const existingIds = new Set(prev.map((a) => a.id));
+        const merged = [...prev];
+
+        for (const item of newActivity) {
+          if (!existingIds.has(item.id)) {
+            merged.push(item);
+          }
+        }
+
+        return merged;
+      });
+
+      setHasMoreActivity(!!payload.hasMore);
     } finally {
       setLoadingActivity(false);
+      (async () => {
+        await new Promise((r) => setTimeout(r, 2500));
+        setMiniLoadingActivity(false);
+      })();
     }
   }
 
@@ -606,6 +421,12 @@ export default function JobDetailPage() {
     if (id) loadPage();
   }, [id]);
 
+  useEffect(() => {
+    if (!id) return;
+    if (limit === 50) return;
+
+    loadActivity({ append: true });
+  }, [limit, id]);
   const sortedTasks = [...tasks].sort((a, b) => {
     const aCompleted = a.status === "Completed";
     const bCompleted = b.status === "Completed";
@@ -630,6 +451,8 @@ export default function JobDetailPage() {
       new Date(b.updated_at || b.created_at) - new Date(a.updated_at || a.created_at),
   );
 
+  const isInitialLoading = loading && !job;
+
   return (
     <AppShell
       title={job ? job.title : "Job"}
@@ -644,9 +467,43 @@ export default function JobDetailPage() {
       }
     >
       <div className="space-y-6">
-        {loading ? (
-          <div className="card rounded-lg p-4">
-            <div className="text-muted text-sm">Loading job…</div>
+        {isInitialLoading ? (
+          <div className="space-y-6">
+            <div className="card space-y-3 p-4">
+              <Skeleton className="h-6 w-48" />
+              <Skeleton className="h-4 w-64" />
+              <Skeleton className="h-16 w-full" />
+            </div>
+
+            <div className="grid gap-6 lg:grid-cols-3">
+              <div className="space-y-6 lg:col-span-2">
+                <div className="card space-y-3 p-4">
+                  <Skeleton className="h-5 w-32" />
+                  <Skeleton className="h-4 w-full" />
+                  <Skeleton className="h-20 w-full" />
+                </div>
+
+                <div className="card space-y-3 p-4">
+                  <Skeleton className="h-5 w-24" />
+                  <Skeleton className="h-24 w-full" />
+                </div>
+              </div>
+
+              <div className="space-y-6">
+                <div className="card space-y-3 p-4">
+                  <Skeleton className="h-5 w-20" />
+                  <Skeleton className="h-4 w-32" />
+                  <Skeleton className="h-4 w-24" />
+                  <Skeleton className="h-4 w-28" />
+                </div>
+                <div className="card space-y-3 p-4">
+                  <Skeleton className="h-5 w-20" />
+                  <Skeleton className="h-4 w-32" />
+                  <Skeleton className="h-4 w-24" />
+                  <Skeleton className="h-4 w-28" />
+                </div>
+              </div>
+            </div>
           </div>
         ) : null}
 
@@ -657,7 +514,7 @@ export default function JobDetailPage() {
           </div>
         ) : null}
 
-        {job ? (
+        {!isInitialLoading && job ? (
           <div className="grid gap-6 lg:grid-cols-3">
             <div className="space-y-6 lg:col-span-2">
               <SectionCard title="Job Overview" description="Overview and current status">
@@ -762,8 +619,8 @@ export default function JobDetailPage() {
                   </Link>
                 }
               >
-                {loadingEstimates ? (
-                  <div className="text-muted text-sm">Loading estimates...</div>
+                {!isInitialLoading && loadingEstimates ? (
+                  <SectionSkeleton rows={3} />
                 ) : estimatesError ? (
                   <div className="text-sm text-red-500">{estimatesError}</div>
                 ) : estimates.length === 0 ? (
@@ -871,8 +728,8 @@ export default function JobDetailPage() {
                     </div>
                   ) : null}
 
-                  {loadingTasks ? (
-                    <div className="text-muted text-sm">Loading tasks...</div>
+                  {!isInitialLoading && loadingTasks ? (
+                    <SectionSkeleton rows={4} />
                   ) : tasks.length === 0 ? (
                     <div className="text-muted text-sm">No tasks for this job yet.</div>
                   ) : (
@@ -955,8 +812,15 @@ export default function JobDetailPage() {
 
                   {!job?.lead_id ? (
                     <div className="text-muted text-sm">No lead linked to this job.</div>
-                  ) : loadingLead ? (
-                    <div className="text-muted text-sm">Loading lead details…</div>
+                  ) : !isInitialLoading && loadingLead ? (
+                    <div className="space-y-3">
+                      <Skeleton className="h-4 w-40" />
+                      <Skeleton className="h-4 w-52" />
+                      <div className="flex gap-2">
+                        <Skeleton className="h-5 w-20 rounded-full" />
+                        <Skeleton className="h-5 w-24 rounded-full" />
+                      </div>
+                    </div>
                   ) : leadError ? (
                     <div className="text-sm text-red-500">{leadError}</div>
                   ) : !lead ? (
@@ -1024,8 +888,8 @@ export default function JobDetailPage() {
                   <div className="mb-3 text-sm text-red-500">{filesError}</div>
                 ) : null}
 
-                {loadingFiles ? (
-                  <div className="text-muted text-sm">Loading files…</div>
+                {!isInitialLoading && loadingFiles ? (
+                  <SectionSkeleton rows={3} />
                 ) : files.length === 0 ? (
                   <div className="text-muted rounded-lg border border-dashed p-4 text-sm">
                     No files attached to this job yet.
@@ -1088,12 +952,37 @@ export default function JobDetailPage() {
                 description="Recent changes and actions on this job"
                 defaultOpen={true}
               >
-                {loadingActivity ? (
-                  <div className="text-muted text-sm">Loading activity...</div>
+                {!isInitialLoading && loadingActivity ? (
+                  <div className="space-y-2">
+                    <Skeleton className="h-4 w-40" />
+                    <Skeleton className="h-4 w-60" />
+                    <Skeleton className="h-4 w-32" />
+                  </div>
                 ) : activity.length === 0 ? (
                   <div className="text-muted text-sm">No activity yet.</div>
                 ) : (
-                  <ActivityTimeline activity={activity} jobId={job.id} />
+                  <>
+                    <ActivityList activity={activity} loading={loadingActivity} />
+
+                    {!hasMoreActivity ? (
+                      <div className="mt-3 flex justify-between">
+                        <button
+                          type="button"
+                          className="btn ml-auto px-3 text-xs"
+                          onClick={() => setLimit((prev) => prev + 50)}
+                        >
+                          {miniLoadingActivity ? (
+                            <div className="flex flex-row gap-4 px-3">
+                              <LoadingSpinner size={14} />
+                              Loading
+                            </div>
+                          ) : (
+                            "Load more activity"
+                          )}
+                        </button>
+                      </div>
+                    ) : null}
+                  </>
                 )}
               </CollapsibleSection>
             </div>

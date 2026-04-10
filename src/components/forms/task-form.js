@@ -1,5 +1,9 @@
 "use client";
 
+import { useEffect, useState, useRef } from "react";
+import { DayPicker } from "react-day-picker";
+import "react-day-picker/dist/style.css";
+
 const STATUS_OPTIONS = ["Pending", "Completed"];
 
 const EMPTY_TASK_FORM = {
@@ -164,11 +168,9 @@ export function TaskForm({
 
         <div>
           <label className="text-muted text-xs">Due date</label>
-          <input
-            type="datetime-local"
-            className="input mt-1"
+          <CustomDateTimePicker
             value={form.due_date}
-            onChange={(e) => setField("due_date", e.target.value)}
+            onChange={(val) => setField("due_date", val)}
           />
         </div>
 
@@ -206,5 +208,272 @@ export function TaskForm({
         ) : null}
       </div>
     </form>
+  );
+}
+
+function to12HourParts(time24) {
+  if (!time24) {
+    return { hour: "12", minute: "00", period: "AM" };
+  }
+
+  const [rawHour = "00", rawMinute = "00"] = time24.split(":");
+  const hourNum = Number(rawHour);
+  const minute = rawMinute.padStart(2, "0");
+
+  const period = hourNum >= 12 ? "PM" : "AM";
+  const hour12 = hourNum % 12 || 12;
+
+  return {
+    hour: String(hour12),
+    minute,
+    period,
+  };
+}
+
+function to24HourString(hour12, minute, period) {
+  let hourNum = Number(hour12);
+
+  if (Number.isNaN(hourNum) || hourNum < 1 || hourNum > 12) {
+    hourNum = 12;
+  }
+
+  let convertedHour = hourNum % 12;
+
+  if (period === "PM") {
+    convertedHour += 12;
+  }
+
+  return `${String(convertedHour).padStart(2, "0")}:${String(minute).padStart(2, "0")}`;
+}
+
+function formatDisplayTime(time24) {
+  if (!time24) return "Select time";
+
+  const { hour, minute, period } = to12HourParts(time24);
+  return `${hour}:${minute} ${period}`;
+}
+
+function CustomTimePicker({ value, onChange, isOpen, onToggle, onClose }) {
+  const { hour, minute, period } = to12HourParts(value);
+
+  const HOURS = Array.from({ length: 12 }, (_, i) => String(i + 1));
+  const MINUTES = Array.from({ length: 12 }, (_, i) => String(i * 5).padStart(2, "0"));
+  const PERIODS = ["AM", "PM"];
+
+  function updateTime(next) {
+    const nextHour = next.hour ?? hour;
+    const nextMinute = next.minute ?? minute;
+    const nextPeriod = next.period ?? period;
+
+    onChange(to24HourString(nextHour, nextMinute, nextPeriod));
+  }
+
+  return (
+    <div className="relative w-full">
+      <button type="button" onClick={onToggle} className="input mt-1 w-full text-left">
+        {formatDisplayTime(value)}
+      </button>
+
+      {isOpen && (
+        <div className="dropdown-panel absolute z-50 mt-2 w-full min-w-[220px] p-3">
+          <div className="grid grid-cols-3 gap-2">
+            <div>
+              <label className="text-muted mb-1 block text-xs">Hour</label>
+              <select
+                className="input"
+                value={hour}
+                onChange={(e) => updateTime({ hour: e.target.value })}
+              >
+                {HOURS.map((h) => (
+                  <option key={h} value={h}>
+                    {h}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div>
+              <label className="text-muted mb-1 block text-xs">Minute</label>
+              <select
+                className="input"
+                value={minute}
+                onChange={(e) => updateTime({ minute: e.target.value })}
+              >
+                {MINUTES.map((m) => (
+                  <option key={m} value={m}>
+                    {m}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div>
+              <label className="text-muted mb-1 block text-xs">AM / PM</label>
+              <select
+                className="input"
+                value={period}
+                onChange={(e) => updateTime({ period: e.target.value })}
+              >
+                {PERIODS.map((p) => (
+                  <option key={p} value={p}>
+                    {p}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
+
+          <div className="mt-3 flex justify-end gap-2">
+            <button
+              type="button"
+              className="btn btn-ghost"
+              onClick={() => {
+                onChange("");
+                onClose();
+              }}
+            >
+              Clear
+            </button>
+
+            <button type="button" className="btn" onClick={onClose}>
+              Done
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+export function CustomDateTimePicker({ value, onChange }) {
+  const [date, setDate] = useState(null);
+  const [time, setTime] = useState("");
+  const [openPanel, setOpenPanel] = useState(null);
+  const pickerRef = useRef(null);
+
+  useEffect(() => {
+    if (!value) return;
+
+    const [d, t] = value.split("T");
+
+    if (d) {
+      setDate(parseLocalDate(d));
+    }
+
+    setTime(t?.slice(0, 5) || "");
+  }, [value]);
+
+  function updateDateTime(d, t) {
+    if (!d) return onChange("");
+
+    const yyyy = d.getFullYear();
+    const mm = String(d.getMonth() + 1).padStart(2, "0");
+    const dd = String(d.getDate()).padStart(2, "0");
+
+    const combined = t ? `${yyyy}-${mm}-${dd}T${t}` : `${yyyy}-${mm}-${dd}T00:00`;
+
+    onChange(combined);
+  }
+
+  function handleDateSelect(selectedDate) {
+    setDate(selectedDate);
+    setOpenPanel(null);
+    updateDateTime(selectedDate, time);
+  }
+
+  function handleTimeChange(newTime) {
+    setTime(newTime);
+    if (!date) return; // 👈 prevent invalid update
+    updateDateTime(date, newTime);
+  }
+
+  function formatDisplayDate(d) {
+    if (!d) return "Select date";
+
+    return d.toLocaleDateString(undefined, {
+      month: "short",
+      day: "numeric",
+      year: "numeric",
+    });
+  }
+
+  function parseLocalDate(dateString) {
+    if (!dateString) return null;
+
+    const [year, month, day] = dateString.split("-").map(Number);
+    return new Date(year, month - 1, day); // 👈 local date
+  }
+
+  useEffect(() => {
+    function handleClick(e) {
+      if (pickerRef.current && !pickerRef.current.contains(e.target)) {
+        setOpenPanel(null);
+      }
+    }
+
+    document.addEventListener("mousedown", handleClick);
+    return () => document.removeEventListener("mousedown", handleClick);
+  }, []);
+
+  return (
+    <div ref={pickerRef} className="flex gap-2">
+      {/* Date Button */}
+      <div className="relative w-full">
+        <button
+          type="button"
+          onClick={() => setOpenPanel((prev) => (prev === "date" ? null : "date"))}
+          className="input mt-1 w-full text-left"
+        >
+          {formatDisplayDate(date)}
+        </button>
+
+        {openPanel === "date" && (
+          <div className="dropdown-panel absolute z-50 mt-2 p-2">
+            <DayPicker
+              mode="single"
+              selected={date}
+              onSelect={handleDateSelect}
+              captionLayout="dropdown"
+              navLayout="after"
+              startMonth={new Date(2020, 0)}
+              endMonth={new Date(2035, 11)}
+              showOutsideDays
+              className="text-main text-sm"
+              classNames={{
+                root: "rdp-root",
+                month: "space-y-3",
+                caption: "px-0",
+                caption_label: "hidden",
+                dropdowns: "flex w-full justify-center gap-2",
+                dropdown: "input h-9 w-auto px-2 py-1 text-sm",
+                nav: "flex justify-center gap-2",
+                button_previous: "icon-btn h-9 w-9",
+                button_next: "icon-btn h-9 w-9",
+                table: "w-full border-collapse",
+                head_row: "grid grid-cols-7",
+                row: "grid grid-cols-7",
+                weekday: "text-muted py-1 text-center text-xs font-medium",
+                day: "h-10 w-10 rounded-md p-0 text-sm",
+                day_button:
+                  "h-10 w-10 rounded-md transition hover:bg-accent focus:outline-none focus:ring-2 focus:ring-[var(--accent)]",
+                selected: "bg-accent rounded-md text-white hover:bg-accent",
+                today: "text-muted opacity-25 font-normal",
+                outside: "text-soft opacity-50",
+                disabled: "text-soft opacity-40",
+              }}
+            />
+          </div>
+        )}
+      </div>
+
+      {/* Time */}
+      <CustomTimePicker
+        value={time}
+        onChange={handleTimeChange}
+        isOpen={openPanel === "time"}
+        onToggle={() => setOpenPanel((prev) => (prev === "time" ? null : "time"))}
+        onClose={() => setOpenPanel(null)}
+      />
+    </div>
   );
 }

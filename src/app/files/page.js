@@ -15,6 +15,11 @@ import {
   API_BASE,
 } from "@/lib/helper";
 import { CollapsibleSection } from "@/components/forms/collapsible-section";
+import {
+  FilterBarSkeleton,
+  Skeleton,
+  StatCardSkeleton,
+} from "@/components/loading/loadingSkeletons";
 
 function StatCard({ label, value, sub }) {
   return (
@@ -68,6 +73,8 @@ export default function FilesPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [typeFilter, setTypeFilter] = useState("all");
   const [scopeFilter, setScopeFilter] = useState("all");
+
+  const isInitialLoading = loadingFiles && files.length === 0;
 
   async function loadCurrentUser() {
     const res = await fetch("/api/auth/me", {
@@ -250,7 +257,23 @@ export default function FilesPage() {
   if (loadingUser) {
     return (
       <AppShell title="Files">
-        <div className="text-muted text-sm">Loading...</div>
+        <div className="space-y-6">
+          <section className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+            {Array.from({ length: 4 }).map((_, i) => (
+              <StatCardSkeleton key={i} />
+            ))}
+          </section>
+
+          <FilterBarSkeleton />
+
+          <div className="card rounded-lg p-4">
+            <div className="space-y-3">
+              {Array.from({ length: 5 }).map((_, i) => (
+                <Skeleton key={i} className="h-10 w-full" />
+              ))}
+            </div>
+          </div>
+        </div>
       </AppShell>
     );
   }
@@ -284,10 +307,16 @@ export default function FilesPage() {
     >
       <div className="space-y-6">
         <section className="grid grid-cols-2 gap-4 lg:grid-cols-4">
-          <StatCard label="Total Files" value={counts.total} />
-          <StatCard label="General" value={counts.general} />
-          <StatCard label="Lead Files" value={counts.leadLinked} />
-          <StatCard label="Job Files" value={counts.jobLinked} />
+          {isInitialLoading ? (
+            Array.from({ length: 4 }).map((_, i) => <StatCardSkeleton key={i} />)
+          ) : (
+            <>
+              <StatCard label="Total Files" value={counts.total} />
+              <StatCard label="General" value={counts.general} />
+              <StatCard label="Lead Files" value={counts.leadLinked} />
+              <StatCard label="Job Files" value={counts.jobLinked} />
+            </>
+          )}
         </section>
 
         {error ? (
@@ -302,52 +331,75 @@ export default function FilesPage() {
           </div>
         ) : null}
 
-        <section className="card rounded-lg p-4">
-          <div className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
-            <div className="min-w-0 flex-1">
-              <label className="text-muted text-xs">Search</label>
-              <input
-                type="text"
-                placeholder="Search files, types, or uploader..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="input mt-1"
-              />
-            </div>
+        {isInitialLoading ? (
+          <FilterBarSkeleton />
+        ) : (
+          <section className="card rounded-lg p-4">
+            <div className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
+              <div className="min-w-0 flex-1">
+                <label className="text-muted text-xs">Search</label>
+                <input
+                  type="text"
+                  placeholder="Search files, types, or uploader..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="input mt-1"
+                />
+              </div>
 
-            <div className="w-full lg:w-44">
-              <label className="text-muted text-xs">Scope</label>
-              <select
-                value={scopeFilter}
-                onChange={(e) => setScopeFilter(e.target.value)}
-                className="input mt-1"
-              >
-                <option value="all">All Scopes</option>
-                <option value="general">General</option>
-                <option value="lead">Lead Attached</option>
-                <option value="job">Job Attached</option>
-              </select>
-            </div>
+              <div className="w-full lg:w-44">
+                <label className="text-muted text-xs">Scope</label>
+                <select
+                  value={scopeFilter}
+                  onChange={(e) => setScopeFilter(e.target.value)}
+                  className="input mt-1"
+                >
+                  <option value="all">All Scopes</option>
+                  <option value="general">General</option>
+                  <option value="lead">Lead Attached</option>
+                  <option value="job">Job Attached</option>
+                </select>
+              </div>
 
-            <div className="w-full lg:w-40">
-              <label className="text-muted text-xs">Type</label>
-              <select
-                value={typeFilter}
-                onChange={(e) => setTypeFilter(e.target.value)}
-                className="input mt-1"
-              >
-                <option value="all">All Types</option>
-                <option value="pdf">PDF</option>
-                <option value="image">Image</option>
-                <option value="other">Other</option>
-              </select>
+              <div className="w-full lg:w-40">
+                <label className="text-muted text-xs">Type</label>
+                <select
+                  value={typeFilter}
+                  onChange={(e) => setTypeFilter(e.target.value)}
+                  className="input mt-1"
+                >
+                  <option value="all">All Types</option>
+                  <option value="pdf">PDF</option>
+                  <option value="image">Image</option>
+                  <option value="other">Other</option>
+                </select>
+              </div>
             </div>
-          </div>
-        </section>
+          </section>
+        )}
 
         <CollapsibleSection title={fileTitle} defaultOpen={true}>
           {loadingFiles ? (
-            <div className="text-muted px-5 py-6 text-sm">Loading files...</div>
+            <div className="overflow-x-auto">
+              <table className="min-w-full text-sm">
+                <thead className="bg-accent border-b text-left">
+                  <tr>
+                    <th className="px-5 py-3 font-medium">File</th>
+                    <th className="px-5 py-3 font-medium">Type</th>
+                    <th className="px-5 py-3 font-medium">Size</th>
+                    <th className="px-5 py-3 font-medium">Uploaded By</th>
+                    <th className="px-5 py-3 font-medium">Attached To</th>
+                    <th className="px-5 py-3 font-medium">Uploaded</th>
+                    <th className="px-5 py-3 font-medium">Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {Array.from({ length: 6 }).map((_, i) => (
+                    <TableRowSkeleton key={i} cols={7} />
+                  ))}
+                </tbody>
+              </table>
+            </div>
           ) : files.length === 0 ? (
             <div className="text-muted px-5 py-6 text-sm">No files uploaded yet.</div>
           ) : filteredFiles.length === 0 ? (

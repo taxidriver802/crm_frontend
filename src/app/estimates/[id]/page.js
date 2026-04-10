@@ -10,6 +10,7 @@ import {
   EstimateLineItemForm,
   createEmptyLineItem,
 } from "@/components/forms/estimate-line-item-form";
+import Link from "next/link";
 
 function StatusBadge({ status }) {
   const map = {
@@ -212,10 +213,22 @@ export default function EstimateDetailPage() {
               <div className="flex items-start justify-between">
                 <div>
                   <div className="text-2xl font-semibold">{estimate.title}</div>
-                  <div className="text-muted mt-1 text-sm">Job #{estimate.job_id}</div>
+                  <Link
+                    href={`/jobs/${estimate.job.id}`}
+                    className="text-muted mt-1 cursor-pointer text-sm underline"
+                  >
+                    Job #{estimate.job_id}
+                  </Link>
                 </div>
-
-                <StatusBadge status={estimate.status} />
+                <div className="flex items-center gap-4">
+                  <Link
+                    className="btn text-muted btn-ghost btn-sm hover:bg-surface cursor-pointer"
+                    href={`/estimates/new?job_id=${estimate.job_id}&estimate_id=${estimate.id}`}
+                  >
+                    Edit
+                  </Link>
+                  <StatusBadge status={estimate.status} />
+                </div>
               </div>
 
               {estimate.notes ? (

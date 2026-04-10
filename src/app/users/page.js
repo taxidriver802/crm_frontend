@@ -7,6 +7,11 @@ import { AppShell } from "@/components/app-shell";
 import { InviteUserModal } from "@/components/modals/invite-user-modal";
 import { api } from "@/lib/api";
 import { CollapsibleSection } from "@/components/forms/collapsible-section";
+import {
+  FilterBarSkeleton,
+  Skeleton,
+  StatCardSkeleton,
+} from "@/components/loading/loadingSkeletons";
 
 function badgeClass(status) {
   switch (status) {
@@ -53,6 +58,8 @@ export default function UsersPage() {
   const [statusFilter, setStatusFilter] = useState("all");
   const [searchQuery, setSearchQuery] = useState("");
   const [roleFilter, setRoleFilter] = useState("all");
+
+  const isInitialLoading = loadingUsers && users.length === 0;
 
   async function loadCurrentUser() {
     const res = await fetch("/api/auth/me", {
@@ -224,7 +231,23 @@ export default function UsersPage() {
   if (loadingUser) {
     return (
       <AppShell title="Users">
-        <div className="text-muted text-sm">Loading...</div>
+        <div className="space-y-6">
+          <section className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+            {Array.from({ length: 4 }).map((_, i) => (
+              <StatCardSkeleton key={i} />
+            ))}
+          </section>
+
+          <FilterBarSkeleton />
+
+          <div className="card rounded-lg p-4">
+            <div className="space-y-3">
+              {Array.from({ length: 5 }).map((_, i) => (
+                <Skeleton key={i} className="h-10 w-full" />
+              ))}
+            </div>
+          </div>
+        </div>
       </AppShell>
     );
   }
@@ -250,30 +273,36 @@ export default function UsersPage() {
     >
       <div className="space-y-6">
         <section className="grid grid-cols-2 gap-4 lg:grid-cols-4">
-          <StatCard
-            label="Total"
-            value={counts.total}
-            active={statusFilter === "all"}
-            onClick={() => setStatusFilter("all")}
-          />
-          <StatCard
-            label="Active"
-            value={counts.active}
-            active={statusFilter === "active"}
-            onClick={() => setStatusFilter("active")}
-          />
-          <StatCard
-            label="Invited"
-            value={counts.invited}
-            active={statusFilter === "invited"}
-            onClick={() => setStatusFilter("invited")}
-          />
-          <StatCard
-            label="Disabled"
-            value={counts.disabled}
-            active={statusFilter === "disabled"}
-            onClick={() => setStatusFilter("disabled")}
-          />
+          {isInitialLoading ? (
+            Array.from({ length: 4 }).map((_, i) => <StatCardSkeleton key={i} />)
+          ) : (
+            <>
+              <StatCard
+                label="Total"
+                value={counts.total}
+                active={statusFilter === "all"}
+                onClick={() => setStatusFilter("all")}
+              />
+              <StatCard
+                label="Active"
+                value={counts.active}
+                active={statusFilter === "active"}
+                onClick={() => setStatusFilter("active")}
+              />
+              <StatCard
+                label="Invited"
+                value={counts.invited}
+                active={statusFilter === "invited"}
+                onClick={() => setStatusFilter("invited")}
+              />
+              <StatCard
+                label="Disabled"
+                value={counts.disabled}
+                active={statusFilter === "disabled"}
+                onClick={() => setStatusFilter("disabled")}
+              />
+            </>
+          )}
         </section>
 
         {error ? (
@@ -282,52 +311,74 @@ export default function UsersPage() {
           </div>
         ) : null}
 
-        <section className="card rounded-lg p-4">
-          <div className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
-            <div className="min-w-0 flex-1">
-              <label className="text-muted text-xs">Search</label>
-              <input
-                type="text"
-                placeholder="Search users..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="input mt-1"
-              />
-            </div>
+        {isInitialLoading ? (
+          <FilterBarSkeleton />
+        ) : (
+          <section className="card rounded-lg p-4">
+            <div className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
+              <div className="min-w-0 flex-1">
+                <label className="text-muted text-xs">Search</label>
+                <input
+                  type="text"
+                  placeholder="Search users..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="input mt-1"
+                />
+              </div>
 
-            <div className="w-full lg:w-40">
-              <label className="text-muted text-xs">Role</label>
-              <select
-                value={roleFilter}
-                onChange={(e) => setRoleFilter(e.target.value)}
-                className="input mt-1"
-              >
-                <option value="all">All Roles</option>
-                <option value="owner">Owner</option>
-                <option value="admin">Admin</option>
-                <option value="agent">Agent</option>
-              </select>
-            </div>
+              <div className="w-full lg:w-40">
+                <label className="text-muted text-xs">Role</label>
+                <select
+                  value={roleFilter}
+                  onChange={(e) => setRoleFilter(e.target.value)}
+                  className="input mt-1"
+                >
+                  <option value="all">All Roles</option>
+                  <option value="owner">Owner</option>
+                  <option value="admin">Admin</option>
+                  <option value="agent">Agent</option>
+                </select>
+              </div>
 
-            <div className="w-full lg:w-44">
-              <label className="text-muted text-xs">Status</label>
-              <select
-                value={statusFilter}
-                onChange={(e) => setStatusFilter(e.target.value)}
-                className="input mt-1"
-              >
-                <option value="all">All Statuses</option>
-                <option value="active">Active</option>
-                <option value="invited">Invited</option>
-                <option value="disabled">Disabled</option>
-              </select>
+              <div className="w-full lg:w-44">
+                <label className="text-muted text-xs">Status</label>
+                <select
+                  value={statusFilter}
+                  onChange={(e) => setStatusFilter(e.target.value)}
+                  className="input mt-1"
+                >
+                  <option value="all">All Statuses</option>
+                  <option value="active">Active</option>
+                  <option value="invited">Invited</option>
+                  <option value="disabled">Disabled</option>
+                </select>
+              </div>
             </div>
-          </div>
-        </section>
+          </section>
+        )}
 
         <CollapsibleSection title={usersTitle} defaultOpen={true}>
           {loadingUsers ? (
-            <div className="text-muted px-5 py-6 text-sm">Loading users...</div>
+            <div className="overflow-x-auto">
+              <table className="min-w-full text-sm">
+                <thead className="bg-accent border-b text-left">
+                  <tr>
+                    <th className="px-5 py-3 font-medium">User</th>
+                    <th className="px-5 py-3 font-medium">Role</th>
+                    <th className="px-5 py-3 font-medium">Status</th>
+                    <th className="px-5 py-3 font-medium">Invited</th>
+                    <th className="px-5 py-3 font-medium">Last Login</th>
+                    <th className="px-5 py-3 font-medium">Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {Array.from({ length: 6 }).map((_, i) => (
+                    <TableRowSkeleton key={i} cols={6} />
+                  ))}
+                </tbody>
+              </table>
+            </div>
           ) : users.length === 0 ? (
             <div className="text-muted px-5 py-6 text-sm">No users found yet.</div>
           ) : filteredUsers.length === 0 ? (

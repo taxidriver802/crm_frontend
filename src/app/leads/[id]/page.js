@@ -15,6 +15,7 @@ import {
 } from "@/lib/helper";
 import { FilePreviewModal } from "@/components/modals/file-preview-modal";
 import { CollapsibleSection } from "@/components/forms/collapsible-section";
+import { Skeleton } from "@/components/loading/loadingSkeletons";
 
 function isCompletedTask(task) {
   return String(task?.status || "").toLowerCase() === "completed";
@@ -50,18 +51,14 @@ function StatCard({ label, value, sub }) {
   );
 }
 
-function SectionCard({ title, description, right, children }) {
+function LoadingStatCard({ label }) {
   return (
-    <section className="card rounded-lg">
-      <div className="border-base flex items-center justify-between gap-3 border-b p-4">
-        <div className="min-w-0">
-          <h2 className="text-lg font-semibold">{title}</h2>
-          {description ? <p className="text-muted mt-1 text-sm">{description}</p> : null}
-        </div>
-        {right ? <div className="shrink-0">{right}</div> : null}
+    <div className="card rounded-lg p-4">
+      <div className="text-muted text-xs">{label}</div>
+      <div className="pt-2">
+        <Skeleton className="h-7 w-6" />
       </div>
-      <div className="p-4">{children}</div>
-    </section>
+    </div>
   );
 }
 
@@ -299,7 +296,22 @@ export default function LeadDetailPage() {
 
         <section className="card rounded-lg p-4">
           {loading ? (
-            <div className="text-muted text-sm">Loading…</div>
+            <div className="space-y-4">
+              <Skeleton className="h-10 w-48" />
+              <Skeleton className="h-4 w-64" />
+              <div className="flex gap-2">
+                <Skeleton className="h-5 w-24 rounded-full" />
+                <Skeleton className="h-5 w-24 rounded-full" />
+                <Skeleton className="h-5 w-24 rounded-full" />
+              </div>
+
+              <Skeleton className="h-10 w-full" />
+              <div className="flex gap-2">
+                <Skeleton className="h-8 w-20 rounded-full" />
+                <Skeleton className="h-8 w-24 rounded-full" />
+                <Skeleton className="h-8 w-24 rounded-full" />
+              </div>
+            </div>
           ) : !lead ? (
             <div className="text-muted text-sm">Lead not found.</div>
           ) : (
@@ -368,11 +380,22 @@ export default function LeadDetailPage() {
           )}
         </section>
 
-        <section className="grid gap-4 sm:grid-cols-3">
-          <StatCard label="Open Tasks" value={openTasks.length} />
-          <StatCard label="Overdue" value={overdueOpenTasks.length} />
-          <StatCard label="Files" value={files.length} />
-        </section>
+        {loading ? (
+          <div className="grid gap-4 sm:grid-cols-3">
+            {Array.from({ length: 3 }).map((_, i) => (
+              <div key={i} className="card space-y-2 p-4">
+                <Skeleton className="h-3 w-20" />
+                <Skeleton className="h-6 w-12" />
+              </div>
+            ))}
+          </div>
+        ) : (
+          <section className="grid gap-4 sm:grid-cols-3">
+            <StatCard label="Open Tasks" value={openTasks.length} />
+            <StatCard label="Overdue" value={overdueOpenTasks.length} />
+            <StatCard label="Files" value={files.length} />
+          </section>
+        )}
 
         <CollapsibleSection
           title="Jobs"
@@ -390,10 +413,13 @@ export default function LeadDetailPage() {
           {jobsError ? (
             <div className="text-sm text-red-500">{jobsError}</div>
           ) : loadingJobs ? (
-            <div className="text-muted text-sm">Loading jobs…</div>
-          ) : jobs.length === 0 ? (
-            <div className="text-muted rounded-lg border border-dashed p-4 text-sm">
-              No jobs for this lead yet.
+            <div className="space-y-3">
+              {Array.from({ length: 3 }).map((_, i) => (
+                <div key={i} className="space-y-2 rounded-lg border p-3">
+                  <Skeleton className="h-4 w-40" />
+                  <Skeleton className="h-3 w-60" />
+                </div>
+              ))}
             </div>
           ) : (
             <div className="space-y-3">
@@ -433,7 +459,14 @@ export default function LeadDetailPage() {
             {tasksError ? (
               <div className="text-sm text-red-500">{tasksError}</div>
             ) : loadingTasks ? (
-              <div className="text-muted text-sm">Loading tasks…</div>
+              <div className="space-y-3">
+                {Array.from({ length: 4 }).map((_, i) => (
+                  <div key={i} className="space-y-2 rounded-lg border p-3">
+                    <Skeleton className="h-4 w-48" />
+                    <Skeleton className="h-3 w-32" />
+                  </div>
+                ))}
+              </div>
             ) : tasks.length === 0 ? (
               <div className="text-muted rounded-lg border border-dashed p-4 text-sm">
                 No tasks for this lead yet.
@@ -534,7 +567,14 @@ export default function LeadDetailPage() {
             ) : null}
 
             {loadingFiles ? (
-              <div className="text-muted text-sm">Loading files…</div>
+              <div className="space-y-3">
+                {Array.from({ length: 3 }).map((_, i) => (
+                  <div key={i} className="space-y-2 rounded-lg border p-3">
+                    <Skeleton className="h-4 w-52" />
+                    <Skeleton className="h-3 w-40" />
+                  </div>
+                ))}
+              </div>
             ) : files.length === 0 ? (
               <div className="text-muted rounded-lg border border-dashed p-4 text-sm">
                 No files attached to this lead yet.

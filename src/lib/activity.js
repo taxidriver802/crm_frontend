@@ -10,6 +10,9 @@ const TYPE_ICONS = {
   TASK_DELETED: "🗑️",
   FILE_UPLOADED: "📎",
   FILE_DELETED: "🗑️",
+  ESTIMATE_CREATED: "🧾",
+  ESTIMATE_UPDATED: "✏️",
+  ESTIMATE_STATUS_CHANGED: "🔄",
 };
 
 function safeMeta(activity) {
@@ -29,6 +32,8 @@ export function getActivityHref(activity) {
   if (activity.entity_type === "lead") return `/leads/${activity.entity_id}`;
   if (activity.entity_type === "job") return `/jobs/${activity.entity_id}`;
   if (activity.entity_type === "task") return `/tasks/${activity.entity_id}`;
+  if (activity.entity_type === "file") return `/files/${activity.entity_id}`;
+  if (activity.entity_type === "estimate") return `/estimates/${activity.entity_id}`;
   return null;
 }
 
@@ -121,6 +126,33 @@ export function formatActivity(activity) {
         title: "File deleted",
         detail: meta.fileName || activity.message || "A file was deleted",
         meta: meta.mimeType || null,
+      };
+
+    case "ESTIMATE_CREATED":
+      return {
+        icon,
+        title: activity.title || "Estimate Created",
+        detail: activity.message || "An estimate was created",
+        meta: meta.estimateTitle || null,
+      };
+
+    case "ESTIMATE_UPDATED":
+      return {
+        icon,
+        title: "Estimate updated",
+        detail: meta.estimateTitle || activity.message || "An estimate was updated",
+        meta: null,
+      };
+
+    case "ESTIMATE_STATUS_CHANGED":
+      return {
+        icon,
+        title: "Estimate status changed",
+        detail:
+          meta.previousStatus && meta.newStatus
+            ? `${meta.previousStatus} → ${meta.newStatus}`
+            : activity.message || "Estimate status updated",
+        meta: meta.estimateTitle || null,
       };
 
     default:

@@ -9,6 +9,7 @@ import { JobForm, createEmptyJobForm } from "@/components/forms/job-form";
 import { api } from "@/lib/api";
 import { formatDate } from "@/lib/helper";
 import { CollapsibleSection } from "@/components/forms/collapsible-section";
+import { TableRowSkeleton } from "@/components/loading/loadingSkeletons";
 
 export default function JobsPage() {
   const [q, setQ] = useState("");
@@ -242,7 +243,11 @@ export default function JobsPage() {
               </thead>
 
               <tbody>
-                {!loadingJobs && jobs.length === 0 ? (
+                {loadingJobs ? (
+                  Array.from({ length: 3 }).map((_, i) => (
+                    <TableRowSkeleton key={i} cols={6} />
+                  ))
+                ) : jobs.length === 0 ? (
                   <tr className="border-base border-t">
                     <td className="text-muted px-4 py-6" colSpan={6}>
                       No jobs found.
@@ -256,7 +261,7 @@ export default function JobsPage() {
                     >
                       <td className="px-4 py-3">
                         <div className="font-medium">{job.title}</div>
-                        <div className="text-muted mt-1 text-xs">
+                        <div className="text-muted mt-1 max-w-[12.5rem] truncate text-xs">
                           {job.description || "—"}
                         </div>
                       </td>

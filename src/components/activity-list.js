@@ -1,7 +1,70 @@
+import { useMemo, useState } from "react";
 import { formatActivity, formatActivityTimestamp, getActivityHref } from "@/lib/activity";
 import Link from "next/link";
 
-export function ActivityList({ activity, loading, emptyText = "No activity yet" }) {
+function getActivityDateLabel(value) {
+  if (!value) return "Older";
+
+  const date = new Date(value);
+  const now = new Date();
+
+  const activityDay = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+
+  const diffMs = today.getTime() - activityDay.getTime();
+  const diffDays = Math.floor(diffMs / 86400000);
+
+  if (diffDays === 0) return "Today";
+  if (diffDays === 1) return "Yesterday";
+  if (diffDays < 7) return "Last 7 Days";
+  if (diffDays < 30) return "Last 30 Days";
+
+  return date.toLocaleDateString([], {
+    month: "short",
+    day: "numeric",
+    year: today.getFullYear() !== activityDay.getFullYear() ? "numeric" : undefined,
+  });
+}
+
+function groupActivityByDate(items) {
+  return items.reduce((groups, item) => {
+    const label = getActivityDateLabel(item.created_at);
+    if (!groups[label]) groups[label] = [];
+    groups[label].push(item);
+    return groups;
+  }, {});
+}
+
+function getDefaultVisibleActivityCount(label) {
+  if (label === "Today") return 4;
+  if (label === "Yesterday") return 3;
+  if (label === "Last 7 Days") return 3;
+  if (label === "Last 30 Days") return 2;
+  return 2;
+}
+
+export function ActivityList({
+  activity = [],
+  loading = false,
+  emptyText = "No activity yet",
+  grouped = true,
+  maxPerGroup,
+  className = "",
+}) {
+  const [expandedGroups, setExpandedGroups] = useState({});
+
+  const groupedActivity = useMemo(() => {
+    if (!grouped) return null;
+    return groupActivityByDate(activity);
+  }, [activity, grouped]);
+
+  function toggleGroup(label) {
+    setExpandedGroups((prev) => ({
+      ...prev,
+      [label]: !prev[label],
+    }));
+  }
+
   if (loading) {
     return <div className="text-muted text-sm">Loading activity...</div>;
   }
@@ -10,11 +73,52 @@ export function ActivityList({ activity, loading, emptyText = "No activity yet" 
     return <div className="text-muted text-sm">{emptyText}</div>;
   }
 
+  if (!grouped) {
+    return (
+      <div className={`space-y-3 ${className}`}>
+        {activity.map((item) => (
+          <ActivityItem key={item.id} item={item} />
+        ))}
+      </div>
+    );
+  }
+
   return (
-    <div className="space-y-3">
-      {activity.map((item) => (
-        <ActivityItem key={item.id} item={item} />
-      ))}
+    <div className={`space-y-6 ${className}`}>
+      {Object.entries(groupedActivity).map(([label, items]) => {
+        const defaultVisible = maxPerGroup ?? getDefaultVisibleActivityCount(label);
+        const isExpanded = !!expandedGroups[label];
+        const visibleItems = isExpanded ? items : items.slice(0, defaultVisible);
+        const hiddenCount = Math.max(0, items.length - visibleItems.length);
+
+        return (
+          <div key={label} className="space-y-3">
+            <div className="flex items-center justify-between gap-3">
+              <div className="text-muted text-xs font-semibold uppercase tracking-wide">
+                {label}
+              </div>
+
+              {items.length > defaultVisible ? (
+                <button
+                  type="button"
+                  onClick={() => toggleGroup(label)}
+                  className="btn px-3 py-1.5 text-xs"
+                >
+                  {isExpanded
+                    ? "Show fewer"
+                    : `Show more${hiddenCount > 0 ? ` (${hiddenCount})` : ""}`}
+                </button>
+              ) : null}
+            </div>
+
+            <div className="space-y-3">
+              {visibleItems.map((item) => (
+                <ActivityItem key={item.id} item={item} />
+              ))}
+            </div>
+          </div>
+        );
+      })}
     </div>
   );
 }

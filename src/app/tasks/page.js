@@ -9,6 +9,7 @@ import { TaskForm, createEmptyTaskForm } from "@/components/forms/task-form";
 import { api } from "@/lib/api";
 import { formatDue, LinkedEntityCell } from "@/lib/helper";
 import { CollapsibleSection } from "@/components/forms/collapsible-section";
+import { Skeleton, TableRowSkeleton } from "@/components/loading/loadingSkeletons";
 
 function SummaryCard({ label, value, sub }) {
   return (
@@ -69,6 +70,8 @@ export default function TasksPage() {
       job_id: prefillJobId,
     }),
   );
+
+  const isInitialLoading = loadingSummary && loadingTasks;
 
   useEffect(() => {
     if (shouldOpenCreate) {
@@ -277,232 +280,265 @@ export default function TasksPage() {
 
   return (
     <AppShell title="Tasks">
-      <div className="space-y-6">
-        {error ? <div className="text-sm text-red-500">{error}</div> : null}
-
-        <ToggleFormSection
-          title="Create Task"
-          description="Quickly add a task tied to a lead or job without leaving the page."
-          isOpen={isCreateOpen}
-          onToggle={() => setIsCreateOpen((prev) => !prev)}
-          openLabel="+ New Task"
-          closeLabel="Hide Form"
-        >
-          <TaskForm
-            form={taskForm}
-            onChange={setTaskForm}
-            onSubmit={handleCreateTask}
-            saving={creatingTask}
-            error={createError}
-            submitLabel="Create task"
-            cancelLabel="Clear"
-            onCancel={() => {
-              setTaskForm(
-                createEmptyTaskForm({
-                  lead_id: prefillLeadId || "",
-                  job_id: prefillJobId || "",
-                }),
-              );
-              setContextType(prefillJobId ? "job" : "lead");
-              setCreateError("");
-            }}
-            contextType={contextType}
-            onContextChange={handleContextChange}
-            leads={leads}
-            jobs={jobs}
-            loadingLeads={loadingLeads}
-            loadingJobs={loadingJobs}
-            isContextLocked={false}
-            layout="compact"
-          />
-        </ToggleFormSection>
-
-        <section className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-          <SummaryCard
-            label="Overdue"
-            value={loadingSummary ? "…" : String(overdueCount)}
-            sub="Needs attention"
-          />
-          <SummaryCard
-            label="Due Today"
-            value={loadingSummary ? "…" : String(dueTodayCount)}
-            sub="Due this day"
-          />
-          <SummaryCard
-            label="Next Up"
-            value={loadingSummary ? "…" : String(nextUpCount)}
-            sub="Upcoming work"
-          />
-        </section>
-
-        <section className="card rounded-lg p-4">
-          <div className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
-            <div className="w-full lg:w-44">
-              <label className="text-muted text-xs">Status</label>
-              <select
-                className="input mt-1"
-                value={status}
-                onChange={(e) => setStatus(e.target.value)}
-              >
-                <option value="">All</option>
-                <option value="Pending">Pending</option>
-                <option value="Completed">Completed</option>
-              </select>
-            </div>
-
-            <div className="w-full lg:w-44">
-              <label className="text-muted text-xs">Linked To</label>
-              <select
-                className="input mt-1"
-                value={linkedFilter}
-                onChange={(e) => setLinkedFilter(e.target.value)}
-              >
-                <option value="">All</option>
-                <option value="job">Job</option>
-                <option value="lead">Lead</option>
-              </select>
-            </div>
-
-            <div className="w-full lg:w-36">
-              <label className="text-muted text-xs">Lead ID</label>
-              <input
-                className="input mt-1"
-                placeholder="e.g. 12"
-                value={leadId}
-                onChange={(e) => setLeadId(e.target.value)}
-                inputMode="numeric"
-              />
-            </div>
-
-            <div className="w-full lg:w-36">
-              <label className="text-muted text-xs">Job ID</label>
-              <input
-                className="input mt-1"
-                placeholder="e.g. 7"
-                value={jobId}
-                onChange={(e) => setJobId(e.target.value)}
-                inputMode="numeric"
-              />
-            </div>
-
-            <div className="min-w-0 flex-1">
-              <label className="text-muted text-xs">Title</label>
-              <input
-                className="input mt-1"
-                placeholder="Filter by title"
-                value={title}
-                onChange={(e) => setTitle(e.target.value)}
-              />
-            </div>
-
-            <div className="flex gap-2">
-              <Link href="/tasks/new" className="btn">
-                Full Form
-              </Link>
-              <button
-                className="btn disabled:opacity-60"
-                onClick={refreshAll}
-                disabled={loadingSummary || loadingTasks || loadingLeads || loadingJobs}
-              >
-                Refresh
-              </button>
-            </div>
+      {isInitialLoading ? (
+        <div className="space-y-6">
+          <div className="card space-y-3 p-4">
+            <Skeleton className="h-4 w-40" />
+            <Skeleton className="h-5 w-[20rem]" />
           </div>
-        </section>
 
-        <CollapsibleSection title={taskTitle} defaultOpen={true}>
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead className="bg-accent">
-                <tr className="text-left">
-                  <th className="px-4 py-3 font-medium">Title</th>
-                  <th className="px-4 py-3 font-medium">Linked To</th>
-                  <th className="px-4 py-3 font-medium">Due</th>
-                  <th className="px-4 py-3 font-medium">Status</th>
-                  <th className="px-4 py-3 text-right font-medium">Action</th>
-                </tr>
-              </thead>
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+            {[...Array(3)].map((_, i) => (
+              <div key={i} className="card space-y-2 px-4 py-8">
+                <Skeleton className="h-3 w-20" />
+                <Skeleton className="h-6 w-12" />
+              </div>
+            ))}
+          </div>
 
-              <tbody>
-                {!loadingTasks && tasks.length === 0 ? (
-                  <tr className="border-base border-t">
-                    <td className="text-muted px-4 py-6" colSpan={5}>
-                      No tasks found. Try adjusting filters or create a new task.
-                    </td>
+          <div className="card space-y-3 p-4">
+            <Skeleton className="h-4 w-40" />
+            <Skeleton className="h-10 w-full" />
+          </div>
+
+          <div className="card space-y-3 p-4">
+            {[...Array(5)].map((_, i) => (
+              <Skeleton key={i} className="h-10 w-full" />
+            ))}
+          </div>
+        </div>
+      ) : (
+        <div className="space-y-6">
+          {error ? <div className="text-sm text-red-500">{error}</div> : null}
+
+          <ToggleFormSection
+            title="Create Task"
+            description="Quickly add a task tied to a lead or job without leaving the page."
+            isOpen={isCreateOpen}
+            onToggle={() => setIsCreateOpen((prev) => !prev)}
+            openLabel="+ New Task"
+            closeLabel="Hide Form"
+          >
+            <TaskForm
+              form={taskForm}
+              onChange={setTaskForm}
+              onSubmit={handleCreateTask}
+              saving={creatingTask}
+              error={createError}
+              submitLabel="Create task"
+              cancelLabel="Clear"
+              onCancel={() => {
+                setTaskForm(
+                  createEmptyTaskForm({
+                    lead_id: prefillLeadId || "",
+                    job_id: prefillJobId || "",
+                  }),
+                );
+                setContextType(prefillJobId ? "job" : "lead");
+                setCreateError("");
+              }}
+              contextType={contextType}
+              onContextChange={handleContextChange}
+              leads={leads}
+              jobs={jobs}
+              loadingLeads={loadingLeads}
+              loadingJobs={loadingJobs}
+              isContextLocked={false}
+              layout="compact"
+            />
+          </ToggleFormSection>
+
+          <section className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+            <SummaryCard
+              label="Overdue"
+              value={loadingSummary ? "…" : String(overdueCount)}
+              sub="Needs attention"
+            />
+            <SummaryCard
+              label="Due Today"
+              value={loadingSummary ? "…" : String(dueTodayCount)}
+              sub="Due this day"
+            />
+            <SummaryCard
+              label="Next Up"
+              value={loadingSummary ? "…" : String(nextUpCount)}
+              sub="Upcoming work"
+            />
+          </section>
+
+          <section className="card rounded-lg p-4">
+            <div className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
+              <div className="w-full lg:w-44">
+                <label className="text-muted text-xs">Status</label>
+                <select
+                  className="input mt-1"
+                  value={status}
+                  onChange={(e) => setStatus(e.target.value)}
+                >
+                  <option value="">All</option>
+                  <option value="Pending">Pending</option>
+                  <option value="Completed">Completed</option>
+                </select>
+              </div>
+
+              <div className="w-full lg:w-44">
+                <label className="text-muted text-xs">Linked To</label>
+                <select
+                  className="input mt-1"
+                  value={linkedFilter}
+                  onChange={(e) => setLinkedFilter(e.target.value)}
+                >
+                  <option value="">All</option>
+                  <option value="job">Job</option>
+                  <option value="lead">Lead</option>
+                </select>
+              </div>
+
+              <div className="w-full lg:w-36">
+                <label className="text-muted text-xs">Lead ID</label>
+                <input
+                  className="input mt-1"
+                  placeholder="e.g. 12"
+                  value={leadId}
+                  onChange={(e) => setLeadId(e.target.value)}
+                  inputMode="numeric"
+                />
+              </div>
+
+              <div className="w-full lg:w-36">
+                <label className="text-muted text-xs">Job ID</label>
+                <input
+                  className="input mt-1"
+                  placeholder="e.g. 7"
+                  value={jobId}
+                  onChange={(e) => setJobId(e.target.value)}
+                  inputMode="numeric"
+                />
+              </div>
+
+              <div className="min-w-0 flex-1">
+                <label className="text-muted text-xs">Title</label>
+                <input
+                  className="input mt-1"
+                  placeholder="Filter by title"
+                  value={title}
+                  onChange={(e) => setTitle(e.target.value)}
+                />
+              </div>
+
+              <div className="flex gap-2">
+                <Link href="/tasks/new" className="btn">
+                  Full Form
+                </Link>
+                <button
+                  className="btn disabled:opacity-60"
+                  onClick={refreshAll}
+                  disabled={loadingSummary || loadingTasks || loadingLeads || loadingJobs}
+                >
+                  Refresh
+                </button>
+              </div>
+            </div>
+          </section>
+
+          <CollapsibleSection title={taskTitle} defaultOpen={true}>
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead className="bg-accent">
+                  <tr className="text-left">
+                    <th className="px-4 py-3 font-medium">Title</th>
+                    <th className="px-4 py-3 font-medium">Linked To</th>
+                    <th className="px-4 py-3 font-medium">Due</th>
+                    <th className="px-4 py-3 font-medium">Status</th>
+                    <th className="px-4 py-3 text-right font-medium">Action</th>
                   </tr>
-                ) : (
-                  tasks.map((task) => (
-                    <tr
-                      key={task.id}
-                      className="border-base hover:bg-accent border-t transition"
-                    >
-                      <td className="px-4 py-3">
-                        <Link
-                          href={`/tasks/${task.id}`}
-                          className="block hover:opacity-80"
-                        >
-                          <div className="font-medium underline underline-offset-4">
-                            {task.title}
-                          </div>
-                          {task.description ? (
-                            <div className="text-muted mt-1 text-xs">
-                              {task.description}
-                            </div>
-                          ) : null}
-                        </Link>
-                      </td>
+                </thead>
 
-                      <td className="px-4 py-3">
-                        <LinkedEntityCell task={task} />
-                      </td>
-
-                      <td className="px-4 py-3">{formatDue(task.due_date)}</td>
-
-                      <td className="px-4 py-3">
-                        <TaskStatusBadge status={task.status} />
-                      </td>
-
-                      <td className="px-4 py-3 text-right">
-                        <div className="flex justify-end gap-2">
-                          <Link
-                            href={`/tasks/${task.id}`}
-                            className="btn px-3 py-2 text-xs"
-                          >
-                            View
-                          </Link>
-
-                          <Link
-                            href={`/tasks/${task.id}/edit`}
-                            className="btn px-3 py-2 text-xs"
-                          >
-                            Edit
-                          </Link>
-
-                          {task.status === "Completed" ? (
-                            <button
-                              className="btn px-3 py-2 text-xs"
-                              onClick={() => setTaskStatus(task.id, "Pending")}
-                            >
-                              Mark pending
-                            </button>
-                          ) : (
-                            <button
-                              className="btn px-3 py-2 text-xs"
-                              onClick={() => setTaskStatus(task.id, "Completed")}
-                            >
-                              Mark completed
-                            </button>
-                          )}
-                        </div>
+                <tbody>
+                  {!isInitialLoading && loadingTasks ? (
+                    Array.from({ length: 3 }).map((_, i) => (
+                      <TableRowSkeleton key={i} cols={5} />
+                    ))
+                  ) : tasks.length === 0 ? (
+                    <tr className="border-base border-t">
+                      <td className="text-muted px-4 py-6" colSpan={5}>
+                        No tasks found. Try adjusting filters or create a new task.
                       </td>
                     </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
-          </div>
-        </CollapsibleSection>
-      </div>
+                  ) : (
+                    tasks.map((task) => (
+                      <tr
+                        key={task.id}
+                        className="border-base hover:bg-accent border-t transition"
+                      >
+                        <td className="px-4 py-3">
+                          <Link
+                            href={`/tasks/${task.id}`}
+                            className="block hover:opacity-80"
+                          >
+                            <div className="font-medium underline underline-offset-4">
+                              {task.title}
+                            </div>
+                            {task.description ? (
+                              <div className="text-muted mt-1 text-xs">
+                                {task.description}
+                              </div>
+                            ) : null}
+                          </Link>
+                        </td>
+
+                        <td className="px-4 py-3">
+                          <LinkedEntityCell task={task} />
+                        </td>
+
+                        <td className="px-4 py-3">{formatDue(task.due_date)}</td>
+
+                        <td className="px-4 py-3">
+                          <TaskStatusBadge status={task.status} />
+                        </td>
+
+                        <td className="px-4 py-3 text-right">
+                          <div className="flex justify-end gap-2">
+                            <Link
+                              href={`/tasks/${task.id}`}
+                              className="btn px-3 py-2 text-xs"
+                            >
+                              View
+                            </Link>
+
+                            <Link
+                              href={`/tasks/${task.id}/edit`}
+                              className="btn px-3 py-2 text-xs"
+                            >
+                              Edit
+                            </Link>
+
+                            {task.status === "Completed" ? (
+                              <button
+                                className="btn px-3 py-2 text-xs"
+                                onClick={() => setTaskStatus(task.id, "Pending")}
+                              >
+                                Mark pending
+                              </button>
+                            ) : (
+                              <button
+                                className="btn px-3 py-2 text-xs"
+                                onClick={() => setTaskStatus(task.id, "Completed")}
+                              >
+                                Mark completed
+                              </button>
+                            )}
+                          </div>
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </CollapsibleSection>
+        </div>
+      )}
     </AppShell>
   );
 }

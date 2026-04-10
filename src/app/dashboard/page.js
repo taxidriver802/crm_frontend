@@ -7,7 +7,12 @@ import { api } from "@/lib/api";
 import { formatDue } from "@/lib/helper";
 import { CollapsibleSection } from "@/components/forms/collapsible-section";
 import { ActivityList } from "@/components/activity-list";
-import { useParams } from "next/navigation";
+
+import LoadingDots, {
+  Skeleton,
+  SectionSkeleton,
+  StatCardSkeleton,
+} from "@/components/loading/loadingSkeletons";
 
 function cx(...classes) {
   return classes.filter(Boolean).join(" ");
@@ -65,8 +70,11 @@ export default function DashboardPage() {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
   const [loadingActivity, setLoadingActivity] = useState(true);
+  const [refreshingDashboard, setRefreshingDashboard] = useState(false);
   const [err, setErr] = useState("");
   const [tab, setTab] = useState("due_today");
+
+  const isInitialLoading = loading && !data;
 
   const stats = useMemo(() => {
     if (!data?.ok) return [];
@@ -183,16 +191,29 @@ export default function DashboardPage() {
     );
   }
 
-  async function refreshDashboardSections() {
-    setLoading(true);
-    setLoadingActivity(true);
+  async function refreshDashboardSections({
+    initial = false,
+    refreshActivity = true,
+  } = {}) {
+    if (initial) {
+      setLoading(true);
+    } else {
+      setRefreshingDashboard(true);
+    }
+
+    if (refreshActivity) {
+      setLoadingActivity(true);
+    }
+
     setErr("");
 
-    const [dashboardRes, authRes, activityRes] = await Promise.allSettled([
+    const requests = [
       api("/dashboard"),
       api("/auth/me", { credentials: "include" }),
-      api("/dashboard/activities"),
-    ]);
+      refreshActivity ? api("/dashboard/activities") : Promise.resolve(null),
+    ];
+
+    const [dashboardRes, authRes, activityRes] = await Promise.allSettled(requests);
 
     if (dashboardRes.status === "fulfilled") {
       setData(dashboardRes.value);
@@ -206,14 +227,23 @@ export default function DashboardPage() {
       setUser(null);
     }
 
-    if (activityRes.status === "fulfilled") {
-      setActivity(activityRes.value?.activity || []);
-    } else {
-      setActivity([]);
+    if (refreshActivity) {
+      if (activityRes.status === "fulfilled") {
+        setActivity(activityRes.value?.activity || []);
+      } else {
+        setActivity([]);
+      }
     }
 
-    setLoading(false);
-    setLoadingActivity(false);
+    if (initial) {
+      setLoading(false);
+    } else {
+      setRefreshingDashboard(false);
+    }
+
+    if (refreshActivity) {
+      setLoadingActivity(false);
+    }
   }
 
   async function setTaskStatus(taskId, nextStatus) {
@@ -225,7 +255,7 @@ export default function DashboardPage() {
         body: JSON.stringify({ status: nextStatus }),
       });
 
-      await refreshDashboardSections();
+      await refreshDashboardSections({ initial: false, refreshActivity: true });
     } catch (e) {
       setErr(e.message || "Failed to update task");
     }
@@ -236,7 +266,7 @@ export default function DashboardPage() {
 
     async function loadDashboard() {
       try {
-        await refreshDashboardSections();
+        await refreshDashboardSections({ initial: true, refreshActivity: true });
       } finally {
         if (!alive) return;
       }
@@ -252,18 +282,22 @@ export default function DashboardPage() {
   return (
     <AppShell
       title="Dashboard"
-      right={<div className="text-muted text-sm">{greeting}</div>}
+      right={
+        <div className="flex items-center gap-2 text-sm">
+          {refreshingDashboard ? (
+            <div className="pr-2">
+              <LoadingDots />
+            </div>
+          ) : (
+            <span className="text-muted">{greeting}</span>
+          )}
+        </div>
+      }
     >
       <div className="space-y-6">
         <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-          {loading
-            ? Array.from({ length: 4 }).map((_, i) => (
-                <div key={i} className="card rounded-lg p-4">
-                  <div className="bg-accent h-4 w-24 rounded opacity-20" />
-                  <div className="bg-accent mt-3 h-7 w-20 rounded opacity-20" />
-                  <div className="bg-accent mt-2 h-4 w-28 rounded opacity-20" />
-                </div>
-              ))
+          {isInitialLoading
+            ? Array.from({ length: 4 }).map((_, i) => <StatCardSkeleton key={i} />)
             : stats.map((s) => <StatCard key={s.label} {...s} />)}
         </div>
 
@@ -315,8 +349,8 @@ export default function DashboardPage() {
               </div>
 
               <div className="mt-4 space-y-3">
-                {loading ? (
-                  <div className="text-muted text-sm">Loading…</div>
+                {isInitialLoading ? (
+                  <SectionSkeleton rows={3} />
                 ) : currentTasks.length === 0 ? (
                   <div className="text-muted text-sm">Nothing here 🎉</div>
                 ) : (
@@ -340,20 +374,35 @@ export default function DashboardPage() {
             <CollapsibleSection title={recentTitle} defaultOpen={true}>
               {loadingActivity ? (
                 <div className="space-y-3">
-                  <div className="text-muted text-sm">Loading activity…</div>
+                  <Skeleton className="h-4 w-40" />
+                  <Skeleton className="h-4 w-56" />
+                  <Skeleton className="h-4 w-32" />
                 </div>
               ) : activity.length === 0 ? (
                 <div className="space-y-3">
                   <div className="text-muted text-sm">No recent activity</div>
                 </div>
               ) : (
-                <ActivityList activity={activity.slice(0, 6)} loading={loadingActivity} />
+                <ActivityList
+                  activity={activity}
+                  loading={loadingActivity}
+                  maxPerGroup={2}
+                />
               )}
             </CollapsibleSection>
 
             <CollapsibleSection title={leadTitle} defaultOpen={true}>
-              {loading ? (
-                <div className="text-muted text-sm">Loading…</div>
+              {isInitialLoading ? (
+                <div className="space-y-2">
+                  {Array.from({ length: 4 }).map((_, i) => (
+                    <div key={i} className="border-base rounded-lg border p-3">
+                      <div className="flex items-center justify-between">
+                        <Skeleton className="h-5 w-24 rounded-full" />
+                        <Skeleton className="h-4 w-8" />
+                      </div>
+                    </div>
+                  ))}
+                </div>
               ) : statusSummary.length === 0 ? (
                 <div className="text-muted text-sm">No leads yet</div>
               ) : (

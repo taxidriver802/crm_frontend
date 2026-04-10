@@ -15,6 +15,7 @@ import {
 } from "@/lib/helper";
 import { FilePreviewModal } from "@/components/modals/file-preview-modal";
 import { CollapsibleSection } from "@/components/forms/collapsible-section";
+import { SectionSkeleton, Skeleton } from "@/components/loading/loadingSkeletons";
 
 function isCompleted(task) {
   return String(task?.status || "").toLowerCase() === "completed";
@@ -330,7 +331,19 @@ export default function TaskDetailPage() {
 
         <section className="card rounded-lg p-4">
           {loadingTask ? (
-            <div className="text-muted text-sm">Loading task…</div>
+            <>
+              <div className="space-y-4">
+                <Skeleton className="h-7 w-64" />
+                <Skeleton className="h-4 w-48" />
+
+                <div className="flex gap-2">
+                  <Skeleton className="h-5 w-20 rounded-full" />
+                  <Skeleton className="h-5 w-24 rounded-full" />
+                </div>
+
+                <Skeleton className="h-16 w-full" />
+              </div>
+            </>
           ) : !task ? (
             <div className="text-muted text-sm">Task not found.</div>
           ) : (
@@ -451,7 +464,25 @@ export default function TaskDetailPage() {
             </div>
           )}
         </section>
+        {loadingTask ? (
+          <div className="flex flex-row gap-5">
+            <section className="card h-[15rem] w-[40rem] rounded-lg p-4">
+              <div className="space-y-3">
+                <Skeleton className="h-4 w-40" />
+                <Skeleton className="h-4 w-52" />
+                <Skeleton className="h-4 w-32" />
+              </div>
+            </section>
 
+            <section className="card w-[45rem] rounded-lg p-4">
+              <div className="space-y-3">
+                <Skeleton className="h-4 w-40" />
+                <Skeleton className="h-4 w-52" />
+                <Skeleton className="h-4 w-32" />
+              </div>
+            </section>
+          </div>
+        ) : null}
         {task ? (
           <section className="grid gap-4 xl:grid-cols-[0.95fr_1.05fr]">
             {task?.lead ? (
@@ -459,7 +490,11 @@ export default function TaskDetailPage() {
                 {!task?.lead_id ? (
                   <div className="text-muted text-sm">No lead linked to this task.</div>
                 ) : loadingLead ? (
-                  <div className="text-muted text-sm">Loading lead details…</div>
+                  <div className="space-y-3">
+                    <Skeleton className="h-4 w-40" />
+                    <Skeleton className="h-4 w-52" />
+                    <Skeleton className="h-4 w-32" />
+                  </div>
                 ) : leadError ? (
                   <div className="text-sm text-red-500">{leadError}</div>
                 ) : !lead ? (
@@ -555,7 +590,7 @@ export default function TaskDetailPage() {
               }
             >
               {loadingFiles ? (
-                <div className="text-muted text-sm">Loading files…</div>
+                <SectionSkeleton rows={3} />
               ) : filesError ? (
                 <div className="text-sm text-red-500">{filesError}</div>
               ) : recentFiles.length === 0 ? (

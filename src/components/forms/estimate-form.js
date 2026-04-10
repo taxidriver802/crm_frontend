@@ -32,8 +32,11 @@ export function EstimateForm({
   onCancel,
   jobs = [],
   loadingJobs = false,
+  loadingEstimate = false,
   layout = "default", // default | compact
   isContextLocked = false,
+  onDelete = null,
+  estimateId,
 }) {
   const isCompact = layout === "compact";
 
@@ -71,56 +74,125 @@ export function EstimateForm({
           </select>
         </div>
 
-        <div className={isCompact ? "md:col-span-2" : "sm:col-span-2"}>
-          <label className="text-muted text-xs">Title *</label>
-          <input
-            className="input mt-1"
-            placeholder="Example: Roof replacement estimate"
-            value={form.title}
-            onChange={(e) => setField("title", e.target.value)}
-            required
-          />
-        </div>
+        {loadingEstimate ? (
+          <>Loading...</>
+        ) : (
+          <>
+            <div className={isCompact ? "md:col-span-2" : "sm:col-span-2"}>
+              <label className="text-muted text-xs">Title *</label>
+              <input
+                className="input mt-1"
+                placeholder="Example: Roof replacement estimate"
+                value={form.title}
+                onChange={(e) => setField("title", e.target.value)}
+                required
+              />
+            </div>
 
-        <div>
-          <label className="text-muted text-xs">Status</label>
-          <select
-            className="input mt-1"
-            value={form.status}
-            onChange={(e) => setField("status", e.target.value)}
-            disabled={saving}
-          >
-            {ESTIMATE_STATUS_OPTIONS.map((status) => (
-              <option key={status} value={status}>
-                {status}
-              </option>
-            ))}
-          </select>
-        </div>
+            <div>
+              <label className="text-muted text-xs">Status</label>
+              <select
+                className="input mt-1"
+                value={form.status}
+                onChange={(e) => setField("status", e.target.value)}
+                disabled={saving}
+              >
+                {ESTIMATE_STATUS_OPTIONS.map((status) => (
+                  <option key={status} value={status}>
+                    {status}
+                  </option>
+                ))}
+              </select>
+            </div>
 
-        <div className={isCompact ? "md:col-span-2" : "sm:col-span-2"}>
-          <label className="text-muted text-xs">Notes</label>
-          <textarea
-            className="input mt-1 min-h-[120px]"
-            placeholder="Add internal notes or estimate context..."
-            value={form.notes}
-            onChange={(e) => setField("notes", e.target.value)}
-            disabled={saving}
-          />
-        </div>
+            <div className={isCompact ? "md:col-span-2" : "sm:col-span-2"}>
+              <label className="text-muted text-xs">Notes</label>
+              <textarea
+                className="input mt-1 min-h-[120px]"
+                placeholder="Add internal notes or estimate context..."
+                value={form.notes}
+                onChange={(e) => setField("notes", e.target.value)}
+                disabled={saving}
+              />
+            </div>
+          </>
+        )}
       </div>
+      <div className="flex flex-row justify-between">
+        <div className="flex flex-wrap gap-2">
+          <button type="submit" disabled={saving || loadingJobs} className="btn">
+            {saving
+              ? submitLabel == "Create Estimate"
+                ? "Creating..."
+                : "Updating..."
+              : submitLabel}
+          </button>
 
-      <div className="flex flex-wrap gap-2">
-        <button type="submit" disabled={saving || loadingJobs} className="btn">
-          {saving ? "Creating..." : submitLabel}
-        </button>
-
-        {onCancel ? (
-          <button type="button" className="btn" onClick={onCancel} disabled={saving}>
-            {cancelLabel || "Cancel"}
+          {onCancel ? (
+            <button type="button" className="btn" onClick={onCancel} disabled={saving}>
+              {cancelLabel || "Cancel"}
+            </button>
+          ) : null}
+        </div>
+        {estimateId ? (
+          <button type="button" className="btn btn-danger" onClick={onDelete}>
+            Delete
           </button>
         ) : null}
       </div>
     </form>
+  );
+}
+
+function Skeleton({ className = "" }) {
+  return (
+    <div
+      className={`animate-pulse rounded-md bg-gray-200 dark:bg-gray-700 ${className}`}
+    />
+  );
+}
+
+export function EstimateFormSkeleton({ layout = "default", onCancel }) {
+  const isCompact = layout === "compact";
+
+  return (
+    <div className="space-y-4">
+      <div className={`grid gap-4 ${isCompact ? "md:grid-cols-2" : "sm:grid-cols-2"}`}>
+        {/* Job select */}
+        <div className={isCompact ? "md:col-span-2" : "sm:col-span-2"}>
+          <Skeleton className="mb-2 h-3 w-16" />
+          <Skeleton className="h-10 w-full" />
+        </div>
+
+        {/* Title */}
+        <div className={isCompact ? "md:col-span-2" : "sm:col-span-2"}>
+          <Skeleton className="mb-2 h-3 w-20" />
+          <Skeleton className="h-10 w-full" />
+        </div>
+
+        {/* Status */}
+        <div>
+          <Skeleton className="mb-2 h-3 w-16" />
+          <Skeleton className="h-10 w-full" />
+        </div>
+
+        {/* Notes */}
+        <div className={isCompact ? "md:col-span-2" : "sm:col-span-2"}>
+          <Skeleton className="mb-2 h-3 w-16" />
+          <Skeleton className="h-28 w-full" />
+        </div>
+      </div>
+
+      {/* Buttons */}
+      <div className="flex justify-between">
+        <div className="flex gap-2">
+          <Skeleton className="h-10 w-32" />
+          <button className="btn" onClick={onCancel}>
+            Cancel
+          </button>
+        </div>
+        <Skeleton className="h-10 w-24" />
+      </div>
+    </div>
   );
 }

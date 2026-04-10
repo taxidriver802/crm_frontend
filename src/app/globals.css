@@ -12,6 +12,7 @@
 
   --border: #e5e7eb;
   --border-strong: #d1d5db;
+  --border-extra: #808080;
 
   --text: #111827;
   --text-muted: #6b7280;
@@ -126,6 +127,10 @@
 
   .border-strong {
     border-color: var(--border-strong);
+  }
+
+  .border-extra {
+    border-color: var(--border-extra);
   }
 
   .bg-accent {
@@ -286,5 +291,51 @@
     @apply inline-flex items-center rounded-full px-2.5 py-1 text-xs font-medium;
     background: var(--accent-soft);
     color: var(--text);
+  }
+
+  /* ------------------- */
+  /* DAY PICKER TWEAKS */
+  /* ------------------- */
+
+  .dropdown-panel .rdp {
+    --rdp-accent-color: var(--accent);
+    --rdp-background-color: var(--accent-soft);
+    --rdp-day-height: 2.5rem;
+    --rdp-day-width: 2.5rem;
+    --rdp-day_button-border-radius: var(--radius-md);
+    --rdp-nav_button-height: 2.25rem;
+    --rdp-nav_button-width: 2.25rem;
+    --rdp-dropdown-gap: 0.5rem;
+  }
+
+  .dropdown-panel .rdp-day_today .rdp-day_button {
+    border-radius: var(--radius-md);
+    border: 1px solid var(--border);
+  }
+
+  .dropdown-panel .rdp-caption {
+    padding-left: 0;
+    padding-right: 0;
+  }
+
+  .dropdown-panel .rdp-nav {
+    margin: 0;
+  }
+
+  .dropdown-panel .rdp-button_previous,
+  .dropdown-panel .rdp-button_next {
+    color: var(--text);
+    border: 1px solid var(--border);
+    background: var(--surface);
+  }
+
+  .dropdown-panel .rdp-button_previous:hover,
+  .dropdown-panel .rdp-button_next:hover {
+    background: var(--accent-soft);
+    color: var(--text);
+  }
+
+  .dropdown-panel .rdp-chevron {
+    fill: currentColor;
   }
 }

@@ -9,6 +9,7 @@ import { LeadForm, createEmptyLeadForm } from "@/components/forms/lead-form";
 import { api } from "@/lib/api";
 import { formatDate } from "@/lib/helper";
 import { CollapsibleSection } from "@/components/forms/collapsible-section";
+import { Skeleton } from "@/components/loading/loadingSkeletons";
 
 export default function LeadsPage() {
   const searchParams = useSearchParams();
@@ -192,13 +193,21 @@ export default function LeadsPage() {
             <div>
               <div className="text-muted text-sm">Total leads</div>
               <div className="text-2xl font-semibold">
-                {loadingSummary ? "…" : (summary?.total ?? "—")}
+                {loadingSummary ? (
+                  <Skeleton className="h-8 w-6" />
+                ) : (
+                  (summary?.total ?? "—")
+                )}
               </div>
             </div>
 
             <div className="flex flex-wrap gap-2">
               {loadingSummary ? (
-                <span className="text-muted text-sm">Loading summary…</span>
+                <div className="flex gap-2">
+                  {Array.from({ length: 3 }).map((_, i) => (
+                    <Skeleton key={i} className="h-6 w-20 rounded-md" />
+                  ))}
+                </div>
               ) : summary?.byStatus?.length ? (
                 summary.byStatus.map((x) => (
                   <span
@@ -273,7 +282,28 @@ export default function LeadsPage() {
               </thead>
 
               <tbody>
-                {!loadingLeads && leads.length === 0 ? (
+                {loadingLeads ? (
+                  Array.from({ length: 3 }).map((_, i) => (
+                    <tr key={i} className="border-base border-t">
+                      <td className="px-4 py-3">
+                        <Skeleton className="mb-2 h-4 w-32" />
+                        <Skeleton className="h-3 w-48" />
+                      </td>
+                      <td className="px-4 py-3">
+                        <Skeleton className="h-5 w-16 rounded-full" />
+                      </td>
+                      <td className="px-4 py-3">
+                        <Skeleton className="h-4 w-20" />
+                      </td>
+                      <td className="px-4 py-3">
+                        <Skeleton className="h-4 w-24" />
+                      </td>
+                      <td className="px-4 py-3 text-right">
+                        <Skeleton className="ml-auto h-4 w-12" />
+                      </td>
+                    </tr>
+                  ))
+                ) : leads.length === 0 ? (
                   <tr className="border-base border-t">
                     <td className="text-muted px-4 py-6" colSpan={5}>
                       No leads found.
