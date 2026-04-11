@@ -109,6 +109,10 @@
     background: var(--surface-elevated);
   }
 
+  .bg-surface-glass {
+    background: color-mix(in srgb, var(--surface) 72%, transparent);
+  }
+
   .text-main {
     color: var(--text);
   }
@@ -144,6 +148,32 @@
 
   .hover-accent:hover {
     background: var(--accent-soft);
+  }
+
+  /* Scrollbar aligned with theme tokens (Firefox + WebKit) */
+  .scrollbar-theme {
+    scrollbar-width: thin;
+    scrollbar-color: var(--border-strong) var(--surface);
+  }
+
+  .scrollbar-theme::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+  }
+
+  .scrollbar-theme::-webkit-scrollbar-track {
+    background: var(--surface);
+    border-radius: var(--radius-sm);
+  }
+
+  .scrollbar-theme::-webkit-scrollbar-thumb {
+    background: var(--border-strong);
+    border-radius: var(--radius-sm);
+    border: 2px solid var(--surface);
+  }
+
+  .scrollbar-theme::-webkit-scrollbar-thumb:hover {
+    background: var(--text-soft);
   }
 }
 

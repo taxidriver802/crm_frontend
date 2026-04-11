@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 
@@ -76,40 +76,82 @@ function getNotificationHref(notification) {
 export function AppShell({ children, title, description, right }) {
   const pathname = usePathname();
   const router = useRouter();
+  const { showToast } = useToast();
+
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   const [user, setUser] = useState(null);
-  const [actionsOpen, setActionsOpen] = useState(false);
-  const [moreOpen, setMoreOpen] = useState(false);
-  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const [inviteModalOpen, setInviteModalOpen] = useState(false);
-
   const [notificationsOpen, setNotificationsOpen] = useState(false);
   const [notifications, setNotifications] = useState([]);
   const [unreadCount, setUnreadCount] = useState(0);
   const [notificationsLoading, setNotificationsLoading] = useState(false);
   const [markingAllRead, setMarkingAllRead] = useState(false);
+  const [inviteModalOpen, setInviteModalOpen] = useState(false);
 
-  const [prevNotifications, setPrevNotifications] = useState([]);
+  const notificationsOpenRef = useRef(false);
+  const prevNotificationsRef = useRef([]);
 
-  const { showToast } = useToast();
+  useEffect(() => {
+    notificationsOpenRef.current = notificationsOpen;
+  }, [notificationsOpen]);
+
+  useEffect(() => {
+    setMobileMenuOpen(false);
+    setNotificationsOpen(false);
+  }, [pathname]);
+
+  useEffect(() => {
+    function handleClickOutside(e) {
+      if (!e.target.closest(".notifications-menu")) setNotificationsOpen(false);
+    }
+
+    document.addEventListener("click", handleClickOutside);
+    return () => document.removeEventListener("click", handleClickOutside);
+  }, []);
+
+  useEffect(() => {
+    function handleClick(e) {
+      if (!e.target.closest(".mobile-menu") && !e.target.closest(".menu-trigger")) {
+        setMobileMenuOpen(false);
+      }
+    }
+
+    if (mobileMenuOpen) {
+      document.addEventListener("click", handleClick);
+    }
+
+    return () => document.removeEventListener("click", handleClick);
+  }, [mobileMenuOpen]);
 
   useEffect(() => {
     const interval = setInterval(() => {
       loadUnreadCount();
-      loadNotifications();
+      loadNotifications({ silent: true });
     }, 30000);
 
     return () => clearInterval(interval);
   }, []);
 
+  const isAdminUser = user?.role === "owner" || user?.role === "admin";
+
+  const navItems = useMemo(() => {
+    return isAdminUser
+      ? [...WORKFLOW_NAV, ...SYSTEM_NAV, USERS_NAV]
+      : [...WORKFLOW_NAV, ...SYSTEM_NAV];
+  }, [isAdminUser]);
+
+  const primaryNavItems = navItems.filter((item) => item.priority === "primary");
+  const secondaryNavItems = navItems.filter((item) => item.priority === "secondary");
+
+  useEffect(() => {
+    loadUser();
+    loadUnreadCount();
+  }, []);
+
   async function loadUser() {
     try {
-      const res = await fetch("/api/auth/me", {
-        credentials: "include",
-      });
-
+      const res = await fetch("/api/auth/me", { credentials: "include" });
       if (!res.ok) return;
-
       const data = await res.json();
       setUser(data.user);
     } catch (err) {
@@ -122,7 +164,6 @@ export function AppShell({ children, title, description, right }) {
       const data = await api("/notifications/unread-count", {
         credentials: "include",
       });
-
       setUnreadCount(data?.count ?? 0);
     } catch (err) {
       console.error("Failed to load unread notification count", err);
@@ -137,56 +178,33 @@ export function AppShell({ children, title, description, right }) {
     return null;
   }
 
-  async function loadNotifications() {
+  async function loadNotifications(options = {}) {
+    const silent = Boolean(options.silent);
     try {
-      setNotificationsLoading(true);
+      if (!silent) setNotificationsLoading(true);
 
       const data = await api("/notifications?limit=8", {
         credentials: "include",
       });
 
       const newNotifications = data?.notifications ?? [];
-      const newItems = newNotifications.filter(
-        (n) => !prevNotifications.some((p) => p.id === n.id),
-      );
+      const prev = prevNotificationsRef.current;
+      const newItems = newNotifications.filter((n) => !prev.some((p) => p.id === n.id));
 
-      if (prevNotifications.length > 0 && !notificationsOpen) {
+      if (prev.length > 0 && !notificationsOpenRef.current) {
         newItems
           .filter((n) => !n.read_at)
           .forEach((n) => showToast(`${n.title}: ${n.message}`));
       }
 
-      setPrevNotifications(newNotifications);
+      prevNotificationsRef.current = newNotifications;
       setNotifications(newNotifications);
     } catch (err) {
       console.error("Failed to load notifications", err);
     } finally {
-      setNotificationsLoading(false);
+      if (!silent) setNotificationsLoading(false);
     }
   }
-
-  useEffect(() => {
-    loadUser();
-    loadUnreadCount();
-  }, []);
-
-  useEffect(() => {
-    function handleClickOutside(e) {
-      if (!e.target.closest(".actions-menu")) setActionsOpen(false);
-      if (!e.target.closest(".more-menu")) setMoreOpen(false);
-      if (!e.target.closest(".notifications-menu")) setNotificationsOpen(false);
-    }
-
-    document.addEventListener("click", handleClickOutside);
-    return () => document.removeEventListener("click", handleClickOutside);
-  }, []);
-
-  useEffect(() => {
-    setActionsOpen(false);
-    setMoreOpen(false);
-    setMobileMenuOpen(false);
-    setNotificationsOpen(false);
-  }, [pathname]);
 
   async function handleLogout() {
     await api("/auth/logout", { method: "POST" });
@@ -276,92 +294,192 @@ export function AppShell({ children, title, description, right }) {
     }
   }
 
-  const isAdminUser = user?.role === "owner" || user?.role === "admin";
-
-  const navItems = useMemo(() => {
-    return isAdminUser
-      ? [...WORKFLOW_NAV, ...SYSTEM_NAV, USERS_NAV]
-      : [...WORKFLOW_NAV, ...SYSTEM_NAV];
-  }, [isAdminUser]);
-
-  const primaryNavItems = navItems.filter((item) => item.priority === "primary");
-  const secondaryNavItems = navItems.filter((item) => item.priority === "secondary");
-
-  const moreMenuHasActiveItem = secondaryNavItems.some((item) =>
-    isActivePath(pathname, item.href),
-  );
-
   const hasReadNotifications = notifications.some((n) => n.read_at);
 
-  return (
-    <div className="bg-app text-main min-h-screen">
-      <header className="border-base bg-surface/95 supports-[backdrop-filter]:bg-surface/80 sticky top-0 z-20 border-b backdrop-blur">
-        <div className="mx-auto flex max-w-6xl items-center justify-between gap-3 px-4 py-3">
-          <div className="flex min-w-0 items-center gap-3 lg:gap-6">
-            <Link href="/dashboard" className="shrink-0">
-              <MainLogo className="text-main h-14 w-14 sm:h-16 sm:w-16" />
-            </Link>
+  function renderNavLink(item, { onNavigate } = {}) {
+    const active = isActivePath(pathname, item.href);
 
-            <nav className="hidden items-center gap-2 md:flex">
-              {primaryNavItems.map((item) => {
-                const active = isActivePath(pathname, item.href);
+    return (
+      <Link
+        key={item.href}
+        href={item.href}
+        onClick={onNavigate}
+        className={cx(
+          "flex items-center rounded-lg px-3 py-2 text-sm transition",
+          active ? "bg-accent text-main font-medium" : "text-muted hover:bg-accent/60",
+        )}
+      >
+        {item.label}
+      </Link>
+    );
+  }
 
-                return (
-                  <Link
-                    key={item.href}
-                    href={item.href}
-                    className={cx(
-                      "nav-pill",
-                      active ? "nav-pill-active" : "nav-pill-inactive",
-                    )}
-                  >
-                    {item.label}
-                  </Link>
-                );
-              })}
-
-              {secondaryNavItems.length > 0 && (
-                <div className="more-menu relative">
-                  <button
-                    type="button"
-                    onClick={() => setMoreOpen((prev) => !prev)}
-                    aria-expanded={moreOpen}
-                    className={cx(
-                      "nav-pill",
-                      moreMenuHasActiveItem ? "nav-pill-active" : "nav-pill-inactive",
-                    )}
-                  >
-                    Tools ▾
-                  </button>
-
-                  {moreOpen && (
-                    <div className="dropdown-panel absolute right-0 z-50 mt-2 min-w-[12rem] overflow-hidden">
-                      {secondaryNavItems.map((item) => {
-                        const active = isActivePath(pathname, item.href);
-
-                        return (
-                          <Link
-                            key={item.href}
-                            href={item.href}
-                            className={cx(
-                              "block px-4 py-2 text-sm transition",
-                              active
-                                ? "bg-accent text-main"
-                                : "hover:bg-accent text-muted",
-                            )}
-                          >
-                            {item.label}
-                          </Link>
-                        );
-                      })}
-                    </div>
-                  )}
-                </div>
-              )}
-            </nav>
+  function renderNotificationsPanel() {
+    return (
+      <div className="dropdown-panel absolute right-0 z-50 mt-2 w-[22rem] max-w-[calc(100vw-2rem)] overflow-hidden">
+        <div className="border-base flex items-start justify-between gap-3 border-b px-4 py-3">
+          <div>
+            <p className="text-sm font-semibold">Notifications</p>
+            <p className="text-muted text-xs">Recent activity and reminders</p>
           </div>
 
-          <div className="flex shrink-0 items-center gap-2">
+          <div className="flex items-center gap-3">
+            <button
+              type="button"
+              onClick={handleMarkAllRead}
+              disabled={markingAllRead || unreadCount === 0}
+              className={cx(
+                "text-muted hover:text-main text-xs transition",
+                (markingAllRead || unreadCount === 0) && "cursor-not-allowed opacity-50",
+              )}
+            >
+              {markingAllRead ? "Saving..." : "Mark all read"}
+            </button>
+
+            {hasReadNotifications && (
+              <button
+                type="button"
+                onClick={handleClearRead}
+                className="text-muted hover:text-main text-xs transition"
+              >
+                Clear read
+              </button>
+            )}
+          </div>
+        </div>
+
+        <div className="max-h-[24rem] overflow-y-auto">
+          {notificationsLoading ? (
+            <div className="text-muted px-4 py-6 text-center text-sm">
+              Loading notifications...
+            </div>
+          ) : notifications.length === 0 ? (
+            <div className="text-muted px-4 py-6 text-center text-sm">
+              You’re all caught up.
+            </div>
+          ) : (
+            notifications.map((notification) => {
+              const unread = !notification.read_at;
+              const href = getNotificationHref(notification);
+
+              return (
+                <div
+                  key={notification.id}
+                  className={cx(
+                    "border-base border-b last:border-b-0",
+                    unread && "bg-accent/60",
+                  )}
+                >
+                  <button
+                    type="button"
+                    onClick={() => handleNotificationClick(notification)}
+                    className="hover:bg-accent block w-full px-4 py-3 text-left transition"
+                  >
+                    <div className="flex items-start gap-3">
+                      <span
+                        className={cx(
+                          "bg-accent-solid mt-1.5 h-2 w-2 shrink-0 rounded-full transition-opacity",
+                          unread ? "opacity-100" : "opacity-0",
+                        )}
+                      />
+                      <div className="min-w-0 flex-1 text-left">
+                        <div className="flex items-center justify-between gap-3">
+                          <p className="truncate text-sm font-medium">
+                            {notification.title}
+                          </p>
+                          <span className="text-muted shrink-0 text-xs">
+                            {formatNotificationTime(notification.created_at)}
+                          </span>
+                        </div>
+
+                        <p className="text-muted mt-1 text-sm">{notification.message}</p>
+
+                        {href ? (
+                          <p className="text-main mt-1 text-xs">
+                            {getNotificationActionLabel(notification)}
+                          </p>
+                        ) : null}
+                      </div>
+                    </div>
+                  </button>
+
+                  {unread && (
+                    <button
+                      type="button"
+                      onClick={() => handleMarkNotificationRead(notification.id)}
+                      className="text-muted hover:text-main px-4 pb-3 text-xs hover:underline"
+                    >
+                      Mark read
+                    </button>
+                  )}
+                </div>
+              );
+            })
+          )}
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="bg-app text-main flex h-screen overflow-hidden">
+      {/* SIDEBAR */}
+      <aside className="scrollbar-theme border-base bg-surface hidden h-full w-64 flex-col border-r lg:flex">
+        <Link href="/dashboard" className="flex items-center gap-3 px-6 py-5">
+          <MainLogo className="h-10 w-10" />
+          <span className="font-semibold">CRM</span>
+        </Link>
+
+        <nav className="flex-1 space-y-4 overflow-y-auto px-3">
+          <div className="space-y-1">
+            {primaryNavItems.map((item) => renderNavLink(item))}
+          </div>
+
+          {secondaryNavItems.length > 0 && (
+            <div className="space-y-1">
+              <div className="text-muted px-3 pt-1 text-[11px] font-semibold uppercase tracking-wide">
+                Tools
+              </div>
+              {secondaryNavItems.map((item) => renderNavLink(item))}
+            </div>
+          )}
+        </nav>
+
+        <div className="border-base space-y-2 border-t p-4">
+          {isAdminUser && (
+            <button
+              type="button"
+              onClick={() => setInviteModalOpen(true)}
+              className="btn w-full justify-start"
+            >
+              Invite User
+            </button>
+          )}
+
+          <ThemeToggle className="w-full justify-start" />
+
+          <button
+            type="button"
+            onClick={handleLogout}
+            className="btn btn-danger w-full justify-start"
+          >
+            Log out
+          </button>
+        </div>
+      </aside>
+
+      {/* MAIN */}
+      <div className="flex flex-1 flex-col overflow-hidden">
+        {/* TOPBAR */}
+        <header className="border-base bg-surface-glass relative sticky top-0 z-10 flex items-center justify-between gap-4 border-b px-6 py-3 backdrop-blur-md">
+          <div className="min-w-0">
+            {title ? <h1 className="text-lg font-semibold">{title}</h1> : null}
+            {description ? (
+              <p className="text-muted mt-0.5 text-sm">{description}</p>
+            ) : null}
+          </div>
+
+          <div className="flex shrink-0 items-center gap-2 sm:gap-3">
             {right ? (
               <div className="hidden items-center gap-2 lg:flex">{right}</div>
             ) : null}
@@ -382,257 +500,119 @@ export function AppShell({ children, title, description, right }) {
                 )}
               </button>
 
-              {notificationsOpen && (
-                <div className="dropdown-panel absolute right-0 z-50 mt-2 w-[22rem] max-w-[calc(100vw-2rem)] overflow-hidden">
-                  <div className="border-base flex items-start justify-between gap-3 border-b px-4 py-3">
-                    <div>
-                      <p className="text-sm font-semibold">Notifications</p>
-                      <p className="text-muted text-xs">Recent activity and reminders</p>
-                    </div>
-
-                    <div className="flex items-center gap-3">
-                      <button
-                        type="button"
-                        onClick={handleMarkAllRead}
-                        disabled={markingAllRead || unreadCount === 0}
-                        className={cx(
-                          "text-muted hover:text-main text-xs transition",
-                          (markingAllRead || unreadCount === 0) &&
-                            "cursor-not-allowed opacity-50",
-                        )}
-                      >
-                        {markingAllRead ? "Saving..." : "Mark all read"}
-                      </button>
-
-                      {hasReadNotifications && (
-                        <button
-                          type="button"
-                          onClick={handleClearRead}
-                          className="text-muted hover:text-main text-xs transition"
-                        >
-                          Clear read
-                        </button>
-                      )}
-                    </div>
-                  </div>
-
-                  <div className="max-h-[24rem] overflow-y-auto">
-                    {notificationsLoading ? (
-                      <div className="text-muted px-4 py-6 text-center text-sm">
-                        Loading notifications...
-                      </div>
-                    ) : notifications.length === 0 ? (
-                      <div className="text-muted px-4 py-6 text-center text-sm">
-                        You’re all caught up.
-                      </div>
-                    ) : (
-                      notifications.map((notification) => {
-                        const unread = !notification.read_at;
-                        const href = getNotificationHref(notification);
-
-                        return (
-                          <div
-                            key={notification.id}
-                            className={cx(
-                              "border-base border-b last:border-b-0",
-                              unread && "bg-accent/60",
-                            )}
-                          >
-                            <button
-                              type="button"
-                              onClick={() => handleNotificationClick(notification)}
-                              className="hover:bg-accent block w-full px-4 py-3 text-left transition"
-                            >
-                              <div className="flex items-start gap-3">
-                                <span
-                                  className={cx(
-                                    "bg-accent-solid mt-1.5 h-2 w-2 shrink-0 rounded-full transition-opacity",
-                                    unread ? "opacity-100" : "opacity-0",
-                                  )}
-                                />
-                                <div className="min-w-0 flex-1 text-left">
-                                  <div className="flex items-center justify-between gap-3">
-                                    <p className="truncate text-sm font-medium">
-                                      {notification.title}
-                                    </p>
-                                    <span className="text-muted shrink-0 text-xs">
-                                      {formatNotificationTime(notification.created_at)}
-                                    </span>
-                                  </div>
-
-                                  <p className="text-muted mt-1 text-sm">
-                                    {notification.message}
-                                  </p>
-
-                                  {href ? (
-                                    <p className="text-main mt-1 text-xs">
-                                      {getNotificationActionLabel(notification)}
-                                    </p>
-                                  ) : null}
-                                </div>
-                              </div>
-                            </button>
-
-                            {unread && (
-                              <button
-                                type="button"
-                                onClick={() =>
-                                  handleMarkNotificationRead(notification.id)
-                                }
-                                className="text-muted hover:text-main px-4 pb-3 text-xs hover:underline"
-                              >
-                                Mark read
-                              </button>
-                            )}
-                          </div>
-                        );
-                      })
-                    )}
-                  </div>
-                </div>
-              )}
-            </div>
-
-            <div className="actions-menu relative hidden md:block">
-              <button onClick={() => setActionsOpen((prev) => !prev)} className="btn">
-                Menu ▾
-              </button>
-
-              {actionsOpen && (
-                <div className="dropdown-panel absolute right-0 z-50 mt-2 min-w-[12rem] overflow-hidden">
-                  {isAdminUser && (
-                    <button
-                      onClick={() => {
-                        setActionsOpen(false);
-                        setInviteModalOpen(true);
-                      }}
-                      className="hover:bg-accent block w-full px-4 py-2 text-left text-sm transition"
-                    >
-                      Invite User
-                    </button>
-                  )}
-
-                  <div className="px-2 py-2">
-                    <ThemeToggle className="w-full justify-start" />
-                  </div>
-
-                  <div className="border-base border-t" />
-
-                  <button
-                    onClick={handleLogout}
-                    className="hover:bg-accent block w-full px-4 py-2 text-left text-sm text-red-500 transition"
-                  >
-                    Log out
-                  </button>
-                </div>
-              )}
+              {notificationsOpen && renderNotificationsPanel()}
             </div>
 
             <button
               type="button"
               aria-label={mobileMenuOpen ? "Close menu" : "Open menu"}
               aria-expanded={mobileMenuOpen}
-              onClick={() => setMobileMenuOpen((prev) => !prev)}
-              className="btn md:hidden"
+              onClick={() => setMobileMenuOpen((p) => !p)}
+              className="btn menu-trigger lg:hidden"
             >
               {mobileMenuOpen ? "Close" : "Menu"}
             </button>
           </div>
-        </div>
+        </header>
 
         {mobileMenuOpen && (
-          <div className="border-base border-t px-4 pb-3 md:hidden">
-            <nav className="mx-auto flex max-w-6xl flex-col gap-2 pt-3">
-              <div className="text-muted px-3 pt-1 text-[11px] font-semibold uppercase tracking-wide">
-                Workflow
-              </div>
-
-              {primaryNavItems.map((item) => {
-                const active = isActivePath(pathname, item.href);
-
-                return (
-                  <Link
-                    key={item.href}
-                    href={item.href}
-                    className={cx(
-                      "nav-pill",
-                      active ? "nav-pill-active" : "nav-pill-inactive",
-                    )}
-                  >
-                    {item.label}
-                  </Link>
-                );
-              })}
-
-              {secondaryNavItems.length > 0 && (
-                <>
-                  <div className="border-base mt-2 border-t pt-2" />
-                  <div className="text-muted px-3 pt-1 text-[11px] font-semibold uppercase tracking-wide">
-                    Tools
-                  </div>
-
-                  {secondaryNavItems.map((item) => {
-                    const active = isActivePath(pathname, item.href);
-
-                    return (
-                      <Link
-                        key={item.href}
-                        href={item.href}
-                        className={cx(
-                          "nav-pill",
-                          active ? "nav-pill-active" : "nav-pill-inactive",
-                        )}
-                      >
-                        {item.label}
-                      </Link>
-                    );
-                  })}
-                </>
-              )}
-
-              <div className="border-base mt-2 border-t pt-2" />
-              <div className="text-muted px-3 pt-1 text-[11px] font-semibold uppercase tracking-wide">
-                Account
-              </div>
-
-              {isAdminUser && (
+          <>
+            <div
+              className="fixed bottom-0 left-0 right-0 z-40 bg-black/30 lg:hidden"
+              aria-hidden
+              onClick={() => setMobileMenuOpen(false)}
+            />
+            <div className="mobile-menu dropdown-panel animate-in fade-in zoom-in-95 fixed right-3 top-[max(4.25rem,calc(env(safe-area-inset-top,0px)+3.75rem))] z-50 flex max-h-[min(70vh,calc(100dvh-5rem))] w-[min(20rem,calc(100vw-1.5rem))] flex-col overflow-hidden rounded-lg shadow-lg duration-150 lg:hidden">
+              <div className="border-base flex shrink-0 items-center justify-between border-b px-3 py-2">
+                <span className="text-sm font-semibold">Menu</span>
                 <button
-                  onClick={() => {
-                    setMobileMenuOpen(false);
-                    setInviteModalOpen(true);
-                  }}
-                  className="btn justify-start"
+                  type="button"
+                  className="text-muted hover:text-main rounded-md p-1 text-lg leading-none"
+                  aria-label="Close menu"
+                  onClick={() => setMobileMenuOpen(false)}
                 >
-                  Invite User
+                  ×
                 </button>
-              )}
-
-              <ThemeToggle className="justify-start" />
-
-              <button onClick={handleLogout} className="btn btn-danger justify-start">
-                Log out
-              </button>
-            </nav>
-          </div>
-        )}
-      </header>
-
-      <main className="page-wrap">
-        <div className="page-stack">
-          {title ? (
-            <div className="page-header">
-              <div className="page-header-copy">
-                <h1 className="page-title">{title}</h1>
-                {description ? <p className="page-subtitle">{description}</p> : null}
               </div>
+              <div className="scrollbar-theme min-h-0 flex-1 space-y-4 overflow-y-auto p-4">
+                <div className="space-y-1">
+                  <div className="text-muted px-3 pt-1 text-[11px] font-semibold uppercase tracking-wide">
+                    Workflow
+                  </div>
+                  {primaryNavItems.map((item) =>
+                    renderNavLink(item, { onNavigate: () => setMobileMenuOpen(false) }),
+                  )}
+                </div>
 
-              {right ? <div className="page-actions lg:hidden">{right}</div> : null}
+                {secondaryNavItems.length > 0 && (
+                  <>
+                    <div className="border-base border-t pt-2" />
+                    <div className="space-y-1">
+                      <div className="text-muted px-3 pt-1 text-[11px] font-semibold uppercase tracking-wide">
+                        Tools
+                      </div>
+                      {secondaryNavItems.map((item) =>
+                        renderNavLink(item, {
+                          onNavigate: () => setMobileMenuOpen(false),
+                        }),
+                      )}
+                    </div>
+                  </>
+                )}
+
+                <div className="border-base space-y-2 border-t pt-3">
+                  <div className="text-muted px-3 pt-1 text-[11px] font-semibold uppercase tracking-wide">
+                    Account
+                  </div>
+                  {isAdminUser && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setMobileMenuOpen(false);
+                        setInviteModalOpen(true);
+                      }}
+                      className="btn w-full justify-start"
+                    >
+                      Invite User
+                    </button>
+                  )}
+
+                  <ThemeToggle className="w-full justify-start" />
+
+                  <button
+                    type="button"
+                    onClick={handleLogout}
+                    className="btn btn-danger w-full justify-start"
+                  >
+                    Log out
+                  </button>
+                </div>
+              </div>
             </div>
-          ) : null}
+          </>
+        )}
 
-          {children}
-        </div>
-      </main>
+        {/* PAGE */}
+        <main
+          className="flex-1 overflow-y-auto"
+          style={{
+            scrollbarWidth: "none",
+            msOverflowStyle: "none",
+          }}
+        >
+          <style jsx>{`
+            main::-webkit-scrollbar {
+              display: none;
+            }
+          `}</style>
+          <div className="page-wrap">
+            <div className="page-stack">
+              {right ? <div className="page-actions lg:hidden">{right}</div> : null}
+              {children}
+            </div>
+          </div>
+        </main>
+      </div>
 
       <InviteUserModal open={inviteModalOpen} onClose={() => setInviteModalOpen(false)} />
     </div>
