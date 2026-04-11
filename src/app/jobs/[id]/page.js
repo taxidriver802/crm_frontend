@@ -440,6 +440,13 @@ export default function JobDetailPage() {
     return aTime - bTime;
   });
 
+  const formatCurrency = (num) => {
+    return Number(num || 0).toLocaleString("en-US", {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    });
+  };
+
   const visibleTasks = showAllTasks
     ? sortedTasks
     : sortedTasks.slice(0, DEFAULT_VISIBLE_TASKS);
@@ -660,7 +667,8 @@ export default function JobDetailPage() {
                         <div className="flex shrink-0 flex-col items-end gap-2">
                           <span className="status-chip text-xs">{estimate.status}</span>
                           <div className="text-sm font-semibold">
-                            ${Number(estimate.grand_total || 0).toFixed(2)}
+                            $
+                            {formatCurrency(Number(estimate.grand_total || 0).toFixed(2))}
                           </div>
                         </div>
                       </Link>
