@@ -43,7 +43,6 @@ export default function EstimateDetailPage() {
   const [sortBy, setSortBy] = useState("updated_at");
   const [sortDirection, setSortDirection] = useState("desc");
   const lineItems = estimate?.line_items || [];
-  const displayedLineItems = showAllLineItems ? lineItems : lineItems.slice(0, 3);
 
   async function loadEstimate() {
     const res = await api(`/estimates/${id}`);
@@ -98,6 +97,7 @@ export default function EstimateDetailPage() {
       setIsCreateOpen(false);
     } catch (e) {
       console.error(e);
+      setError(e?.message || "Failed to save line item");
     } finally {
       setSavingItem(false);
     }
@@ -121,7 +121,6 @@ export default function EstimateDetailPage() {
       setLineItemForm(createEmptyLineItem());
       setEditingLineItem(null);
       setIsCreateOpen(false);
-      loadPage();
     } catch (e) {
       setError(e?.message || "Failed to delete line item");
     } finally {
@@ -167,35 +166,35 @@ export default function EstimateDetailPage() {
 
   function sortLineItems(items, sortBy, sortDirection = "desc") {
     return [...items].sort((a, b) => {
-      let aVal, bVal;
+      let aVal;
+      let bVal;
 
-      if (sortBy === "line_total") {
-        aVal = a.line_total;
-        bVal = b.line_total;
+      if (sortBy === "line_total" || sortBy === "unit_price" || sortBy === "quantity") {
+        aVal = Number(a[sortBy] ?? 0);
+        bVal = Number(b[sortBy] ?? 0);
       } else if (sortBy === "updated_at") {
-        aVal = new Date(a.updated_at || a.created_at);
-        bVal = new Date(b.updated_at || b.created_at);
+        aVal = new Date(a.updated_at || a.created_at).getTime();
+        bVal = new Date(b.updated_at || b.created_at).getTime();
       } else if (sortBy === "created_at") {
-        aVal = new Date(a.created_at);
-        bVal = new Date(b.created_at);
+        aVal = new Date(a.created_at).getTime();
+        bVal = new Date(b.created_at).getTime();
       } else {
-        aVal = a[sortBy];
-        bVal = b[sortBy];
+        aVal = String(a[sortBy] ?? "").toLowerCase();
+        bVal = String(b[sortBy] ?? "").toLowerCase();
+
+        if (aVal < bVal) return sortDirection === "asc" ? -1 : 1;
+        if (aVal > bVal) return sortDirection === "asc" ? 1 : -1;
+        return 0;
       }
 
-      if (sortDirection === "asc") {
-        return aVal - bVal;
-      } else {
-        return bVal - aVal;
-      }
+      return sortDirection === "asc" ? aVal - bVal : bVal - aVal;
     });
   }
 
-  const sortedDisplayedLineItems = sortLineItems(
-    displayedLineItems,
-    sortBy,
-    sortDirection,
-  );
+  const sortedLineItems = sortLineItems(lineItems, sortBy, sortDirection);
+  const displayedLineItems = showAllLineItems
+    ? sortedLineItems
+    : sortedLineItems.slice(0, 3);
 
   return (
     <AppShell title={estimate?.title || `Estimate #${id}`}>
@@ -214,7 +213,7 @@ export default function EstimateDetailPage() {
                 <div>
                   <div className="text-2xl font-semibold">{estimate.title}</div>
                   <Link
-                    href={`/jobs/${estimate.job.id}`}
+                    href={`/jobs/${estimate.job?.id ?? estimate.job_id}`}
                     className="text-muted mt-1 cursor-pointer text-sm underline"
                   >
                     Job #{estimate.job_id}
@@ -223,7 +222,7 @@ export default function EstimateDetailPage() {
                 <div className="flex items-center gap-4">
                   <Link
                     className="btn text-muted btn-ghost btn-sm hover:bg-surface cursor-pointer"
-                    href={`/estimates/new?job_id=${estimate.job_id}&estimate_id=${estimate.id}`}
+                    href={`/estimates/${estimate.id}/edit`}
                   >
                     Edit
                   </Link>
@@ -323,7 +322,7 @@ export default function EstimateDetailPage() {
             </div>
           ) : (
             <div className="space-y-3">
-              {sortedDisplayedLineItems.map((item) => (
+              {displayedLineItems.map((item) => (
                 <div
                   key={item.id}
                   className="hover:bg-surface flex cursor-pointer items-start justify-between rounded-lg border p-3"

@@ -126,8 +126,7 @@ export default function JobDetailPage() {
 
     try {
       const res = await api(`/jobs/${id}/activity?limit=${limit}`);
-      const payload = res.result || {};
-      const newActivity = payload.activity || [];
+      const newActivity = res.activity || [];
 
       setActivity((prev) => {
         if (!append) return newActivity;
@@ -144,7 +143,7 @@ export default function JobDetailPage() {
         return merged;
       });
 
-      setHasMoreActivity(!!payload.hasMore);
+      setHasMoreActivity(!!res.hasMore);
     } finally {
       setLoadingActivity(false);
       (async () => {
@@ -964,7 +963,7 @@ export default function JobDetailPage() {
                   <>
                     <ActivityList activity={activity} loading={loadingActivity} />
 
-                    {!hasMoreActivity ? (
+                    {hasMoreActivity ? (
                       <div className="mt-3 flex justify-between">
                         <button
                           type="button"

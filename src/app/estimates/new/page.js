@@ -12,18 +12,15 @@ import { api } from "@/lib/api";
 
 export default function NewEstimatePage() {
   const router = useRouter();
-  const params = useSearchParams();
+  const searchParams = useSearchParams();
 
-  const prefillJobId = params.get("job_id") || "";
-  const paramsEstimateId = params.get("estimate_id") || "";
+  const prefillJobId = searchParams.get("job_id") || "";
 
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
 
   const [loadingJobs, setLoadingJobs] = useState(true);
   const [jobs, setJobs] = useState([]);
-
-  const [loadingEstimate, setLoadingEstimate] = useState(!!paramsEstimateId);
 
   const [form, setForm] = useState(() =>
     createEmptyEstimateForm({
@@ -32,44 +29,7 @@ export default function NewEstimatePage() {
     }),
   );
 
-  useEffect(() => {
-    let alive = true;
-
-    async function loadEstimate() {
-      if (!paramsEstimateId) return;
-      setLoadingEstimate(true);
-
-      try {
-        const res = await api(`/estimates/${paramsEstimateId}`);
-
-        if (!alive) return;
-
-        const est = res?.estimate;
-
-        if (est) {
-          setForm(
-            createEmptyEstimateForm({
-              job_id: est.job_id || prefillJobId,
-              title: est.title || "",
-              status: est.status || "Draft",
-              notes: est.notes || "",
-            }),
-          );
-        }
-      } catch (e) {
-        if (!alive) return;
-        setError("Could not prefill data");
-      } finally {
-        setLoadingEstimate(false);
-      }
-    }
-
-    loadEstimate();
-
-    return () => {
-      alive = false;
-    };
-  }, [paramsEstimateId, prefillJobId]);
+  const JOBS_LIMIT = 200;
 
   useEffect(() => {
     let alive = true;
@@ -77,7 +37,7 @@ export default function NewEstimatePage() {
     async function loadJobs() {
       try {
         setLoadingJobs(true);
-        const res = await api("/jobs?limit=200&offset=0");
+        const res = await api(`/jobs?limit=${JOBS_LIMIT}&offset=0`);
         if (!alive) return;
         setJobs(res?.jobs || []);
       } catch (e) {
@@ -97,13 +57,14 @@ export default function NewEstimatePage() {
   }, []);
 
   useEffect(() => {
-    if (prefillJobId && !paramsEstimateId) {
+    if (prefillJobId) {
       setForm((prev) => ({ ...prev, job_id: prefillJobId }));
     }
-  }, [prefillJobId, paramsEstimateId]);
+  }, [prefillJobId]);
 
   async function onSubmit(e) {
     e.preventDefault();
+    if (saving) return;
     setError("");
 
     if (!form.job_id) {
@@ -123,26 +84,21 @@ export default function NewEstimatePage() {
       notes: form.notes.trim() || null,
     };
 
-    const method = paramsEstimateId ? "PATCH" : "POST";
-    const url = paramsEstimateId ? `/estimates/${paramsEstimateId}` : "/estimates";
-
     try {
       setSaving(true);
 
-      const res = await api(url, {
-        method,
+      const res = await api("/estimates", {
+        method: "POST",
         body: JSON.stringify(payload),
       });
 
       const newId = res?.estimate?.id;
 
-      if (newId) {
-        router.push(`/estimates/${newId}`);
-      } else if (prefillJobId) {
-        router.push(`/jobs/${prefillJobId}`);
-      } else {
-        router.push("/jobs");
+      if (!newId) {
+        throw new Error("Invalid response from server");
       }
+
+      router.push(`/estimates/${newId}`);
     } catch (e) {
       setError(e?.message || "Failed to create estimate");
     } finally {
@@ -153,31 +109,14 @@ export default function NewEstimatePage() {
   const isContextLocked = !!prefillJobId;
 
   const title = useMemo(() => {
-    if (paramsEstimateId) return `Edit Estimate #${paramsEstimateId}`;
     if (form.job_id) return `New Estimate for Job #${form.job_id}`;
     return "New Estimate";
-  }, [form.job_id, paramsEstimateId]);
-
-  const submitLabel = paramsEstimateId ? "Update Estimate" : "Create Estimate";
-
-  async function handleDelete() {
-    const confirmed = window.confirm("Delete this Estimate?");
-    if (!confirmed) return;
-    try {
-      const res = await api(`/estimates/${paramsEstimateId}`, {
-        method: "DELETE",
-      });
-      router.push(`/jobs/${prefillJobId}`);
-      router.refresh();
-    } catch (e) {
-      setError(e.message || "Failed to delete estimate");
-    }
-  }
+  }, [form.job_id]);
 
   return (
     <AppShell title={title}>
       <section className="card rounded-lg p-4">
-        {loadingEstimate ? (
+        {loadingJobs ? (
           <EstimateFormSkeleton onCancel={() => router.back()} />
         ) : (
           <EstimateForm
@@ -186,15 +125,15 @@ export default function NewEstimatePage() {
             onSubmit={onSubmit}
             saving={saving}
             error={error}
-            submitLabel={submitLabel}
+            submitLabel="Create Estimate"
             cancelLabel="Cancel"
             onCancel={() => router.back()}
             jobs={jobs}
             loadingJobs={loadingJobs}
-            loadingEstimate={loadingEstimate}
+            loadingEstimate={false}
             isContextLocked={isContextLocked}
-            onDelete={handleDelete}
-            estimateId={paramsEstimateId}
+            onDelete={null}
+            estimateId={null}
           />
         )}
       </section>
