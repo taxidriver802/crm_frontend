@@ -368,13 +368,14 @@ export default function UsersPage() {
                     <th className="px-5 py-3 font-medium">Role</th>
                     <th className="px-5 py-3 font-medium">Status</th>
                     <th className="px-5 py-3 font-medium">Invited</th>
+                    <th className="px-5 py-3 font-medium">Accepted</th>
                     <th className="px-5 py-3 font-medium">Last Login</th>
                     <th className="px-5 py-3 font-medium">Actions</th>
                   </tr>
                 </thead>
                 <tbody>
                   {Array.from({ length: 6 }).map((_, i) => (
-                    <TableRowSkeleton key={i} cols={6} />
+                    <TableRowSkeleton key={i} cols={7} />
                   ))}
                 </tbody>
               </table>
@@ -394,6 +395,7 @@ export default function UsersPage() {
                     <th className="px-5 py-3 font-medium">Role</th>
                     <th className="px-5 py-3 font-medium">Status</th>
                     <th className="px-5 py-3 font-medium">Invited</th>
+                    <th className="px-5 py-3 font-medium">Accepted</th>
                     <th className="px-5 py-3 font-medium">Last Login</th>
                     <th className="px-5 py-3 font-medium">Actions</th>
                   </tr>
@@ -438,6 +440,12 @@ export default function UsersPage() {
                           <select
                             value={user.role}
                             disabled={busyId === user.id || isSelf}
+                            title={
+                              isSelf
+                                ? "You can't change your own role"
+                                : undefined
+                            }
+                            aria-label={`Role for ${user.email}`}
                             onChange={(e) =>
                               updateUser(user.id, { role: e.target.value })
                             }
@@ -474,6 +482,12 @@ export default function UsersPage() {
                         </td>
 
                         <td className="text-muted px-5 py-4 align-top">
+                          {user.password_set_at
+                            ? new Date(user.password_set_at).toLocaleDateString()
+                            : "—"}
+                        </td>
+
+                        <td className="text-muted px-5 py-4 align-top">
                           {user.last_login_at
                             ? new Date(user.last_login_at).toLocaleDateString()
                             : user.status === "invited"
@@ -489,6 +503,7 @@ export default function UsersPage() {
                                   updateUser(user.id, { status: "disabled" })
                                 }
                                 disabled={busyId === user.id}
+                                title="Disable this user account"
                                 className="btn px-3 py-1.5 text-xs"
                               >
                                 Disable
@@ -499,6 +514,7 @@ export default function UsersPage() {
                               <button
                                 onClick={() => updateUser(user.id, { status: "active" })}
                                 disabled={busyId === user.id}
+                                title="Restore this user account"
                                 className="btn px-3 py-1.5 text-xs"
                               >
                                 Re-enable
@@ -509,6 +525,11 @@ export default function UsersPage() {
                               <button
                                 onClick={() => resendInvite(user.id)}
                                 disabled={busyId === user.id}
+                                title={
+                                  isExpired
+                                    ? "Invite expired — resend sends a new invite email"
+                                    : "Send another invite email"
+                                }
                                 className="btn px-3 py-1.5 text-xs"
                               >
                                 {busyId === user.id ? "Sending..." : "Resend Invite"}
@@ -519,6 +540,7 @@ export default function UsersPage() {
                               <button
                                 onClick={() => deleteUser(user.id)}
                                 disabled={busyId === user.id}
+                                title="Permanently remove invited or disabled user"
                                 className="btn px-3 py-1.5 text-xs text-red-600"
                               >
                                 Delete

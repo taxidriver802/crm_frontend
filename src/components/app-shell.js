@@ -66,6 +66,10 @@ function getNotificationHref(notification) {
     return `/jobs/${notification.entity_id}`;
   }
 
+  if (notification.entity_type === "estimate" && notification.entity_id) {
+    return `/estimates/${notification.entity_id}`;
+  }
+
   if (notification.type === "FILE_UPLOADED" && !notification.entity_type) {
     return "/files";
   }
@@ -175,6 +179,7 @@ export function AppShell({ children, title, description, right }) {
     if (notification.entity_type === "task") return "Open task";
     if (notification.entity_type === "lead") return "Open lead";
     if (notification.entity_type === "job") return "Open job";
+    if (notification.entity_type === "estimate") return "Open estimate";
     return null;
   }
 
@@ -510,7 +515,7 @@ export function AppShell({ children, title, description, right }) {
               onClick={() => setMobileMenuOpen((p) => !p)}
               className="btn menu-trigger lg:hidden"
             >
-              {mobileMenuOpen ? "Close" : "Menu"}
+            Menu
             </button>
           </div>
         </header>

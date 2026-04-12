@@ -29,6 +29,7 @@ export default function JobsPage() {
   const searchParams = useSearchParams();
   const prefillLeadId = searchParams.get("lead_id") || "";
   const shouldOpenCreate = searchParams.get("open") === "create";
+  const statusFromUrl = searchParams.get("status") || "";
 
   const [form, setForm] = useState(createEmptyJobForm({ lead_id: prefillLeadId }));
 
@@ -46,6 +47,12 @@ export default function JobsPage() {
       setIsCreateOpen(true);
     }
   }, [shouldOpenCreate]);
+
+  useEffect(() => {
+    if (statusFromUrl) {
+      setStatus(statusFromUrl);
+    }
+  }, [statusFromUrl]);
 
   const queryString = useMemo(() => {
     const params = new URLSearchParams();

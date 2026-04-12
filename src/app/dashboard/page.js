@@ -64,6 +64,12 @@ function getTaskLeadLabel(task) {
   return null;
 }
 
+function getTaskJobLabel(task) {
+  if (task.job?.title) return task.job.title;
+  if (task.job_id) return `Job #${task.job_id}`;
+  return null;
+}
+
 export default function DashboardPage() {
   const [data, setData] = useState(null);
   const [activity, setActivity] = useState([]);
@@ -80,8 +86,21 @@ export default function DashboardPage() {
     if (!data?.ok) return [];
 
     const totalLeads = data.leads?.total ?? 0;
-    const byStatus = Array.isArray(data.leads?.byStatus) ? data.leads.byStatus : [];
-    const newCount = byStatus.find((s) => s.status === "New")?.count ?? 0;
+    const leadByStatus = Array.isArray(data.leads?.byStatus) ? data.leads.byStatus : [];
+    const newCount = leadByStatus.find((s) => s.status === "New")?.count ?? 0;
+
+    const jobByStatus = Array.isArray(data.jobs?.byStatus) ? data.jobs.byStatus : [];
+    const closedJob = new Set(["Closed Won", "Closed Lost"]);
+    const openJobs = jobByStatus
+      .filter((r) => !closedJob.has(r.status))
+      .reduce((sum, r) => sum + (r.count ?? 0), 0);
+
+    const totalJobs = data.jobs?.total ?? 0;
+
+    const estByStatus = Array.isArray(data.estimates?.byStatus) ? data.estimates.byStatus : [];
+    const totalEstimates = data.estimates?.total ?? 0;
+    const draftEst = estByStatus.find((s) => s.status === "Draft")?.count ?? 0;
+    const sentEst = estByStatus.find((s) => s.status === "Sent")?.count ?? 0;
 
     const counts = data.tasks?.counts || {};
     const overdue = counts.overdue ?? 0;
@@ -90,16 +109,16 @@ export default function DashboardPage() {
 
     return [
       {
-        label: "Total Leads",
-        value: String(totalLeads),
-        sub: `${newCount} new`,
-        href: "/leads",
+        label: "Jobs",
+        value: String(totalJobs),
+        sub: `${openJobs} open`,
+        href: "/jobs",
       },
       {
-        label: "New",
-        value: String(newCount),
-        sub: "Status = New",
-        href: "/leads?status=New",
+        label: "Estimates",
+        value: String(totalEstimates),
+        sub: `${draftEst} draft · ${sentEst} sent`,
+        href: "/jobs",
       },
       {
         label: "Due Today",
@@ -112,6 +131,18 @@ export default function DashboardPage() {
         value: String(next7),
         sub: "Upcoming tasks",
         href: "/tasks?range=7",
+      },
+      {
+        label: "Total Leads",
+        value: String(totalLeads),
+        sub: `${newCount} new`,
+        href: "/leads",
+      },
+      {
+        label: "New Leads",
+        value: String(newCount),
+        sub: "Status = New",
+        href: "/leads?status=New",
       },
     ];
   }, [data]);
@@ -128,6 +159,14 @@ export default function DashboardPage() {
 
   const statusSummary = useMemo(() => {
     return Array.isArray(data?.leads?.byStatus) ? data.leads.byStatus : [];
+  }, [data]);
+
+  const jobStatusSummary = useMemo(() => {
+    return Array.isArray(data?.jobs?.byStatus) ? data.jobs.byStatus : [];
+  }, [data]);
+
+  const estimateStatusSummary = useMemo(() => {
+    return Array.isArray(data?.estimates?.byStatus) ? data.estimates.byStatus : [];
   }, [data]);
 
   const greeting = user?.first_name ? `Welcome back, ${user.first_name}` : "Welcome back";
@@ -150,6 +189,23 @@ export default function DashboardPage() {
       </Link>
     );
 
+  const jobsByStatusTitle =
+    jobStatusSummary.length > 0 ? (
+      <Link className="hover:underline" href="/jobs">
+        All jobs
+      </Link>
+    ) : (
+      <Link className="text-muted hover:underline" href="/jobs">
+        No jobs yet
+      </Link>
+    );
+
+  const estimatesByStatusTitle = (
+    <Link className="hover:underline" href="/jobs">
+      By status
+    </Link>
+  );
+
   const taskTitle = (
     <div className="flex gap-5">
       <Link className="hover:underline" href="/tasks">
@@ -160,14 +216,29 @@ export default function DashboardPage() {
 
   function TaskRow({ t }) {
     const leadName = getTaskLeadLabel(t);
+    const jobLabel = getTaskJobLabel(t);
+    const jobPart = t.job?.id ? (
+      <Link
+        href={`/jobs/${t.job.id}`}
+        className="hover:text-main font-medium underline-offset-2 hover:underline"
+      >
+        {t.job?.title || jobLabel}
+      </Link>
+    ) : jobLabel ? (
+      <span>{jobLabel}</span>
+    ) : null;
 
     return (
       <div className="border-base hover:bg-accent rounded-lg border p-3 transition">
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0">
             <div className="font-medium">{t.title}</div>
-            <div className="text-muted mt-1 text-sm">
-              {(leadName ? `${leadName} • ` : "") + formatDue(t.due_date)}
+            <div className="text-muted mt-1 flex flex-wrap items-center gap-x-1 text-sm">
+              {leadName ? <span>{leadName}</span> : null}
+              {leadName && jobPart ? <span>·</span> : null}
+              {jobPart}
+              {leadName || jobPart ? <span>·</span> : null}
+              <span>{formatDue(t.due_date)}</span>
             </div>
           </div>
 
@@ -295,9 +366,9 @@ export default function DashboardPage() {
       }
     >
       <div className="space-y-6">
-        <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+        <div className="grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-6">
           {isInitialLoading
-            ? Array.from({ length: 4 }).map((_, i) => <StatCardSkeleton key={i} />)
+            ? Array.from({ length: 6 }).map((_, i) => <StatCardSkeleton key={i} />)
             : stats.map((s) => <StatCard key={s.label} {...s} />)}
         </div>
 
@@ -388,6 +459,69 @@ export default function DashboardPage() {
                   loading={loadingActivity}
                   maxPerGroup={2}
                 />
+              )}
+            </CollapsibleSection>
+
+            <CollapsibleSection title={jobsByStatusTitle} defaultOpen={true}>
+              {isInitialLoading ? (
+                <div className="space-y-2">
+                  {Array.from({ length: 4 }).map((_, i) => (
+                    <div key={i} className="border-base rounded-lg border p-3">
+                      <div className="flex items-center justify-between">
+                        <Skeleton className="h-5 w-24 rounded-full" />
+                        <Skeleton className="h-4 w-8" />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : jobStatusSummary.length === 0 ? (
+                <div className="text-muted text-sm">No jobs yet</div>
+              ) : (
+                <div className="space-y-2">
+                  {jobStatusSummary.map((row) => (
+                    <Link
+                      key={row.status}
+                      className="border-base hover:bg-accent flex items-center justify-between rounded-lg border p-3 transition"
+                      href={`/jobs?status=${encodeURIComponent(row.status)}`}
+                    >
+                      <div className="flex items-center gap-2">
+                        <Badge>{row.status}</Badge>
+                      </div>
+                      <div className="text-sm font-semibold">{row.count}</div>
+                    </Link>
+                  ))}
+                </div>
+              )}
+            </CollapsibleSection>
+
+            <CollapsibleSection title={estimatesByStatusTitle} defaultOpen={true}>
+              {isInitialLoading ? (
+                <div className="space-y-2">
+                  {Array.from({ length: 3 }).map((_, i) => (
+                    <div key={i} className="border-base rounded-lg border p-3">
+                      <div className="flex items-center justify-between">
+                        <Skeleton className="h-5 w-20 rounded-full" />
+                        <Skeleton className="h-4 w-8" />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : estimateStatusSummary.length === 0 ? (
+                <div className="text-muted text-sm">No estimates yet</div>
+              ) : (
+                <div className="space-y-2">
+                  {estimateStatusSummary.map((row) => (
+                    <div
+                      key={row.status}
+                      className="border-base flex items-center justify-between rounded-lg border p-3"
+                    >
+                      <div className="flex items-center gap-2">
+                        <Badge>{row.status}</Badge>
+                      </div>
+                      <div className="text-sm font-semibold">{row.count}</div>
+                    </div>
+                  ))}
+                </div>
               )}
             </CollapsibleSection>
 
