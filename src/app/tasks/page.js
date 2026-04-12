@@ -1,8 +1,8 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { Suspense, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { useSearchParams } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { AppShell } from "@/components/app-shell";
 import { ToggleFormSection } from "@/components/toggle-form-section";
 import { TaskForm, createEmptyTaskForm } from "@/components/forms/task-form";
@@ -21,6 +21,17 @@ function SummaryCard({ label, value, sub }) {
   );
 }
 
+function parseDuePresetFromSearch(searchParams) {
+  const dp = searchParams.get("duePreset");
+  if (dp === "overdue" || dp === "due_today" || dp === "next_7_days") {
+    return dp;
+  }
+  if (searchParams.get("due") === "today") return "due_today";
+  if (searchParams.get("due") === "overdue") return "overdue";
+  if (searchParams.get("range") === "7") return "next_7_days";
+  return "";
+}
+
 function TaskStatusBadge({ status }) {
   const normalized = String(status || "").toLowerCase();
 
@@ -35,7 +46,8 @@ function TaskStatusBadge({ status }) {
   return <span className="status-chip">{status || "Pending"}</span>;
 }
 
-export default function TasksPage() {
+function TasksPageInner() {
+  const router = useRouter();
   const searchParams = useSearchParams();
 
   const prefillLeadId = searchParams.get("lead_id") || "";
@@ -72,6 +84,21 @@ export default function TasksPage() {
   );
 
   const isInitialLoading = loadingSummary && loadingTasks;
+
+  const duePreset = useMemo(() => parseDuePresetFromSearch(searchParams), [searchParams]);
+
+  function replaceDuePresetInUrl(next) {
+    const p = new URLSearchParams(searchParams.toString());
+    if (next) {
+      p.set("duePreset", next);
+    } else {
+      p.delete("duePreset");
+    }
+    p.delete("due");
+    p.delete("range");
+    const qs = p.toString();
+    router.replace(qs ? `/tasks?${qs}` : "/tasks");
+  }
 
   useEffect(() => {
     if (shouldOpenCreate) {
@@ -125,12 +152,16 @@ export default function TasksPage() {
       params.set("q", title.trim());
     }
 
+    if (duePreset) {
+      params.set("duePreset", duePreset);
+    }
+
     params.set("limit", "50");
     params.set("offset", "0");
 
     const s = params.toString();
     return s ? `?${s}` : "";
-  }, [status, linkedFilter, leadId, jobId, title]);
+  }, [status, linkedFilter, leadId, jobId, title, duePreset]);
 
   async function loadSummary() {
     setLoadingSummary(true);
@@ -349,25 +380,54 @@ export default function TasksPage() {
           </ToggleFormSection>
 
           <section className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-            <SummaryCard
-              label="Overdue"
-              value={loadingSummary ? "…" : String(overdueCount)}
-              sub="Needs attention"
-            />
-            <SummaryCard
-              label="Due Today"
-              value={loadingSummary ? "…" : String(dueTodayCount)}
-              sub="Due this day"
-            />
-            <SummaryCard
-              label="Next Up"
-              value={loadingSummary ? "…" : String(nextUpCount)}
-              sub="Upcoming work"
-            />
+            <Link
+              href="/tasks?duePreset=overdue"
+              className="block rounded-lg transition hover:opacity-95"
+            >
+              <SummaryCard
+                label="Overdue"
+                value={loadingSummary ? "…" : String(overdueCount)}
+                sub="Needs attention"
+              />
+            </Link>
+            <Link
+              href="/tasks?duePreset=due_today"
+              className="block rounded-lg transition hover:opacity-95"
+            >
+              <SummaryCard
+                label="Due Today"
+                value={loadingSummary ? "…" : String(dueTodayCount)}
+                sub="Due this day"
+              />
+            </Link>
+            <Link
+              href="/tasks?duePreset=next_7_days"
+              className="block rounded-lg transition hover:opacity-95"
+            >
+              <SummaryCard
+                label="Next Up"
+                value={loadingSummary ? "…" : String(nextUpCount)}
+                sub="Next 7 days"
+              />
+            </Link>
           </section>
 
           <section className="card rounded-lg p-4">
             <div className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
+              <div className="w-full lg:w-44">
+                <label className="text-muted text-xs">Due window</label>
+                <select
+                  className="input mt-1"
+                  value={duePreset}
+                  onChange={(e) => replaceDuePresetInUrl(e.target.value)}
+                >
+                  <option value="">All tasks</option>
+                  <option value="overdue">Overdue</option>
+                  <option value="due_today">Due today</option>
+                  <option value="next_7_days">Next 7 days</option>
+                </select>
+              </div>
+
               <div className="w-full lg:w-44">
                 <label className="text-muted text-xs">Status</label>
                 <select
@@ -442,7 +502,7 @@ export default function TasksPage() {
           </section>
 
           <CollapsibleSection title={taskTitle} defaultOpen={true}>
-            <div className="overflow-x-auto">
+            <div className="scrollbar-theme overflow-x-auto">
               <table className="w-full text-sm">
                 <thead className="bg-accent">
                   <tr className="text-left">
@@ -476,28 +536,36 @@ export default function TasksPage() {
                             href={`/tasks/${task.id}`}
                             className="block hover:opacity-80"
                           >
-                            <div className="font-medium underline underline-offset-4">
+                            <div
+                              className="truncate font-medium underline underline-offset-4"
+                              style={{ maxWidth: 240, display: "block" }}
+                              title={task.title}
+                            >
                               {task.title}
                             </div>
                             {task.description ? (
-                              <div className="text-muted mt-1 text-xs">
+                              <div
+                                className="text-muted mt-1 truncate text-xs"
+                                style={{ maxWidth: 240, display: "block" }}
+                                title={task.description}
+                              >
                                 {task.description}
                               </div>
                             ) : null}
                           </Link>
                         </td>
 
-                        <td className="px-4 py-3">
+                        <td className="truncate px-4 py-3">
                           <LinkedEntityCell task={task} />
                         </td>
 
-                        <td className="px-4 py-3">{formatDue(task.due_date)}</td>
+                        <td className="truncate px-4 py-3">{formatDue(task.due_date)}</td>
 
-                        <td className="px-4 py-3">
+                        <td className="truncate px-4 py-3">
                           <TaskStatusBadge status={task.status} />
                         </td>
 
-                        <td className="px-4 py-3 text-right">
+                        <td className="truncate px-4 py-3 text-right">
                           <div className="flex justify-end gap-2">
                             <Link
                               href={`/tasks/${task.id}`}
@@ -540,5 +608,19 @@ export default function TasksPage() {
         </div>
       )}
     </AppShell>
+  );
+}
+
+export default function TasksPage() {
+  return (
+    <Suspense
+      fallback={
+        <AppShell title="Tasks">
+          <div className="text-muted p-4 text-sm">Loading…</div>
+        </AppShell>
+      }
+    >
+      <TasksPageInner />
+    </Suspense>
   );
 }

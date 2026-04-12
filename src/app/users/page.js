@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useLayoutEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 
 import { AppShell } from "@/components/app-shell";
@@ -11,18 +11,40 @@ import {
   FilterBarSkeleton,
   Skeleton,
   StatCardSkeleton,
+  TableRowSkeleton,
 } from "@/components/loading/loadingSkeletons";
+
+/** 12rem — matches `min-w-[12rem]` menus */
+const TABLE_DROPDOWN_MENU_WIDTH_PX = 192;
+const TABLE_DROPDOWN_MENU_GAP_PX = 4;
+
+function getTableDropdownMenuPosition(triggerEl) {
+  const rect = triggerEl.getBoundingClientRect();
+  let left = rect.right - TABLE_DROPDOWN_MENU_WIDTH_PX;
+  const pad = 8;
+  left = Math.max(
+    pad,
+    Math.min(left, window.innerWidth - TABLE_DROPDOWN_MENU_WIDTH_PX - pad),
+  );
+  return {
+    top: rect.bottom + TABLE_DROPDOWN_MENU_GAP_PX,
+    left,
+    width: TABLE_DROPDOWN_MENU_WIDTH_PX,
+  };
+}
 
 function badgeClass(status) {
   switch (status) {
     case "Active":
       return "border-green-300 bg-green-50 text-green-700";
-    case "Pending Invite":
+    case "Pending":
       return "border-yellow-300 bg-yellow-50 text-yellow-700";
     case "Expired":
       return "border-red-300 bg-red-50 text-red-700";
     case "Disabled":
       return "border-red-300 bg-red-50 text-red-700";
+    case "Revoked":
+      return "border-slate-300 bg-slate-100 text-slate-700";
     default:
       return "border-base bg-surface text-main";
   }
@@ -55,6 +77,12 @@ export default function UsersPage() {
   const [error, setError] = useState("");
   const [inviteModalOpen, setInviteModalOpen] = useState(false);
   const [busyId, setBusyId] = useState(null);
+  const [successMessage, setSuccessMessage] = useState("");
+  const [openActionsUserId, setOpenActionsUserId] = useState(null);
+  /** Viewport-fixed placement so the menu does not expand `overflow-x-auto` scroll height */
+  const [actionsMenuPosition, setActionsMenuPosition] = useState(null);
+  const [openRoleUserId, setOpenRoleUserId] = useState(null);
+  const [roleMenuPosition, setRoleMenuPosition] = useState(null);
   const [statusFilter, setStatusFilter] = useState("all");
   const [searchQuery, setSearchQuery] = useState("");
   const [roleFilter, setRoleFilter] = useState("all");
@@ -115,6 +143,76 @@ export default function UsersPage() {
 
     boot();
   }, [router]);
+
+  function syncActionsMenuPosition(userId) {
+    if (userId == null) {
+      setActionsMenuPosition(null);
+      return;
+    }
+    const el = document.querySelector(`[data-user-actions-menu="${userId}"]`);
+    if (el) {
+      setActionsMenuPosition(getTableDropdownMenuPosition(el));
+    }
+  }
+
+  function syncRoleMenuPosition(userId) {
+    if (userId == null) {
+      setRoleMenuPosition(null);
+      return;
+    }
+    const el = document.querySelector(`[data-user-role-menu="${userId}"]`);
+    if (el) {
+      setRoleMenuPosition(getTableDropdownMenuPosition(el));
+    }
+  }
+
+  useLayoutEffect(() => {
+    syncActionsMenuPosition(openActionsUserId);
+    syncRoleMenuPosition(openRoleUserId);
+  }, [openActionsUserId, openRoleUserId]);
+
+  useEffect(() => {
+    if (openActionsUserId == null && openRoleUserId == null) return undefined;
+
+    function handlePointerDown(e) {
+      if (e.target.closest("[data-user-actions-menu]")) {
+        return;
+      }
+      if (e.target.closest("[data-user-role-menu]")) {
+        return;
+      }
+      setOpenActionsUserId(null);
+      setActionsMenuPosition(null);
+      setOpenRoleUserId(null);
+      setRoleMenuPosition(null);
+    }
+
+    function handleKeyDown(e) {
+      if (e.key === "Escape") {
+        setOpenActionsUserId(null);
+        setActionsMenuPosition(null);
+        setOpenRoleUserId(null);
+        setRoleMenuPosition(null);
+      }
+    }
+
+    function handleReposition() {
+      syncActionsMenuPosition(openActionsUserId);
+      syncRoleMenuPosition(openRoleUserId);
+    }
+
+    window.addEventListener("resize", handleReposition);
+    document.addEventListener("scroll", handleReposition, true);
+
+    document.addEventListener("mousedown", handlePointerDown);
+    document.addEventListener("keydown", handleKeyDown);
+    return () => {
+      window.removeEventListener("resize", handleReposition);
+      document.removeEventListener("scroll", handleReposition, true);
+      document.removeEventListener("mousedown", handlePointerDown);
+      document.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [openActionsUserId, openRoleUserId]);
 
   const counts = useMemo(() => {
     return {
@@ -194,6 +292,7 @@ export default function UsersPage() {
   async function resendInvite(id) {
     setBusyId(id);
     setError("");
+    setSuccessMessage("");
 
     try {
       await api(`/users/invite/${id}/resend`, {
@@ -209,9 +308,65 @@ export default function UsersPage() {
     }
   }
 
+  async function copyInviteLink(id) {
+    setBusyId(id);
+    setError("");
+    setSuccessMessage("");
+
+    try {
+      const data = await api(`/users/invite/${id}/resend`, {
+        method: "POST",
+      });
+
+      const url = data?.invite_url;
+      if (url && typeof navigator !== "undefined" && navigator.clipboard?.writeText) {
+        await navigator.clipboard.writeText(url);
+        setSuccessMessage("Invite link copied to clipboard.");
+        window.setTimeout(() => setSuccessMessage(""), 4000);
+      } else if (url) {
+        setError("Clipboard is not available in this browser.");
+      }
+
+      await loadUsers();
+    } catch (err) {
+      console.error(err);
+      setError(err.message || "Failed to copy invite link.");
+    } finally {
+      setBusyId(null);
+    }
+  }
+
+  async function revokeInvite(id) {
+    const confirmed = window.confirm(
+      "Revoke this invite? The link will stop working. You can send a new invite later.",
+    );
+    if (!confirmed) return;
+
+    setBusyId(id);
+    setError("");
+    setSuccessMessage("");
+
+    try {
+      await api(`/users/invite/${id}/revoke`, {
+        method: "POST",
+      });
+
+      await loadUsers();
+    } catch (err) {
+      console.error(err);
+      setError(err.message || "Failed to revoke invite.");
+    } finally {
+      setBusyId(null);
+    }
+  }
+
   function getDisplayStatus(user) {
     if (user.status === "active") return "Active";
     if (user.status === "disabled") return "Disabled";
+
+    if (user.status === "invited" && user.invite_revoked_at) {
+      return "Revoked";
+    }
 
     if (
       user.status === "invited" &&
@@ -221,12 +376,13 @@ export default function UsersPage() {
       return "Expired";
     }
 
-    if (user.status === "invited") return "Pending Invite";
+    if (user.status === "invited") return "Pending";
 
     return user.status;
   }
 
   const isOwner = currentUser?.role === "owner";
+  const isAdmin = currentUser?.role === "admin";
 
   if (loadingUser) {
     return (
@@ -265,11 +421,13 @@ export default function UsersPage() {
   return (
     <AppShell
       title="Users"
-      right={
-        <button onClick={() => setInviteModalOpen(true)} className="btn">
-          Invite User
-        </button>
-      }
+      /* right={
+        isAdmin || isOwner ? (
+          <button onClick={() => setInviteModalOpen(true)} className="btn">
+            Invite User
+          </button>
+        ) : null
+      } */
     >
       <div className="space-y-6">
         <section className="grid grid-cols-2 gap-4 lg:grid-cols-4">
@@ -309,6 +467,19 @@ export default function UsersPage() {
           <div className="rounded-lg border border-red-300 bg-red-50 px-4 py-3 text-sm text-red-700">
             {error}
           </div>
+        ) : null}
+
+        {successMessage ? (
+          <div className="rounded-lg border border-green-300 bg-green-50 px-4 py-3 text-sm text-green-800">
+            {successMessage}
+          </div>
+        ) : null}
+
+        {isAdmin ? (
+          <p className="text-muted text-sm">
+            As an admin, you cannot change roles or account status for workspace owners.
+            Ask an owner if you need changes to an owner account.
+          </p>
         ) : null}
 
         {isInitialLoading ? (
@@ -358,9 +529,19 @@ export default function UsersPage() {
           </section>
         )}
 
-        <CollapsibleSection title={usersTitle} defaultOpen={true}>
+        <CollapsibleSection
+          title={usersTitle}
+          defaultOpen={true}
+          actions={
+            isAdmin || isOwner ? (
+              <button onClick={() => setInviteModalOpen(true)} className="btn">
+                Invite User
+              </button>
+            ) : null
+          }
+        >
           {loadingUsers ? (
-            <div className="overflow-x-auto">
+            <div className="scrollbar-theme overflow-x-auto">
               <table className="min-w-full text-sm">
                 <thead className="bg-accent border-b text-left">
                   <tr>
@@ -387,7 +568,7 @@ export default function UsersPage() {
               No users match the selected filters.
             </div>
           ) : (
-            <div className="overflow-x-auto">
+            <div className="scrollbar-theme overflow-x-auto">
               <table className="min-w-full text-sm">
                 <thead className="bg-accent border-b text-left">
                   <tr>
@@ -404,12 +585,20 @@ export default function UsersPage() {
                 <tbody>
                   {filteredUsers.map((user) => {
                     const isSelf = currentUser?.id === user.id;
+                    const adminLockedOwnerRow =
+                      currentUser?.role === "admin" && user.role === "owner" && !isSelf;
                     const canDelete =
                       user.status === "invited" || user.status === "disabled";
                     const displayStatus = getDisplayStatus(user);
-                    const canResend = user.status === "invited";
+                    const canInviteActions =
+                      user.status === "invited" && !adminLockedOwnerRow;
+                    const canRevokeInvite =
+                      user.status === "invited" &&
+                      !user.invite_revoked_at &&
+                      !adminLockedOwnerRow;
                     const isExpired =
                       user.status === "invited" &&
+                      !user.invite_revoked_at &&
                       user.invite_expires_at &&
                       new Date(user.invite_expires_at) < new Date();
 
@@ -437,24 +626,108 @@ export default function UsersPage() {
                         </td>
 
                         <td className="px-5 py-4 align-top">
-                          <select
-                            value={user.role}
-                            disabled={busyId === user.id || isSelf}
-                            title={
-                              isSelf
-                                ? "You can't change your own role"
-                                : undefined
+                          {(() => {
+                            const roleLocked =
+                              busyId === user.id || isSelf || adminLockedOwnerRow;
+                            const roleOptions = [
+                              { value: "agent", label: "Agent" },
+                              { value: "admin", label: "Admin" },
+                              ...(isOwner ? [{ value: "owner", label: "Owner" }] : []),
+                            ];
+                            const roleMenuOpen = openRoleUserId === user.id;
+
+                            if (roleLocked) {
+                              return (
+                                <span
+                                  className="text-muted inline-block max-w-[160px] truncate text-sm capitalize"
+                                  title={
+                                    isSelf
+                                      ? "You can't change your own role"
+                                      : adminLockedOwnerRow
+                                        ? "Only an owner can change another owner's role or status."
+                                        : undefined
+                                  }
+                                >
+                                  {user.role}
+                                </span>
+                              );
                             }
-                            aria-label={`Role for ${user.email}`}
-                            onChange={(e) =>
-                              updateUser(user.id, { role: e.target.value })
-                            }
-                            className="input max-w-[140px] py-1"
-                          >
-                            <option value="agent">Agent</option>
-                            <option value="admin">Admin</option>
-                            {isOwner ? <option value="owner">Owner</option> : null}
-                          </select>
+
+                            return (
+                              <div
+                                className="relative flex justify-start"
+                                data-user-role-menu={user.id}
+                              >
+                                <button
+                                  type="button"
+                                  className="btn flex max-w-[160px] items-center gap-1 px-3 py-1.5 text-xs capitalize"
+                                  aria-expanded={roleMenuOpen}
+                                  aria-haspopup="listbox"
+                                  aria-label={`Role for ${user.email}`}
+                                  disabled={busyId === user.id}
+                                  onClick={(e) => {
+                                    setOpenActionsUserId(null);
+                                    setActionsMenuPosition(null);
+                                    const wrap = e.currentTarget.closest(
+                                      "[data-user-role-menu]",
+                                    );
+                                    if (openRoleUserId === user.id) {
+                                      setOpenRoleUserId(null);
+                                      setRoleMenuPosition(null);
+                                      return;
+                                    }
+                                    if (wrap) {
+                                      setRoleMenuPosition(
+                                        getTableDropdownMenuPosition(wrap),
+                                      );
+                                    }
+                                    setOpenRoleUserId(user.id);
+                                  }}
+                                >
+                                  <span className="min-w-0 truncate">{user.role}</span>
+                                  <span className="text-muted shrink-0" aria-hidden>
+                                    ▾
+                                  </span>
+                                </button>
+
+                                {roleMenuOpen && roleMenuPosition ? (
+                                  <div
+                                    role="listbox"
+                                    aria-label={`Choose role for ${user.email}`}
+                                    className="dropdown-panel fixed z-[100] min-w-[12rem] overflow-hidden py-1 shadow-lg"
+                                    style={{
+                                      top: roleMenuPosition.top,
+                                      left: roleMenuPosition.left,
+                                      width: roleMenuPosition.width,
+                                    }}
+                                  >
+                                    {roleOptions.map((opt) => (
+                                      <button
+                                        key={opt.value}
+                                        type="button"
+                                        role="option"
+                                        aria-selected={user.role === opt.value}
+                                        className={`hover:bg-accent focus-visible:bg-accent block w-full px-3 py-2 text-left text-xs capitalize transition-colors ${
+                                          user.role === opt.value
+                                            ? "bg-accent-soft font-medium"
+                                            : ""
+                                        }`}
+                                        onClick={() => {
+                                          setOpenRoleUserId(null);
+                                          setRoleMenuPosition(null);
+                                          if (opt.value !== user.role) {
+                                            updateUser(user.id, { role: opt.value });
+                                          }
+                                        }}
+                                      >
+                                        {opt.label}
+                                      </button>
+                                    ))}
+                                  </div>
+                                ) : null}
+                              </div>
+                            );
+                          })()}
                         </td>
 
                         <td className="px-5 py-4 align-top">
@@ -465,7 +738,15 @@ export default function UsersPage() {
                               {displayStatus}
                             </span>
 
-                            {user.status === "invited" && user.invite_expires_at ? (
+                            {user.status === "invited" && user.invite_revoked_at ? (
+                              <span className="text-muted text-xs">
+                                Invite was revoked
+                              </span>
+                            ) : null}
+
+                            {user.status === "invited" &&
+                            user.invite_expires_at &&
+                            !user.invite_revoked_at ? (
                               <span className="text-muted text-xs">
                                 {isExpired
                                   ? "Invite expired"
@@ -496,59 +777,171 @@ export default function UsersPage() {
                         </td>
 
                         <td className="px-5 py-4 align-top">
-                          <div className="flex flex-wrap items-center gap-2">
-                            {user.status === "active" && !isSelf ? (
-                              <button
-                                onClick={() =>
-                                  updateUser(user.id, { status: "disabled" })
-                                }
-                                disabled={busyId === user.id}
-                                title="Disable this user account"
-                                className="btn px-3 py-1.5 text-xs"
-                              >
-                                Disable
-                              </button>
-                            ) : null}
+                          {(() => {
+                            const canDisable =
+                              user.status === "active" && !isSelf && !adminLockedOwnerRow;
+                            const canReenable =
+                              user.status === "disabled" && !adminLockedOwnerRow;
+                            const canDeleteUser =
+                              canDelete && !isSelf && !adminLockedOwnerRow;
+                            const hasRowActions =
+                              canDisable ||
+                              canReenable ||
+                              canInviteActions ||
+                              canRevokeInvite ||
+                              canDeleteUser;
 
-                            {user.status === "disabled" ? (
-                              <button
-                                onClick={() => updateUser(user.id, { status: "active" })}
-                                disabled={busyId === user.id}
-                                title="Restore this user account"
-                                className="btn px-3 py-1.5 text-xs"
-                              >
-                                Re-enable
-                              </button>
-                            ) : null}
+                            if (isSelf) {
+                              return (
+                                <span className="text-muted text-xs">
+                                  Current account
+                                </span>
+                              );
+                            }
 
-                            {canResend ? (
-                              <button
-                                onClick={() => resendInvite(user.id)}
-                                disabled={busyId === user.id}
-                                title={
-                                  isExpired
-                                    ? "Invite expired — resend sends a new invite email"
-                                    : "Send another invite email"
-                                }
-                                className="btn px-3 py-1.5 text-xs"
-                              >
-                                {busyId === user.id ? "Sending..." : "Resend Invite"}
-                              </button>
-                            ) : null}
+                            if (!hasRowActions) {
+                              return <span className="text-muted text-xs">—</span>;
+                            }
 
-                            {canDelete && !isSelf ? (
-                              <button
-                                onClick={() => deleteUser(user.id)}
-                                disabled={busyId === user.id}
-                                title="Permanently remove invited or disabled user"
-                                className="btn px-3 py-1.5 text-xs text-red-600"
+                            const menuOpen = openActionsUserId === user.id;
+                            const busy = busyId === user.id;
+
+                            const menuItems = [];
+                            if (canDisable) {
+                              menuItems.push({
+                                key: "disable",
+                                label: "Disable account",
+                                itemClassName: "text-xs",
+                                disabled: false,
+                                onClick: () => {
+                                  setOpenActionsUserId(null);
+                                  updateUser(user.id, { status: "disabled" });
+                                },
+                              });
+                            }
+                            if (canReenable) {
+                              menuItems.push({
+                                key: "reenable",
+                                label: "Re-enable account",
+                                itemClassName: "text-xs",
+                                disabled: false,
+                                onClick: () => {
+                                  setOpenActionsUserId(null);
+                                  updateUser(user.id, { status: "active" });
+                                },
+                              });
+                            }
+                            if (canInviteActions) {
+                              menuItems.push({
+                                key: "copy",
+                                label: "Copy invite link",
+                                itemClassName: "text-xs",
+                                disabled: busy,
+                                onClick: () => {
+                                  setOpenActionsUserId(null);
+                                  copyInviteLink(user.id);
+                                },
+                              });
+                              menuItems.push({
+                                key: "resend",
+                                label: "Resend invite",
+                                itemClassName: "text-xs",
+                                disabled: busy,
+                                onClick: () => {
+                                  setOpenActionsUserId(null);
+                                  resendInvite(user.id);
+                                },
+                              });
+                            }
+                            if (canRevokeInvite) {
+                              menuItems.push({
+                                key: "revoke",
+                                label: "Revoke invite",
+                                itemClassName: "text-xs text-red-700",
+                                disabled: busy,
+                                onClick: () => {
+                                  setOpenActionsUserId(null);
+                                  revokeInvite(user.id);
+                                },
+                              });
+                            }
+                            if (canDeleteUser) {
+                              menuItems.push({
+                                key: "delete",
+                                label: "Delete user",
+                                itemClassName: "text-xs text-red-600",
+                                disabled: busy,
+                                onClick: () => {
+                                  setOpenActionsUserId(null);
+                                  deleteUser(user.id);
+                                },
+                              });
+                            }
+
+                            return (
+                              <div
+                                className="relative flex justify-end"
+                                data-user-actions-menu={user.id}
                               >
-                                Delete
-                              </button>
-                            ) : isSelf ? (
-                              <span className="text-muted text-xs">Current account</span>
-                            ) : null}
-                          </div>
+                                <button
+                                  type="button"
+                                  className="btn flex items-center gap-1 px-3 py-1.5 text-xs"
+                                  aria-expanded={menuOpen}
+                                  aria-haspopup="menu"
+                                  disabled={busy}
+                                  onClick={(e) => {
+                                    const wrap = e.currentTarget.closest(
+                                      "[data-user-actions-menu]",
+                                    );
+                                    if (openActionsUserId === user.id) {
+                                      setOpenActionsUserId(null);
+                                      setActionsMenuPosition(null);
+                                      return;
+                                    }
+                                    setOpenRoleUserId(null);
+                                    setRoleMenuPosition(null);
+                                    if (wrap) {
+                                      setActionsMenuPosition(
+                                        getTableDropdownMenuPosition(wrap),
+                                      );
+                                    }
+                                    setOpenActionsUserId(user.id);
+                                  }}
+                                >
+                                  {busy ? "…" : "Actions"}
+                                  <span className="text-muted" aria-hidden>
+                                    ▾
+                                  </span>
+                                </button>
+
+                                {menuOpen && actionsMenuPosition ? (
+                                  <div
+                                    role="menu"
+                                    aria-label={`Actions for ${user.email}`}
+                                    className="dropdown-panel fixed z-[100] min-w-[12rem] overflow-hidden py-1 shadow-lg"
+                                    style={{
+                                      top: actionsMenuPosition.top,
+                                      left: actionsMenuPosition.left,
+                                      width: actionsMenuPosition.width,
+                                    }}
+                                  >
+                                    {menuItems.map((item) => (
+                                      <button
+                                        key={item.key}
+                                        type="button"
+                                        role="menuitem"
+                                        disabled={item.disabled}
+                                        className={`hover:bg-accent focus-visible:bg-accent block w-full px-3 py-2 text-left transition-colors ${item.itemClassName}`}
+                                        onClick={item.onClick}
+                                      >
+                                        {item.label}
+                                      </button>
+                                    ))}
+                                  </div>
+                                ) : null}
+                              </div>
+                            );
+                          })()}
                         </td>
                       </tr>
                     );

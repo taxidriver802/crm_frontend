@@ -85,6 +85,18 @@ export default function JobDetailPage() {
   const [loadingEstimates, setLoadingEstimates] = useState(true);
   const [estimatesError, setEstimatesError] = useState("");
 
+  const [measurements, setMeasurements] = useState([]);
+  const [loadingMeasurements, setLoadingMeasurements] = useState(true);
+  const [measurementsError, setMeasurementsError] = useState("");
+  const [measurementOpen, setMeasurementOpen] = useState(false);
+  const [measurementForm, setMeasurementForm] = useState({
+    label: "",
+    value: "",
+    unit: "",
+  });
+  const [editingMeasurement, setEditingMeasurement] = useState(null);
+  const [savingMeasurement, setSavingMeasurement] = useState(false);
+
   const [limit, setLimit] = useState(50);
   const [hasMoreActivity, setHasMoreActivity] = useState(false);
 
@@ -179,6 +191,20 @@ export default function JobDetailPage() {
     }
   }
 
+  async function loadMeasurements() {
+    setLoadingMeasurements(true);
+    setMeasurementsError("");
+
+    try {
+      const res = await api(`/jobs/${id}/measurements`);
+      setMeasurements(res.measurements || []);
+    } catch (e) {
+      setMeasurementsError(e.message || "Failed to load measurements");
+    } finally {
+      setLoadingMeasurements(false);
+    }
+  }
+
   async function loadFiles() {
     try {
       setLoadingFiles(true);
@@ -202,6 +228,7 @@ export default function JobDetailPage() {
         loadFiles(),
         loadActivity(),
         loadEstimates(),
+        loadMeasurements(),
       ]);
     } catch (e) {
       setError(e.message || "Failed to load job");
@@ -235,6 +262,78 @@ export default function JobDetailPage() {
       setError(e.message || "Failed to update status");
     } finally {
       setUpdatingStatus(null);
+    }
+  }
+
+  async function handleSaveMeasurement(e) {
+    e.preventDefault();
+    if (!measurementForm.label.trim()) {
+      setMeasurementsError("Label is required.");
+      return;
+    }
+    const value = Number(measurementForm.value);
+    if (!Number.isFinite(value)) {
+      setMeasurementsError("Value must be a number.");
+      return;
+    }
+
+    setSavingMeasurement(true);
+    setMeasurementsError("");
+
+    try {
+      const payload = {
+        label: measurementForm.label.trim(),
+        value,
+        unit: measurementForm.unit.trim(),
+      };
+
+      if (editingMeasurement) {
+        await api(`/jobs/${id}/measurements/${editingMeasurement.id}`, {
+          method: "PATCH",
+          body: JSON.stringify(payload),
+        });
+      } else {
+        await api(`/jobs/${id}/measurements`, {
+          method: "POST",
+          body: JSON.stringify(payload),
+        });
+      }
+
+      setMeasurementForm({ label: "", value: "", unit: "" });
+      setEditingMeasurement(null);
+      setMeasurementOpen(false);
+      await loadMeasurements();
+    } catch (err) {
+      setMeasurementsError(err.message || "Could not save measurement");
+    } finally {
+      setSavingMeasurement(false);
+    }
+  }
+
+  function startEditMeasurement(m) {
+    setEditingMeasurement(m);
+    setMeasurementForm({
+      label: m.label || "",
+      value: String(m.value ?? ""),
+      unit: m.unit || "",
+    });
+    setMeasurementOpen(true);
+    setMeasurementsError("");
+  }
+
+  async function handleDeleteMeasurement(m) {
+    const ok = window.confirm("Delete this measurement?");
+    if (!ok) return;
+    setMeasurementsError("");
+    try {
+      await api(`/jobs/${id}/measurements/${m.id}`, { method: "DELETE" });
+      await loadMeasurements();
+      if (editingMeasurement?.id === m.id) {
+        setEditingMeasurement(null);
+        setMeasurementForm({ label: "", value: "", unit: "" });
+      }
+    } catch (err) {
+      setMeasurementsError(err.message || "Could not delete");
     }
   }
 
@@ -460,18 +559,7 @@ export default function JobDetailPage() {
   const isInitialLoading = loading && !job;
 
   return (
-    <AppShell
-      title={job ? job.title : "Job"}
-      right={
-        job ? (
-          <div className="flex gap-2">
-            <Link href={`/jobs/${id}/edit`} className="btn text-sm">
-              Edit Job
-            </Link>
-          </div>
-        ) : null
-      }
-    >
+    <AppShell title={job ? job.title : "Job"}>
       <div className="space-y-6">
         {isInitialLoading ? (
           <div className="space-y-6">
@@ -675,6 +763,138 @@ export default function JobDetailPage() {
                     ))}
                   </div>
                 )}
+              </CollapsibleSection>
+
+              <CollapsibleSection
+                title="Measurements"
+                description="Manual job dimensions for pricing context (optional)"
+                defaultOpen={true}
+                actions={
+                  <button
+                    type="button"
+                    className="btn px-3 py-2 text-xs"
+                    onClick={() => {
+                      if (measurementOpen) {
+                        setMeasurementOpen(false);
+                        setEditingMeasurement(null);
+                        setMeasurementForm({ label: "", value: "", unit: "" });
+                      } else {
+                        setMeasurementOpen(true);
+                        setEditingMeasurement(null);
+                        setMeasurementForm({ label: "", value: "", unit: "" });
+                      }
+                      setMeasurementsError("");
+                    }}
+                  >
+                    {measurementOpen ? "Close" : "+ Add"}
+                  </button>
+                }
+              >
+                {measurementsError ? (
+                  <div className="text-sm text-red-500">{measurementsError}</div>
+                ) : null}
+
+                {!isInitialLoading && loadingMeasurements ? (
+                  <SectionSkeleton rows={2} />
+                ) : measurements.length === 0 && !measurementOpen ? (
+                  <div className="text-muted rounded-lg border border-dashed p-4 text-sm">
+                    No measurements yet. Add roof areas, pitch, or other fields you use
+                    when quoting.
+                  </div>
+                ) : null}
+
+                {measurementOpen ? (
+                  <form
+                    onSubmit={handleSaveMeasurement}
+                    className="border-base bg-surface mb-4 space-y-3 rounded-lg border p-3"
+                  >
+                    <div className="grid gap-3 sm:grid-cols-3">
+                      <label className="block text-sm">
+                        <span className="text-muted text-xs">Label</span>
+                        <input
+                          className="border-base mt-1 w-full rounded-md border px-2 py-1.5 text-sm"
+                          value={measurementForm.label}
+                          onChange={(e) =>
+                            setMeasurementForm((f) => ({ ...f, label: e.target.value }))
+                          }
+                          placeholder="e.g. Main roof area"
+                        />
+                      </label>
+                      <label className="block text-sm">
+                        <span className="text-muted text-xs">Value</span>
+                        <input
+                          className="border-base mt-1 w-full rounded-md border px-2 py-1.5 text-sm"
+                          value={measurementForm.value}
+                          onChange={(e) =>
+                            setMeasurementForm((f) => ({ ...f, value: e.target.value }))
+                          }
+                          placeholder="e.g. 2400"
+                        />
+                      </label>
+                      <label className="block text-sm">
+                        <span className="text-muted text-xs">Unit</span>
+                        <input
+                          className="border-base mt-1 w-full rounded-md border px-2 py-1.5 text-sm"
+                          value={measurementForm.unit}
+                          onChange={(e) =>
+                            setMeasurementForm((f) => ({ ...f, unit: e.target.value }))
+                          }
+                          placeholder="sq ft"
+                        />
+                      </label>
+                    </div>
+                    <div className="flex flex-wrap gap-2">
+                      <button
+                        type="submit"
+                        className="btn px-3 py-1.5 text-xs"
+                        disabled={savingMeasurement}
+                      >
+                        {editingMeasurement ? "Update" : "Save"}
+                      </button>
+                      {editingMeasurement ? (
+                        <button
+                          type="button"
+                          className="btn btn-ghost px-3 py-1.5 text-xs"
+                          onClick={() => {
+                            setEditingMeasurement(null);
+                            setMeasurementForm({ label: "", value: "", unit: "" });
+                          }}
+                        >
+                          Cancel edit
+                        </button>
+                      ) : null}
+                    </div>
+                  </form>
+                ) : null}
+
+                {measurements.length > 0 ? (
+                  <div className="space-y-2">
+                    {measurements.map((m) => (
+                      <div
+                        key={m.id}
+                        className="hover:bg-accent flex items-start justify-between gap-3 rounded-lg border p-3"
+                      >
+                        <button
+                          type="button"
+                          className="min-w-0 flex-1 text-left"
+                          onClick={() => startEditMeasurement(m)}
+                        >
+                          <div className="font-medium">{m.label}</div>
+                          <div className="text-muted mt-1 text-sm">
+                            {m.value} {m.unit || ""}
+                          </div>
+                        </button>
+                        <button
+                          type="button"
+                          className="text-muted text-xs underline"
+                          onClick={() => handleDeleteMeasurement(m)}
+                        >
+                          Delete
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                ) : null}
               </CollapsibleSection>
 
               <CollapsibleSection

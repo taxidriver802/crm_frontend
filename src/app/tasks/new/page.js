@@ -1,12 +1,12 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { Suspense, useEffect, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { AppShell } from "@/components/app-shell";
 import { TaskForm, createEmptyTaskForm } from "@/components/forms/task-form";
 import { api } from "@/lib/api";
 
-export default function NewTaskPage() {
+function NewTaskPageInner() {
   const router = useRouter();
   const params = useSearchParams();
 
@@ -170,5 +170,21 @@ export default function NewTaskPage() {
         />
       </section>
     </AppShell>
+  );
+}
+
+export default function NewTaskPage() {
+  return (
+    <Suspense
+      fallback={
+        <AppShell title="New Task">
+          <section className="card rounded-lg p-4">
+            <div className="text-muted text-sm">Loading…</div>
+          </section>
+        </AppShell>
+      }
+    >
+      <NewTaskPageInner />
+    </Suspense>
   );
 }

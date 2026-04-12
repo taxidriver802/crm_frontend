@@ -15,6 +15,7 @@ import {
 } from "@/lib/helper";
 import { FilePreviewModal } from "@/components/modals/file-preview-modal";
 import { CollapsibleSection } from "@/components/forms/collapsible-section";
+import { DetailMoreMenu, DetailMoreMenuItem } from "@/components/detail-more-menu";
 import { SectionSkeleton, Skeleton } from "@/components/loading/loadingSkeletons";
 
 function isCompleted(task) {
@@ -395,7 +396,7 @@ export default function TaskDetailPage() {
                 </div>
               </div>
 
-              <div className="flex flex-wrap gap-2">
+              <div className="flex flex-wrap items-center gap-2">
                 <Link href={`/tasks/${id}/edit`} className="btn">
                   Edit Task
                 </Link>
@@ -411,55 +412,63 @@ export default function TaskDetailPage() {
                   {isCompleted(task) ? "Reopen Task" : "Mark Complete"}
                 </button>
 
-                {task.lead_id ? (
-                  <Link href={`/leads/${task.lead_id}`} className="btn">
-                    View Related Lead
-                  </Link>
-                ) : task.job_id ? (
-                  <Link href={`/jobs/${task.job_id}`} className="btn">
-                    View Related Job
-                  </Link>
-                ) : null}
-
-                {!isCompleted(task) ? (
-                  <>
-                    <button
-                      type="button"
-                      onClick={() => quickReschedule(1)}
-                      disabled={busy}
-                      className="btn disabled:opacity-60"
+                <DetailMoreMenu label="More">
+                  {task.lead_id ? (
+                    <DetailMoreMenuItem
+                      as={Link}
+                      href={`/leads/${task.lead_id}`}
+                      className="text-main"
                     >
-                      +1 Day
-                    </button>
-
-                    <button
-                      type="button"
-                      onClick={() => quickReschedule(3)}
-                      disabled={busy}
-                      className="btn disabled:opacity-60"
+                      View Related Lead
+                    </DetailMoreMenuItem>
+                  ) : task.job_id ? (
+                    <DetailMoreMenuItem
+                      as={Link}
+                      href={`/jobs/${task.job_id}`}
+                      className="text-main"
                     >
-                      +3 Days
-                    </button>
+                      View Related Job
+                    </DetailMoreMenuItem>
+                  ) : null}
 
-                    <button
-                      type="button"
-                      onClick={() => quickReschedule(7)}
-                      disabled={busy}
-                      className="btn disabled:opacity-60"
-                    >
-                      +1 Week
-                    </button>
-                  </>
-                ) : null}
+                  {!isCompleted(task) ? (
+                    <>
+                      <DetailMoreMenuItem
+                        type="button"
+                        disabled={busy}
+                        className="text-main disabled:opacity-50"
+                        onClick={() => quickReschedule(1)}
+                      >
+                        +1 Day
+                      </DetailMoreMenuItem>
+                      <DetailMoreMenuItem
+                        type="button"
+                        disabled={busy}
+                        className="text-main disabled:opacity-50"
+                        onClick={() => quickReschedule(3)}
+                      >
+                        +3 Days
+                      </DetailMoreMenuItem>
+                      <DetailMoreMenuItem
+                        type="button"
+                        disabled={busy}
+                        className="text-main disabled:opacity-50"
+                        onClick={() => quickReschedule(7)}
+                      >
+                        +1 Week
+                      </DetailMoreMenuItem>
+                    </>
+                  ) : null}
 
-                <button
-                  type="button"
-                  className="btn text-red-600"
-                  onClick={handleDelete}
-                  disabled={busy}
-                >
-                  Delete Task
-                </button>
+                  <DetailMoreMenuItem
+                    type="button"
+                    className="text-red-600 disabled:opacity-50"
+                    disabled={busy}
+                    onClick={handleDelete}
+                  >
+                    Delete task
+                  </DetailMoreMenuItem>
+                </DetailMoreMenu>
               </div>
             </div>
           )}

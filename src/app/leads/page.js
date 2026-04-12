@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { Suspense, useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { AppShell } from "@/components/app-shell";
@@ -11,7 +11,7 @@ import { formatDate } from "@/lib/helper";
 import { CollapsibleSection } from "@/components/forms/collapsible-section";
 import { Skeleton } from "@/components/loading/loadingSkeletons";
 
-export default function LeadsPage() {
+function LeadsPageInner() {
   const searchParams = useSearchParams();
   const [q, setQ] = useState("");
   const [status, setStatus] = useState(() => searchParams.get("status") || "");
@@ -189,7 +189,7 @@ export default function LeadsPage() {
         </ToggleFormSection>
 
         <section className="card rounded-lg p-4">
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex flex-row items-center justify-between gap-3">
             <div>
               <div className="text-muted text-sm">Total leads</div>
               <div className="text-2xl font-semibold">
@@ -348,5 +348,19 @@ export default function LeadsPage() {
         </CollapsibleSection>
       </div>
     </AppShell>
+  );
+}
+
+export default function LeadsPage() {
+  return (
+    <Suspense
+      fallback={
+        <AppShell title="Leads">
+          <div className="text-muted p-4 text-sm">Loading…</div>
+        </AppShell>
+      }
+    >
+      <LeadsPageInner />
+    </Suspense>
   );
 }

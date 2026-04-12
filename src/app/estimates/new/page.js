@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { Suspense, useEffect, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { AppShell } from "@/components/app-shell";
 import {
@@ -10,7 +10,7 @@ import {
 } from "@/components/forms/estimate-form";
 import { api } from "@/lib/api";
 
-export default function NewEstimatePage() {
+function NewEstimatePageInner() {
   const router = useRouter();
   const searchParams = useSearchParams();
 
@@ -138,5 +138,21 @@ export default function NewEstimatePage() {
         )}
       </section>
     </AppShell>
+  );
+}
+
+export default function NewEstimatePage() {
+  return (
+    <Suspense
+      fallback={
+        <AppShell title="New Estimate">
+          <section className="card rounded-lg p-4">
+            <EstimateFormSkeleton onCancel={() => {}} />
+          </section>
+        </AppShell>
+      }
+    >
+      <NewEstimatePageInner />
+    </Suspense>
   );
 }

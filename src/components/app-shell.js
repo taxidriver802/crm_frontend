@@ -311,7 +311,7 @@ export function AppShell({ children, title, description, right }) {
         onClick={onNavigate}
         className={cx(
           "flex items-center rounded-lg px-3 py-2 text-sm transition",
-          active ? "bg-accent text-main font-medium" : "text-muted hover:bg-accent/60",
+          active ? "bg-accent text-main font-medium" : "text-muted hover:bg-accent",
         )}
       >
         {item.label}
@@ -321,14 +321,23 @@ export function AppShell({ children, title, description, right }) {
 
   function renderNotificationsPanel() {
     return (
-      <div className="dropdown-panel absolute right-0 z-50 mt-2 w-[22rem] max-w-[calc(100vw-2rem)] overflow-hidden">
-        <div className="border-base flex items-start justify-between gap-3 border-b px-4 py-3">
-          <div>
+      <div
+        className={cx(
+          "dropdown-panel z-50 flex max-h-[min(85dvh,32rem)] min-h-0 flex-col overflow-hidden shadow-lg",
+          /* Small screens: pin to viewport so the panel never hangs off the left edge */
+          "fixed inset-x-3 top-[max(4.25rem,calc(env(safe-area-inset-top,0px)+3.75rem))] w-auto",
+          /* sm+: anchor to bell, cap width so medium layouts stay lighter */
+          "sm:absolute sm:inset-x-auto sm:left-auto sm:right-0 sm:top-full sm:mt-2 sm:max-h-[min(75vh,28rem)] sm:w-[min(20rem,calc(100vw-2rem))]",
+          "lg:w-[min(22rem,calc(100vw-2rem))]",
+        )}
+      >
+        <div className="border-base flex flex-col gap-2 border-b px-3 py-2.5 sm:flex-row sm:items-start sm:justify-between sm:gap-3 sm:px-4 sm:py-3">
+          <div className="min-w-0">
             <p className="text-sm font-semibold">Notifications</p>
             <p className="text-muted text-xs">Recent activity and reminders</p>
           </div>
 
-          <div className="flex items-center gap-3">
+          <div className="flex shrink-0 flex-wrap items-center gap-x-3 gap-y-1">
             <button
               type="button"
               onClick={handleMarkAllRead}
@@ -353,7 +362,7 @@ export function AppShell({ children, title, description, right }) {
           </div>
         </div>
 
-        <div className="max-h-[24rem] overflow-y-auto">
+        <div className="scrollbar-theme min-h-0 flex-1 overflow-y-auto">
           {notificationsLoading ? (
             <div className="text-muted px-4 py-6 text-center text-sm">
               Loading notifications...
@@ -515,7 +524,7 @@ export function AppShell({ children, title, description, right }) {
               onClick={() => setMobileMenuOpen((p) => !p)}
               className="btn menu-trigger lg:hidden"
             >
-            Menu
+              Menu
             </button>
           </div>
         </header>

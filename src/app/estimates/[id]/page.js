@@ -11,6 +11,7 @@ import {
   createEmptyLineItem,
 } from "@/components/forms/estimate-line-item-form";
 import Link from "next/link";
+import { API_BASE } from "@/lib/helper";
 
 function StatusBadge({ status }) {
   const map = {
@@ -42,6 +43,10 @@ export default function EstimateDetailPage() {
   const [showAllLineItems, setShowAllLineItems] = useState(false);
   const [sortBy, setSortBy] = useState("updated_at");
   const [sortDirection, setSortDirection] = useState("desc");
+  const [pdfBusy, setPdfBusy] = useState(false);
+  const [shareBusy, setShareBusy] = useState(false);
+  const [resendBusy, setResendBusy] = useState(false);
+  const [shareHint, setShareHint] = useState("");
   const lineItems = estimate?.line_items || [];
 
   async function loadEstimate() {
@@ -49,6 +54,83 @@ export default function EstimateDetailPage() {
 
     const data = res?.estimate ?? res;
     setEstimate(data);
+  }
+
+  async function downloadPdf() {
+    setPdfBusy(true);
+    setShareHint("");
+    try {
+      const res = await fetch(`${API_BASE}/estimates/${id}/pdf`, {
+        credentials: "include",
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data?.error || `Download failed (${res.status})`);
+      }
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `estimate-${id}.pdf`;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch (e) {
+      setError(e?.message || "Could not download PDF");
+    } finally {
+      setPdfBusy(false);
+    }
+  }
+
+  async function createShareLink() {
+    setShareBusy(true);
+    setShareHint("");
+    try {
+      const res = await api(`/estimates/${id}/share`, { method: "POST" });
+      const url = res.share_url;
+      if (navigator.clipboard?.writeText) {
+        await navigator.clipboard.writeText(url);
+        setShareHint("Share link copied to clipboard (expires with the estimate link).");
+      } else {
+        setShareHint(url);
+      }
+      if (res.estimate) {
+        setEstimate(res.estimate);
+      } else {
+        await loadEstimate();
+      }
+    } catch (e) {
+      setError(e?.message || "Could not create share link");
+    } finally {
+      setShareBusy(false);
+    }
+  }
+
+  /** After client declines or asks for revision: clear response, set Sent, new token, copy link. */
+  async function resendToClient() {
+    setResendBusy(true);
+    setShareHint("");
+    setError("");
+    try {
+      const res = await api(`/estimates/${id}/resend`, { method: "POST" });
+      const url = res.share_url;
+      if (navigator.clipboard?.writeText) {
+        await navigator.clipboard.writeText(url);
+        setShareHint(
+          "New share link copied. Status is now Sent — the client can respond again on the new link.",
+        );
+      } else {
+        setShareHint(url);
+      }
+      if (res.estimate) {
+        setEstimate(res.estimate);
+      } else {
+        await loadEstimate();
+      }
+    } catch (e) {
+      setError(e?.message || "Could not resend to client");
+    } finally {
+      setResendBusy(false);
+    }
   }
 
   async function loadPage() {
@@ -219,7 +301,23 @@ export default function EstimateDetailPage() {
                     Job #{estimate.job_id}
                   </Link>
                 </div>
-                <div className="flex items-center gap-4">
+                <div className="flex flex-wrap items-center gap-2">
+                  <button
+                    type="button"
+                    className="btn btn-ghost btn-sm px-3 py-1.5"
+                    disabled={pdfBusy}
+                    onClick={downloadPdf}
+                  >
+                    {pdfBusy ? "PDF…" : "Download PDF"}
+                  </button>
+                  <button
+                    type="button"
+                    className="btn btn-ghost btn-sm px-3 py-1.5"
+                    disabled={shareBusy}
+                    onClick={createShareLink}
+                  >
+                    {shareBusy ? "Link…" : "Copy share link"}
+                  </button>
                   <Link
                     className="btn text-muted btn-ghost btn-sm hover:bg-surface cursor-pointer"
                     href={`/estimates/${estimate.id}/edit`}
@@ -229,6 +327,90 @@ export default function EstimateDetailPage() {
                   <StatusBadge status={estimate.status} />
                 </div>
               </div>
+
+              {shareHint ? <div className="text-muted text-sm">{shareHint}</div> : null}
+
+              {estimate.share_expires_at ? (
+                <div className="text-muted text-xs">
+                  Share link active until{" "}
+                  {new Date(estimate.share_expires_at).toLocaleString()}
+                </div>
+              ) : null}
+
+              {estimate.client_responded_at ? (
+                <div className="border-base space-y-3 rounded-md border p-3 text-sm">
+                  <div>
+                    <div className="font-medium">Client response</div>
+                    <div className="text-muted mt-1 text-xs">
+                      {new Date(estimate.client_responded_at).toLocaleString()}
+                    </div>
+                  </div>
+
+                  {estimate.status === "Approved" ? (
+                    <p className="text-main leading-relaxed">
+                      The client accepted this estimate.
+                    </p>
+                  ) : estimate.status === "Rejected" ? (
+                    <p className="text-main leading-relaxed">
+                      The client declined. Adjust line items or pricing, then use{" "}
+                      <strong>Resend to client</strong> when you are ready to send a fresh
+                      link.
+                    </p>
+                  ) : (
+                    <p className="text-main leading-relaxed">
+                      The client asked for changes (or you moved back to Draft). Update
+                      the scope or pricing here or on <strong>Edit</strong>, then resend
+                      when the estimate is ready to review again.
+                    </p>
+                  )}
+
+                  {estimate.client_response_note ? (
+                    <div className="bg-surface border-base whitespace-pre-wrap rounded-md border border-dashed p-3">
+                      {estimate.client_response_note}
+                    </div>
+                  ) : null}
+
+                  {(estimate.status === "Draft" || estimate.status === "Rejected") && (
+                    <div className="border-base space-y-2 border-t pt-3">
+                      <div className="text-xs font-medium">Your next steps</div>
+                      <ul className="text-muted list-inside list-disc space-y-1 text-xs leading-relaxed">
+                        <li>
+                          Edit line items below, or open{" "}
+                          <Link
+                            href={`/estimates/${estimate.id}/edit`}
+                            className="text-main underline underline-offset-2"
+                          >
+                            Edit
+                          </Link>{" "}
+                          to change title, notes, or status.
+                        </li>
+                        <li>
+                          When the estimate is ready to send again, click{" "}
+                          <strong>Resend to client</strong>. That clears this response
+                          record, sets status to <strong>Sent</strong>, creates a new
+                          link, and copies it — the previous link stops working.
+                        </li>
+                      </ul>
+                      <div className="flex flex-wrap gap-2 pt-1">
+                        <Link
+                          className="btn btn-ghost btn-sm px-3 py-1.5"
+                          href={`/estimates/${estimate.id}/edit`}
+                        >
+                          Edit details
+                        </Link>
+                        <button
+                          type="button"
+                          className="btn btn-sm px-3 py-1.5"
+                          disabled={resendBusy}
+                          onClick={resendToClient}
+                        >
+                          {resendBusy ? "Working…" : "Resend to client"}
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              ) : null}
 
               {estimate.notes ? (
                 <div>

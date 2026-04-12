@@ -15,6 +15,7 @@ import {
 } from "@/lib/helper";
 import { FilePreviewModal } from "@/components/modals/file-preview-modal";
 import { CollapsibleSection } from "@/components/forms/collapsible-section";
+import { DetailMoreMenu, DetailMoreMenuItem } from "@/components/detail-more-menu";
 import { Skeleton } from "@/components/loading/loadingSkeletons";
 
 function isCompletedTask(task) {
@@ -47,17 +48,6 @@ function StatCard({ label, value, sub }) {
       <div className="text-muted text-xs">{label}</div>
       <div className="mt-1 text-2xl font-semibold">{value}</div>
       {sub ? <div className="text-muted mt-1 text-xs">{sub}</div> : null}
-    </div>
-  );
-}
-
-function LoadingStatCard({ label }) {
-  return (
-    <div className="card rounded-lg p-4">
-      <div className="text-muted text-xs">{label}</div>
-      <div className="pt-2">
-        <Skeleton className="h-7 w-6" />
-      </div>
     </div>
   );
 }
@@ -280,15 +270,6 @@ export default function LeadDetailPage() {
           ? `${lead.first_name || ""} ${lead.last_name || ""}`.trim() || `Lead #${id}`
           : `Lead #${id}`
       }
-      right={
-        lead ? (
-          <div className="flex gap-2">
-            <Link href={`/leads/${id}/edit`} className="btn text-sm">
-              Edit Lead
-            </Link>
-          </div>
-        ) : null
-      }
     >
       <div className="space-y-6">
         {error ? <div className="text-sm text-red-500">{error}</div> : null}
@@ -316,43 +297,29 @@ export default function LeadDetailPage() {
             <div className="text-muted text-sm">Lead not found.</div>
           ) : (
             <div className="space-y-5">
-              <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-                <div className="min-w-0">
-                  <div className="text-2xl font-semibold">
-                    {lead.first_name} {lead.last_name}
-                  </div>
-
-                  <div className="text-muted mt-2 text-sm">
-                    {(lead.email ?? "—") + (lead.phone ? ` • ${lead.phone}` : "")}
-                  </div>
-
-                  <div className="mt-3 flex flex-wrap gap-2">
-                    <span className="status-chip">{lead.status ?? "—"}</span>
-
-                    {lead.source ? (
-                      <span className="inline-flex items-center rounded-full border px-2 py-0.5 text-xs">
-                        Source: {lead.source}
-                      </span>
-                    ) : null}
-
-                    {lead.budget_min != null || lead.budget_max != null ? (
-                      <span className="inline-flex items-center rounded-full border px-2 py-0.5 text-xs">
-                        Budget: {lead.budget_min ?? "—"} - {lead.budget_max ?? "—"}
-                      </span>
-                    ) : null}
-                  </div>
+              <div className="min-w-0">
+                <div className="text-2xl font-semibold">
+                  {lead.first_name} {lead.last_name}
                 </div>
 
-                <div className="flex flex-wrap gap-2">
-                  <Link href={`/leads/${id}/edit`} className="btn px-3 py-2 text-xs">
-                    Edit
-                  </Link>
-                  <button
-                    className="btn px-3 py-2 text-xs text-red-600"
-                    onClick={handleDeleteLead}
-                  >
-                    Delete
-                  </button>
+                <div className="text-muted mt-2 text-sm">
+                  {(lead.email ?? "—") + (lead.phone ? ` • ${lead.phone}` : "")}
+                </div>
+
+                <div className="mt-3 flex flex-wrap gap-2">
+                  <span className="status-chip">{lead.status ?? "—"}</span>
+
+                  {lead.source ? (
+                    <span className="inline-flex items-center rounded-full border px-2 py-0.5 text-xs">
+                      Source: {lead.source}
+                    </span>
+                  ) : null}
+
+                  {lead.budget_min != null || lead.budget_max != null ? (
+                    <span className="inline-flex items-center rounded-full border px-2 py-0.5 text-xs">
+                      Budget: {lead.budget_min ?? "—"} - {lead.budget_max ?? "—"}
+                    </span>
+                  ) : null}
                 </div>
               </div>
 
@@ -363,18 +330,40 @@ export default function LeadDetailPage() {
                 </div>
               ) : null}
 
-              <div className="flex flex-wrap gap-2">
-                <button className="btn" onClick={() => router.push("/leads")}>
+              <div className="flex flex-wrap items-center gap-2">
+                <button
+                  type="button"
+                  className="btn"
+                  onClick={() => router.push("/leads")}
+                >
                   Back to Leads
                 </button>
-
-                <Link href={`/jobs?lead_id=${id}&open=create`} className="btn">
-                  New Job
+                <Link href={`/leads/${id}/edit`} className="btn px-3 py-2 text-xs">
+                  Edit
                 </Link>
-
-                <Link href={`/tasks/new?lead_id=${id}`} className="btn">
-                  New Task
-                </Link>
+                <DetailMoreMenu label="More">
+                  <DetailMoreMenuItem
+                    as={Link}
+                    href={`/jobs?lead_id=${id}&open=create`}
+                    className="text-main"
+                  >
+                    New Job
+                  </DetailMoreMenuItem>
+                  <DetailMoreMenuItem
+                    as={Link}
+                    href={`/tasks/new?lead_id=${id}`}
+                    className="text-main"
+                  >
+                    New Task
+                  </DetailMoreMenuItem>
+                  <DetailMoreMenuItem
+                    type="button"
+                    className="text-red-600"
+                    onClick={handleDeleteLead}
+                  >
+                    Delete lead
+                  </DetailMoreMenuItem>
+                </DetailMoreMenu>
               </div>
             </div>
           )}

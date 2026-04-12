@@ -275,7 +275,7 @@ function CustomTimePicker({ value, onChange, isOpen, onToggle, onClose }) {
       </button>
 
       {isOpen && (
-        <div className="dropdown-panel absolute z-50 mt-2 w-full min-w-[220px] p-3">
+        <div className="dropdown-panel absolute right-0 z-50 mt-2 w-full min-w-[220px] p-3">
           <div className="grid grid-cols-3 gap-2">
             <div>
               <label className="text-muted mb-1 block text-xs">Hour</label>

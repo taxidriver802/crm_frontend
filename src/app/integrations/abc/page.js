@@ -98,6 +98,9 @@ export default function AbcIntegrationPage() {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [pricingSample, setPricingSample] = useState(null);
+  const [pricingLoading, setPricingLoading] = useState(false);
+  const [pricingError, setPricingError] = useState("");
 
   async function load() {
     try {
@@ -116,6 +119,20 @@ export default function AbcIntegrationPage() {
   useEffect(() => {
     load();
   }, []);
+
+  async function loadPricingSample() {
+    try {
+      setPricingLoading(true);
+      setPricingError("");
+      const res = await api("/integrations/abc/pricing-sample?q=roof");
+      setPricingSample(res);
+    } catch (e) {
+      setPricingError(e.message || "Pricing sample failed");
+      setPricingSample(null);
+    } finally {
+      setPricingLoading(false);
+    }
+  }
 
   const health = useMemo(() => getIntegrationHealth(data), [data]);
 
@@ -160,18 +177,29 @@ export default function AbcIntegrationPage() {
                 </button>
 
                 <button
-                  className="btn opacity-60"
-                  disabled
-                  title="This will make sense once test actions are implemented."
+                  type="button"
+                  className="btn"
+                  onClick={loadPricingSample}
+                  disabled={pricingLoading || loading}
                 >
-                  Test Connection
+                  {pricingLoading ? "Loading…" : "Sample pricing lookup"}
                 </button>
               </div>
 
               <div className="text-muted mt-3 text-sm">
-                This page currently acts as a readiness panel. Live operational testing
-                can be added when the next ABC workflows are implemented.
+                Sample pricing lookup runs a minimal item search against ABC when
+                credentials are configured (Phase 9.5).
               </div>
+              {pricingError ? (
+                <div className="mt-2 text-sm text-red-600">{pricingError}</div>
+              ) : null}
+              {pricingSample?.data != null ? (
+                <div className="text-muted mt-3 max-h-40 overflow-auto rounded border border-dashed p-2 font-mono text-xs">
+                  <pre className="whitespace-pre-wrap">
+                    {JSON.stringify(pricingSample.data, null, 2)}
+                  </pre>
+                </div>
+              ) : null}
             </SectionCard>
           </div>
         </section>

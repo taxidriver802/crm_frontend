@@ -23,7 +23,7 @@ function StatCard({ label, value, sub, href }) {
     <div className="card hover:bg-accent h-full rounded-lg p-3 transition-colors sm:p-4">
       <div className="text-muted text-xs sm:text-sm">{label}</div>
       <div className="mt-1 text-xl font-semibold sm:mt-2 sm:text-2xl">{value}</div>
-      {sub ? <div className="text-muted mt-1 hidden text-xs sm:block">{sub}</div> : null}
+      {sub ? <div className="text-muted mt-1 text-xs">{sub}</div> : null}
     </div>
   );
 
@@ -97,13 +97,16 @@ export default function DashboardPage() {
 
     const totalJobs = data.jobs?.total ?? 0;
 
-    const estByStatus = Array.isArray(data.estimates?.byStatus) ? data.estimates.byStatus : [];
+    const estByStatus = Array.isArray(data.estimates?.byStatus)
+      ? data.estimates.byStatus
+      : [];
     const totalEstimates = data.estimates?.total ?? 0;
     const draftEst = estByStatus.find((s) => s.status === "Draft")?.count ?? 0;
     const sentEst = estByStatus.find((s) => s.status === "Sent")?.count ?? 0;
 
     const counts = data.tasks?.counts || {};
     const overdue = counts.overdue ?? 0;
+    const overdueOnJobs = counts.overdue_on_jobs ?? 0;
     const dueToday = counts.due_today ?? 0;
     const next7 = counts.next_7_days ?? 0;
 
@@ -121,16 +124,22 @@ export default function DashboardPage() {
         href: "/jobs",
       },
       {
+        label: "Overdue",
+        value: String(overdue),
+        sub: `${overdueOnJobs} on jobs`,
+        href: "/tasks?duePreset=overdue",
+      },
+      {
         label: "Due Today",
         value: String(dueToday),
-        sub: `${overdue} overdue`,
-        href: "/tasks?due=today",
+        sub: "Due this calendar day",
+        href: "/tasks?duePreset=due_today",
       },
       {
         label: "Next 7 Days",
         value: String(next7),
         sub: "Upcoming tasks",
-        href: "/tasks?range=7",
+        href: "/tasks?duePreset=next_7_days",
       },
       {
         label: "Total Leads",
@@ -232,7 +241,12 @@ export default function DashboardPage() {
       <div className="border-base hover:bg-accent rounded-lg border p-3 transition">
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0">
-            <div className="font-medium">{t.title}</div>
+            <Link
+              href={`/tasks/${t.id}`}
+              className="hover:text-main font-medium hover:underline"
+            >
+              {t.title}
+            </Link>
             <div className="text-muted mt-1 flex flex-wrap items-center gap-x-1 text-sm">
               {leadName ? <span>{leadName}</span> : null}
               {leadName && jobPart ? <span>·</span> : null}
@@ -366,9 +380,9 @@ export default function DashboardPage() {
       }
     >
       <div className="space-y-6">
-        <div className="grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-6">
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-7">
           {isInitialLoading
-            ? Array.from({ length: 6 }).map((_, i) => <StatCardSkeleton key={i} />)
+            ? Array.from({ length: 7 }).map((_, i) => <StatCardSkeleton key={i} />)
             : stats.map((s) => <StatCard key={s.label} {...s} />)}
         </div>
 
@@ -383,39 +397,55 @@ export default function DashboardPage() {
           <div className="space-y-4">
             <CollapsibleSection title={taskTitle} defaultOpen={true}>
               <div className="mb-4 flex items-center justify-between">
-                <div className="flex flex-wrap gap-2">
+                <div className="flex flex-wrap gap-1 gap-2 sm:gap-2">
                   <button
                     className={cx(
-                      "btn px-3 py-2 text-xs",
+                      "btn px-2 py-1 text-xs sm:px-3 sm:py-2",
                       tab === "overdue" && "bg-accent text-main",
                     )}
+                    style={{ minWidth: "64px" }}
                     onClick={() => setTab("overdue")}
                   >
-                    Overdue
+                    <span className="xs:inline hidden sm:inline">Overdue</span>
+                    <span className="xs:hidden inline sm:hidden">OD</span>
                   </button>
 
                   <button
                     className={cx(
-                      "btn px-3 py-2 text-xs",
+                      "btn px-2 py-1 text-xs sm:px-3 sm:py-2",
                       tab === "due_today" && "bg-accent text-main",
                     )}
+                    style={{ minWidth: "64px" }}
                     onClick={() => setTab("due_today")}
                   >
-                    Due Today
+                    <span className="xs:inline hidden sm:inline">Due Today</span>
+                    <span className="xs:hidden inline sm:hidden">Today</span>
                   </button>
 
                   <button
                     className={cx(
-                      "btn px-3 py-2 text-xs",
+                      "btn px-2 py-1 text-xs sm:px-3 sm:py-2",
                       tab === "next_up" && "bg-accent text-main",
                     )}
+                    style={{ minWidth: "64px" }}
                     onClick={() => setTab("next_up")}
                   >
-                    Next Up
+                    <span className="xs:inline hidden sm:inline">Next Up</span>
+                    <span className="xs:hidden inline sm:hidden">Next</span>
                   </button>
                 </div>
-                <Link className="text-muted hover:underline" href="/tasks">
-                  View all
+
+                <Link
+                  className="text-muted hover:underline"
+                  href={
+                    tab === "overdue"
+                      ? "/tasks?duePreset=overdue"
+                      : tab === "due_today"
+                        ? "/tasks?duePreset=due_today"
+                        : "/tasks?duePreset=next_7_days"
+                  }
+                >
+                  Open in Tasks
                 </Link>
               </div>
 

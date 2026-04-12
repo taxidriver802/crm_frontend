@@ -1,12 +1,12 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { AppShell } from "@/components/app-shell";
 import { JobForm, createEmptyJobForm } from "@/components/forms/job-form";
 import { api } from "@/lib/api";
 
-export default function NewJobPage() {
+function NewJobPageInner() {
   const router = useRouter();
   const searchParams = useSearchParams();
 
@@ -110,5 +110,21 @@ export default function NewJobPage() {
         />
       </section>
     </AppShell>
+  );
+}
+
+export default function NewJobPage() {
+  return (
+    <Suspense
+      fallback={
+        <AppShell title="New Job">
+          <section className="card rounded-lg p-4">
+            <div className="text-muted text-sm">Loading…</div>
+          </section>
+        </AppShell>
+      }
+    >
+      <NewJobPageInner />
+    </Suspense>
   );
 }
