@@ -19,6 +19,8 @@ import { FilePreviewModal } from "@/components/modals/file-preview-modal";
 import { TaskForm, createEmptyTaskForm } from "@/components/forms/task-form";
 import { CollapsibleSection } from "@/components/forms/collapsible-section";
 import { ActivityList } from "@/components/activity-list";
+import { NotesSection } from "@/components/notes-section";
+import { PhotoGallery } from "@/components/photo-gallery";
 import {
   LoadingSpinner,
   SectionSkeleton,
@@ -646,6 +648,14 @@ export default function JobDetailPage() {
                 </div>
               </SectionCard>
 
+              <CollapsibleSection
+                title="Notes"
+                description="Capture conversations and decisions for this job."
+                defaultOpen={true}
+              >
+                <NotesSection entityType="job" entityId={id} />
+              </CollapsibleSection>
+
               <SectionCard
                 title="Pipeline"
                 description="Track where this job is in the workflow"
@@ -1173,6 +1183,15 @@ export default function JobDetailPage() {
                     ))}
                   </div>
                 )}
+              </SectionCard>
+              <SectionCard
+                title="Photo Gallery"
+                description="Quick visual scan of photos attached to this job."
+              >
+                <PhotoGallery
+                  files={files}
+                  loading={loadingFiles && files.length === 0}
+                />
               </SectionCard>
               <CollapsibleSection
                 title="Activity"

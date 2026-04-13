@@ -1,6 +1,6 @@
 "use client";
 
-import { Suspense, useEffect, useMemo, useState } from "react";
+import { Suspense, useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { AppShell } from "@/components/app-shell";
@@ -10,6 +10,9 @@ import { api } from "@/lib/api";
 import { formatDue, LinkedEntityCell } from "@/lib/helper";
 import { CollapsibleSection } from "@/components/forms/collapsible-section";
 import { Skeleton, TableRowSkeleton } from "@/components/loading/loadingSkeletons";
+import { TaskCalendar } from "@/components/calendar/task-calendar";
+import { ListToolbar } from "@/components/list-toolbar";
+import { SavedViewsControls } from "@/components/saved-views-controls";
 
 function SummaryCard({ label, value, sub }) {
   return (
@@ -74,8 +77,15 @@ function TasksPageInner() {
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [creatingTask, setCreatingTask] = useState(false);
   const [createError, setCreateError] = useState("");
+  const [currentUser, setCurrentUser] = useState(null);
+  const [teamUsers, setTeamUsers] = useState([]);
+  const [viewScope, setViewScope] = useState("mine");
+  const [assignedFilter, setAssignedFilter] = useState("");
 
   const [contextType, setContextType] = useState(prefillJobId ? "job" : "lead");
+  const [viewMode, setViewMode] = useState("list");
+  const [calendarRange, setCalendarRange] = useState({ dateFrom: "", dateTo: "" });
+  const [unscheduledCount, setUnscheduledCount] = useState(0);
   const [taskForm, setTaskForm] = useState(
     createEmptyTaskForm({
       lead_id: prefillLeadId,
@@ -84,8 +94,78 @@ function TasksPageInner() {
   );
 
   const isInitialLoading = loadingSummary && loadingTasks;
+  const canViewAll = currentUser?.role === "owner" || currentUser?.role === "admin";
 
   const duePreset = useMemo(() => parseDuePresetFromSearch(searchParams), [searchParams]);
+  const currentFiltersForSave = useMemo(
+    () => ({
+      title,
+      status,
+      linkedFilter,
+      leadId,
+      jobId,
+      assignedFilter,
+      viewScope,
+      viewMode,
+      duePreset,
+    }),
+    [
+      title,
+      status,
+      linkedFilter,
+      leadId,
+      jobId,
+      assignedFilter,
+      viewScope,
+      viewMode,
+      duePreset,
+    ],
+  );
+
+  useEffect(() => {
+    const saved = window.localStorage.getItem("tasks:view-mode");
+    if (saved === "list" || saved === "calendar") {
+      setViewMode(saved);
+    }
+  }, []);
+
+  useEffect(() => {
+    window.localStorage.setItem("tasks:view-mode", viewMode);
+  }, [viewMode]);
+
+  useEffect(() => {
+    let alive = true;
+    async function loadMeAndTeam() {
+      try {
+        const meRes = await fetch("/api/auth/me", { credentials: "include" });
+        const meData = await meRes.json();
+        if (!alive) return;
+        const me = meData?.user || null;
+        setCurrentUser(me);
+        if (me?.role === "owner" || me?.role === "admin") {
+          const usersRes = await api("/users");
+          if (!alive) return;
+          setTeamUsers(usersRes.users || []);
+        }
+      } catch {
+        if (!alive) return;
+        setCurrentUser(null);
+        setTeamUsers([]);
+      }
+    }
+    loadMeAndTeam();
+    return () => {
+      alive = false;
+    };
+  }, []);
+
+  const handleCalendarRangeChange = useCallback((nextRange) => {
+    setCalendarRange((prev) =>
+      prev.dateFrom === nextRange.dateFrom && prev.dateTo === nextRange.dateTo
+        ? prev
+        : nextRange,
+    );
+  }, []);
 
   function replaceDuePresetInUrl(next) {
     const p = new URLSearchParams(searchParams.toString());
@@ -152,16 +232,76 @@ function TasksPageInner() {
       params.set("q", title.trim());
     }
 
-    if (duePreset) {
+    if (canViewAll && viewScope === "all") {
+      params.set("view", "all");
+    }
+
+    if (assignedFilter) {
+      params.set("assignedTo", assignedFilter);
+    }
+
+    if (duePreset && viewMode !== "calendar") {
       params.set("duePreset", duePreset);
     }
 
-    params.set("limit", "50");
+    if (viewMode === "calendar" && calendarRange.dateFrom && calendarRange.dateTo) {
+      params.set("dateFrom", calendarRange.dateFrom);
+      params.set("dateTo", calendarRange.dateTo);
+      params.set("limit", "200");
+    } else {
+      params.set("limit", "50");
+    }
     params.set("offset", "0");
 
     const s = params.toString();
     return s ? `?${s}` : "";
-  }, [status, linkedFilter, leadId, jobId, title, duePreset]);
+  }, [
+    status,
+    linkedFilter,
+    leadId,
+    jobId,
+    title,
+    duePreset,
+    viewMode,
+    calendarRange,
+    canViewAll,
+    viewScope,
+    assignedFilter,
+  ]);
+
+  async function handleAssignTask(taskId, assignedTo) {
+    const assignee = teamUsers.find((user) => user.id === assignedTo) || null;
+    const previous = tasks;
+
+    setTasks((prev) =>
+      prev.map((task) =>
+        task.id === taskId
+          ? {
+              ...task,
+              assigned_to: assignedTo || null,
+              assigned_user: assignee
+                ? {
+                    id: assignee.id,
+                    first_name: assignee.first_name,
+                    last_name: assignee.last_name,
+                    email: assignee.email,
+                  }
+                : null,
+            }
+          : task,
+      ),
+    );
+
+    try {
+      await api(`/tasks/${taskId}`, {
+        method: "PATCH",
+        body: JSON.stringify({ assigned_to: assignedTo || null }),
+      });
+    } catch (e) {
+      setTasks(previous);
+      setError(e?.message || "Failed to reassign task");
+    }
+  }
 
   async function loadSummary() {
     setLoadingSummary(true);
@@ -180,6 +320,22 @@ function TasksPageInner() {
     try {
       const data = await api(`/tasks${queryString}`);
       setTasks(data.tasks || []);
+
+      if (viewMode === "calendar") {
+        const unscheduledParams = new URLSearchParams();
+        if (status && status !== "All") unscheduledParams.set("status", status);
+        if (linkedFilter && linkedFilter !== "All")
+          unscheduledParams.set("linkedTo", linkedFilter);
+        if (leadId.trim()) unscheduledParams.set("leadId", leadId.trim());
+        if (jobId.trim()) unscheduledParams.set("jobId", jobId.trim());
+        if (title.trim()) unscheduledParams.set("q", title.trim());
+        unscheduledParams.set("limit", "200");
+        unscheduledParams.set("offset", "0");
+
+        const allFiltered = await api(`/tasks?${unscheduledParams.toString()}`);
+        const withoutDate = (allFiltered.tasks || []).filter((task) => !task.due_date);
+        setUnscheduledCount(withoutDate.length);
+      }
     } catch (e) {
       setError(e.message || "Failed to load tasks");
     } finally {
@@ -454,26 +610,21 @@ function TasksPageInner() {
                 </select>
               </div>
 
-              <div className="w-full lg:w-36">
-                <label className="text-muted text-xs">Lead ID</label>
-                <input
+              <div className="w-full lg:w-44">
+                <label className="text-muted text-xs">Assigned To</label>
+                <select
                   className="input mt-1"
-                  placeholder="e.g. 12"
-                  value={leadId}
-                  onChange={(e) => setLeadId(e.target.value)}
-                  inputMode="numeric"
-                />
-              </div>
-
-              <div className="w-full lg:w-36">
-                <label className="text-muted text-xs">Job ID</label>
-                <input
-                  className="input mt-1"
-                  placeholder="e.g. 7"
-                  value={jobId}
-                  onChange={(e) => setJobId(e.target.value)}
-                  inputMode="numeric"
-                />
+                  value={assignedFilter}
+                  onChange={(e) => setAssignedFilter(e.target.value)}
+                >
+                  <option value="">All</option>
+                  <option value="unassigned">Unassigned</option>
+                  {teamUsers.map((user) => (
+                    <option key={user.id} value={user.id}>
+                      {user.first_name} {user.last_name}
+                    </option>
+                  ))}
+                </select>
               </div>
 
               <div className="min-w-0 flex-1">
@@ -485,8 +636,84 @@ function TasksPageInner() {
                   onChange={(e) => setTitle(e.target.value)}
                 />
               </div>
+            </div>
+          </section>
+          <ListToolbar
+            left={
+              <>
+                {canViewAll ? (
+                  <div className="border-base bg-surface flex items-center gap-1 rounded-md border p-1">
+                    <button
+                      type="button"
+                      className={`btn px-2 py-1 text-xs ${
+                        viewScope === "mine" ? "btn-primary" : "btn-ghost"
+                      }`}
+                      onClick={() => setViewScope("mine")}
+                    >
+                      My Tasks
+                    </button>
+                    <button
+                      type="button"
+                      className={`btn px-2 py-1 text-xs ${
+                        viewScope === "all" ? "btn-primary" : "btn-ghost"
+                      }`}
+                      onClick={() => setViewScope("all")}
+                    >
+                      Team
+                    </button>
+                  </div>
+                ) : null}
 
-              <div className="flex gap-2">
+                <div className="border-base bg-surface flex items-center gap-1 rounded-md border p-1">
+                  <button
+                    type="button"
+                    className={`btn px-2 py-1 text-xs ${
+                      viewMode === "list" ? "btn-primary" : "btn-ghost"
+                    }`}
+                    onClick={() => setViewMode("list")}
+                  >
+                    List
+                  </button>
+                  <button
+                    type="button"
+                    className={`btn px-2 py-1 text-xs ${
+                      viewMode === "calendar" ? "btn-primary" : "btn-ghost"
+                    }`}
+                    onClick={() => setViewMode("calendar")}
+                  >
+                    Calendar
+                  </button>
+                </div>
+              </>
+            }
+            right={
+              <SavedViewsControls
+                entityType="tasks"
+                currentFilters={currentFiltersForSave}
+                onApplyFilters={(filters) => {
+                  setTitle(String(filters?.title || ""));
+                  setStatus(String(filters?.status || ""));
+                  setLinkedFilter(String(filters?.linkedFilter || ""));
+                  setLeadId(String(filters?.leadId || ""));
+                  setJobId(String(filters?.jobId || ""));
+                  setAssignedFilter(String(filters?.assignedFilter || ""));
+                  setViewScope(String(filters?.viewScope || "mine"));
+                  setViewMode(
+                    filters?.viewMode === "calendar" || filters?.viewMode === "list"
+                      ? filters.viewMode
+                      : "list",
+                  );
+                  replaceDuePresetInUrl(String(filters?.duePreset || ""));
+                }}
+              />
+            }
+          />
+
+          <CollapsibleSection
+            title={taskTitle}
+            defaultOpen={true}
+            actions={
+              <>
                 <Link href="/tasks/new" className="btn">
                   Full Form
                 </Link>
@@ -497,113 +724,163 @@ function TasksPageInner() {
                 >
                   Refresh
                 </button>
+              </>
+            }
+          >
+            {viewMode === "calendar" ? (
+              <div className="space-y-3">
+                <div className="text-muted text-xs">
+                  {unscheduledCount > 0
+                    ? `${unscheduledCount} task${unscheduledCount === 1 ? "" : "s"} without a due date are not shown on calendar.`
+                    : "All visible tasks have due dates."}
+                </div>
+                <TaskCalendar
+                  tasks={tasks}
+                  onRangeChange={handleCalendarRangeChange}
+                  onTaskClick={(task) => router.push(`/tasks/${task.id}`)}
+                  onDayCreate={(day) => {
+                    const yyyy = day.getFullYear();
+                    const mm = String(day.getMonth() + 1).padStart(2, "0");
+                    const dd = String(day.getDate()).padStart(2, "0");
+                    setTaskForm((prev) => ({
+                      ...prev,
+                      due_date: `${yyyy}-${mm}-${dd}T09:00`,
+                    }));
+                    setIsCreateOpen(true);
+                  }}
+                />
               </div>
-            </div>
-          </section>
-
-          <CollapsibleSection title={taskTitle} defaultOpen={true}>
-            <div className="scrollbar-theme overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead className="bg-accent">
-                  <tr className="text-left">
-                    <th className="px-4 py-3 font-medium">Title</th>
-                    <th className="px-4 py-3 font-medium">Linked To</th>
-                    <th className="px-4 py-3 font-medium">Due</th>
-                    <th className="px-4 py-3 font-medium">Status</th>
-                    <th className="px-4 py-3 text-right font-medium">Action</th>
-                  </tr>
-                </thead>
-
-                <tbody>
-                  {!isInitialLoading && loadingTasks ? (
-                    Array.from({ length: 3 }).map((_, i) => (
-                      <TableRowSkeleton key={i} cols={5} />
-                    ))
-                  ) : tasks.length === 0 ? (
-                    <tr className="border-base border-t">
-                      <td className="text-muted px-4 py-6" colSpan={5}>
-                        No tasks found. Try adjusting filters or create a new task.
-                      </td>
+            ) : (
+              <div className="scrollbar-theme overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead className="bg-accent">
+                    <tr className="text-left">
+                      <th className="px-4 py-3 font-medium">Title</th>
+                      <th className="px-4 py-3 font-medium">Linked To</th>
+                      <th className="px-4 py-3 font-medium">Due</th>
+                      <th className="px-4 py-3 font-medium">Status</th>
+                      <th className="px-4 py-3 font-medium">Assignee</th>
+                      <th className="px-4 py-3 text-right font-medium">Action</th>
                     </tr>
-                  ) : (
-                    tasks.map((task) => (
-                      <tr
-                        key={task.id}
-                        className="border-base hover:bg-accent border-t transition"
-                      >
-                        <td className="px-4 py-3">
-                          <Link
-                            href={`/tasks/${task.id}`}
-                            className="block hover:opacity-80"
-                          >
-                            <div
-                              className="truncate font-medium underline underline-offset-4"
-                              style={{ maxWidth: 240, display: "block" }}
-                              title={task.title}
-                            >
-                              {task.title}
-                            </div>
-                            {task.description ? (
-                              <div
-                                className="text-muted mt-1 truncate text-xs"
-                                style={{ maxWidth: 240, display: "block" }}
-                                title={task.description}
-                              >
-                                {task.description}
-                              </div>
-                            ) : null}
-                          </Link>
-                        </td>
+                  </thead>
 
-                        <td className="truncate px-4 py-3">
-                          <LinkedEntityCell task={task} />
-                        </td>
-
-                        <td className="truncate px-4 py-3">{formatDue(task.due_date)}</td>
-
-                        <td className="truncate px-4 py-3">
-                          <TaskStatusBadge status={task.status} />
-                        </td>
-
-                        <td className="truncate px-4 py-3 text-right">
-                          <div className="flex justify-end gap-2">
-                            <Link
-                              href={`/tasks/${task.id}`}
-                              className="btn px-3 py-2 text-xs"
-                            >
-                              View
-                            </Link>
-
-                            <Link
-                              href={`/tasks/${task.id}/edit`}
-                              className="btn px-3 py-2 text-xs"
-                            >
-                              Edit
-                            </Link>
-
-                            {task.status === "Completed" ? (
-                              <button
-                                className="btn px-3 py-2 text-xs"
-                                onClick={() => setTaskStatus(task.id, "Pending")}
-                              >
-                                Mark pending
-                              </button>
-                            ) : (
-                              <button
-                                className="btn px-3 py-2 text-xs"
-                                onClick={() => setTaskStatus(task.id, "Completed")}
-                              >
-                                Mark completed
-                              </button>
-                            )}
-                          </div>
+                  <tbody>
+                    {!isInitialLoading && loadingTasks ? (
+                      Array.from({ length: 3 }).map((_, i) => (
+                        <TableRowSkeleton key={i} cols={6} />
+                      ))
+                    ) : tasks.length === 0 ? (
+                      <tr className="border-base border-t">
+                        <td className="text-muted px-4 py-6" colSpan={6}>
+                          No tasks found. Try adjusting filters or create a new task.
                         </td>
                       </tr>
-                    ))
-                  )}
-                </tbody>
-              </table>
-            </div>
+                    ) : (
+                      tasks.map((task) => (
+                        <tr
+                          key={task.id}
+                          className="border-base hover:bg-accent border-t transition"
+                        >
+                          <td className="px-4 py-3">
+                            <Link
+                              href={`/tasks/${task.id}`}
+                              className="block hover:opacity-80"
+                            >
+                              <div
+                                className="truncate font-medium underline underline-offset-4"
+                                style={{ maxWidth: 240, display: "block" }}
+                                title={task.title}
+                              >
+                                {task.title}
+                              </div>
+                              {task.description ? (
+                                <div
+                                  className="text-muted mt-1 truncate text-xs"
+                                  style={{ maxWidth: 240, display: "block" }}
+                                  title={task.description}
+                                >
+                                  {task.description}
+                                </div>
+                              ) : null}
+                            </Link>
+                          </td>
+
+                          <td className="truncate px-4 py-3">
+                            <LinkedEntityCell task={task} />
+                          </td>
+
+                          <td className="truncate px-4 py-3">
+                            {formatDue(task.due_date)}
+                          </td>
+
+                          <td className="truncate px-4 py-3">
+                            <TaskStatusBadge status={task.status} />
+                          </td>
+
+                          <td className="truncate px-4 py-3">
+                            {canViewAll ? (
+                              <select
+                                className="input"
+                                value={task.assigned_to || ""}
+                                onChange={(e) =>
+                                  handleAssignTask(task.id, e.target.value)
+                                }
+                              >
+                                <option value="">Unassigned</option>
+                                {teamUsers.map((user) => (
+                                  <option key={user.id} value={user.id}>
+                                    {user.first_name} {user.last_name}
+                                  </option>
+                                ))}
+                              </select>
+                            ) : task.assigned_user ? (
+                              `${task.assigned_user.first_name || ""} ${task.assigned_user.last_name || ""}`.trim() ||
+                              task.assigned_user.email
+                            ) : (
+                              <span className="text-muted">—</span>
+                            )}
+                          </td>
+
+                          <td className="truncate px-4 py-3 text-right">
+                            <div className="flex justify-end gap-2">
+                              <Link
+                                href={`/tasks/${task.id}`}
+                                className="btn px-3 py-2 text-xs"
+                              >
+                                View
+                              </Link>
+
+                              <Link
+                                href={`/tasks/${task.id}/edit`}
+                                className="btn px-3 py-2 text-xs"
+                              >
+                                Edit
+                              </Link>
+
+                              {task.status === "Completed" ? (
+                                <button
+                                  className="btn px-3 py-2 text-xs"
+                                  onClick={() => setTaskStatus(task.id, "Pending")}
+                                >
+                                  Mark pending
+                                </button>
+                              ) : (
+                                <button
+                                  className="btn px-3 py-2 text-xs"
+                                  onClick={() => setTaskStatus(task.id, "Completed")}
+                                >
+                                  Mark completed
+                                </button>
+                              )}
+                            </div>
+                          </td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            )}
           </CollapsibleSection>
         </div>
       )}

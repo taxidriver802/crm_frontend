@@ -13,6 +13,9 @@ const TYPE_ICONS = {
   ESTIMATE_CREATED: "🧾",
   ESTIMATE_UPDATED: "✏️",
   ESTIMATE_STATUS_CHANGED: "🔄",
+  ESTIMATE_CLIENT_RESPONDED: "✉️",
+  ESTIMATE_DELETED: "🗑️",
+  ESTIMATE_RESENT_TO_CLIENT: "🔁",
 };
 
 function safeMeta(activity) {
@@ -153,6 +156,32 @@ export function formatActivity(activity) {
             ? `${meta.previousStatus} → ${meta.newStatus}`
             : activity.message || "Estimate status updated",
         meta: meta.estimateTitle || null,
+      };
+
+    case "ESTIMATE_CLIENT_RESPONDED":
+      return {
+        icon,
+        title: "Client responded",
+        detail:
+          activity.message || meta.estimateTitle || "The client responded to an estimate",
+        meta: meta.note || null,
+      };
+
+    case "ESTIMATE_DELETED":
+      return {
+        icon,
+        title: "Estimate deleted",
+        detail: meta.estimateTitle || activity.message || "An estimate was deleted",
+        meta: null,
+      };
+
+    case "ESTIMATE_RESENT_TO_CLIENT":
+      return {
+        icon,
+        title: "Estimate resent",
+        detail:
+          meta.estimateTitle || activity.message || "Share link refreshed for the client",
+        meta: null,
       };
 
     default:

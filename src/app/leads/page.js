@@ -1,7 +1,7 @@
 "use client";
 
 import { Suspense, useEffect, useMemo, useState } from "react";
-import { useSearchParams } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { AppShell } from "@/components/app-shell";
 import { ToggleFormSection } from "@/components/toggle-form-section";
@@ -10,8 +10,14 @@ import { api } from "@/lib/api";
 import { formatDate } from "@/lib/helper";
 import { CollapsibleSection } from "@/components/forms/collapsible-section";
 import { Skeleton } from "@/components/loading/loadingSkeletons";
+import { KanbanBoard } from "@/components/kanban/kanban-board";
+import { ListToolbar } from "@/components/list-toolbar";
+import { SavedViewsControls } from "@/components/saved-views-controls";
+
+const LEAD_PIPELINE_COLUMNS = ["New", "Contacted", "Qualified", "Closed", "Inactive"];
 
 function LeadsPageInner() {
+  const router = useRouter();
   const searchParams = useSearchParams();
   const [q, setQ] = useState("");
   const [status, setStatus] = useState(() => searchParams.get("status") || "");
@@ -27,6 +33,54 @@ function LeadsPageInner() {
 
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [leadForm, setLeadForm] = useState(createEmptyLeadForm());
+  const [viewMode, setViewMode] = useState("list");
+  const [currentUser, setCurrentUser] = useState(null);
+  const [teamUsers, setTeamUsers] = useState([]);
+  const [viewScope, setViewScope] = useState("mine");
+  const [assignedFilter, setAssignedFilter] = useState("");
+
+  useEffect(() => {
+    const saved = window.localStorage.getItem("leads:view-mode");
+    if (saved === "list" || saved === "board") {
+      setViewMode(saved);
+    }
+  }, []);
+
+  useEffect(() => {
+    window.localStorage.setItem("leads:view-mode", viewMode);
+  }, [viewMode]);
+
+  useEffect(() => {
+    let alive = true;
+    async function loadMeAndTeam() {
+      try {
+        const meRes = await fetch("/api/auth/me", { credentials: "include" });
+        const meData = await meRes.json();
+        if (!alive) return;
+        const me = meData?.user || null;
+        setCurrentUser(me);
+        if (me?.role === "owner" || me?.role === "admin") {
+          const usersRes = await api("/users");
+          if (!alive) return;
+          setTeamUsers(usersRes.users || []);
+        }
+      } catch {
+        if (!alive) return;
+        setCurrentUser(null);
+        setTeamUsers([]);
+      }
+    }
+    loadMeAndTeam();
+    return () => {
+      alive = false;
+    };
+  }, []);
+
+  const canViewAll = currentUser?.role === "owner" || currentUser?.role === "admin";
+  const currentFiltersForSave = useMemo(
+    () => ({ q, status, assignedFilter, viewScope, viewMode }),
+    [q, status, assignedFilter, viewScope, viewMode],
+  );
 
   const queryString = useMemo(() => {
     const params = new URLSearchParams();
@@ -39,12 +93,54 @@ function LeadsPageInner() {
       params.set("q", q.trim());
     }
 
-    params.set("limit", "50");
+    if (canViewAll && viewScope === "all") {
+      params.set("view", "all");
+    }
+
+    if (assignedFilter) {
+      params.set("assignedTo", assignedFilter);
+    }
+
+    params.set("limit", viewMode === "board" ? "200" : "50");
     params.set("offset", "0");
 
     const s = params.toString();
     return s ? `?${s}` : "";
-  }, [q, status]);
+  }, [q, status, viewMode, canViewAll, viewScope, assignedFilter]);
+
+  async function handleAssignLead(leadId, assignedTo) {
+    const assignee = teamUsers.find((user) => user.id === assignedTo) || null;
+    const previous = leads;
+
+    setLeads((prev) =>
+      prev.map((lead) =>
+        lead.id === leadId
+          ? {
+              ...lead,
+              assigned_to: assignedTo || null,
+              assigned_user: assignee
+                ? {
+                    id: assignee.id,
+                    first_name: assignee.first_name,
+                    last_name: assignee.last_name,
+                    email: assignee.email,
+                  }
+                : null,
+            }
+          : lead,
+      ),
+    );
+
+    try {
+      await api(`/leads/${leadId}`, {
+        method: "PATCH",
+        body: JSON.stringify({ assigned_to: assignedTo || null }),
+      });
+    } catch (e) {
+      setLeads(previous);
+      setError(e?.message || "Failed to reassign lead");
+    }
+  }
 
   async function loadSummary() {
     setLoadingSummary(true);
@@ -153,6 +249,48 @@ function LeadsPageInner() {
     }
   }
 
+  async function handleMoveLeadStatus(leadId, nextStatus) {
+    const previous = leads;
+
+    setLeads((prev) =>
+      prev.map((lead) => (lead.id === leadId ? { ...lead, status: nextStatus } : lead)),
+    );
+
+    setSummary((prev) => {
+      if (!prev?.byStatus) return prev;
+      const currentLead = previous.find((lead) => lead.id === leadId);
+      const prevStatus = currentLead?.status;
+      if (!prevStatus || prevStatus === nextStatus) return prev;
+
+      const byStatus = prev.byStatus.map((item) => {
+        if (item.status === prevStatus) {
+          return { ...item, count: Math.max(0, item.count - 1) };
+        }
+        if (item.status === nextStatus) {
+          return { ...item, count: item.count + 1 };
+        }
+        return item;
+      });
+
+      if (!byStatus.some((item) => item.status === nextStatus)) {
+        byStatus.push({ status: nextStatus, count: 1 });
+      }
+
+      return { ...prev, byStatus };
+    });
+
+    try {
+      await api(`/leads/${leadId}`, {
+        method: "PATCH",
+        body: JSON.stringify({ status: nextStatus }),
+      });
+    } catch (e) {
+      setLeads(previous);
+      setError(e?.message || "Failed to update lead status");
+      await refreshAll();
+    }
+  }
+
   const leadTitle = (
     <div>
       {loadingLeads ? "Loading…" : `${leads.length} lead${leads.length === 1 ? "" : "s"}`}
@@ -252,6 +390,23 @@ function LeadsPageInner() {
               </select>
             </div>
 
+            <div className="w-full sm:w-56">
+              <label className="text-muted text-xs">Assigned To</label>
+              <select
+                className="input mt-1"
+                value={assignedFilter}
+                onChange={(e) => setAssignedFilter(e.target.value)}
+              >
+                <option value="">All</option>
+                <option value="unassigned">Unassigned</option>
+                {teamUsers.map((user) => (
+                  <option key={user.id} value={user.id}>
+                    {user.first_name} {user.last_name}
+                  </option>
+                ))}
+              </select>
+            </div>
+
             <div className="flex gap-2">
               <Link href="/leads/new" className="btn">
                 Full Form
@@ -267,84 +422,199 @@ function LeadsPageInner() {
             </div>
           </div>
         </section>
+        <ListToolbar
+          left={
+            <>
+              {canViewAll ? (
+                <div className="border-base bg-surface flex items-center gap-1 rounded-md border p-1">
+                  <button
+                    type="button"
+                    className={`btn px-2 py-1 text-xs ${
+                      viewScope === "mine" ? "btn-primary" : "btn-ghost"
+                    }`}
+                    onClick={() => setViewScope("mine")}
+                  >
+                    My Leads
+                  </button>
+                  <button
+                    type="button"
+                    className={`btn px-2 py-1 text-xs ${
+                      viewScope === "all" ? "btn-primary" : "btn-ghost"
+                    }`}
+                    onClick={() => setViewScope("all")}
+                  >
+                    Team
+                  </button>
+                </div>
+              ) : null}
+
+              <div className="border-base bg-surface flex items-center gap-1 rounded-md border p-1">
+                <button
+                  type="button"
+                  className={`btn px-2 py-1 text-xs ${
+                    viewMode === "list" ? "btn-primary" : "btn-ghost"
+                  }`}
+                  onClick={() => setViewMode("list")}
+                >
+                  List
+                </button>
+                <button
+                  type="button"
+                  className={`btn px-2 py-1 text-xs ${
+                    viewMode === "board" ? "btn-primary" : "btn-ghost"
+                  }`}
+                  onClick={() => setViewMode("board")}
+                >
+                  Board
+                </button>
+              </div>
+            </>
+          }
+          right={
+            <SavedViewsControls
+              entityType="leads"
+              currentFilters={currentFiltersForSave}
+              onApplyFilters={(filters) => {
+                setQ(String(filters?.q || ""));
+                setStatus(String(filters?.status || ""));
+                setAssignedFilter(String(filters?.assignedFilter || ""));
+                setViewScope(String(filters?.viewScope || "mine"));
+                setViewMode(
+                  filters?.viewMode === "board" || filters?.viewMode === "list"
+                    ? filters.viewMode
+                    : "list",
+                );
+              }}
+            />
+          }
+        />
 
         <CollapsibleSection title={leadTitle} defaultOpen={true}>
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead className="bg-accent">
-                <tr className="text-left">
-                  <th className="px-4 py-3 font-medium">Name</th>
-                  <th className="px-4 py-3 font-medium">Status</th>
-                  <th className="px-4 py-3 font-medium">Source</th>
-                  <th className="px-4 py-3 font-medium">Created</th>
-                  <th className="px-4 py-3 text-right font-medium">Action</th>
-                </tr>
-              </thead>
-
-              <tbody>
-                {loadingLeads ? (
-                  Array.from({ length: 3 }).map((_, i) => (
-                    <tr key={i} className="border-base border-t">
-                      <td className="px-4 py-3">
-                        <Skeleton className="mb-2 h-4 w-32" />
-                        <Skeleton className="h-3 w-48" />
-                      </td>
-                      <td className="px-4 py-3">
-                        <Skeleton className="h-5 w-16 rounded-full" />
-                      </td>
-                      <td className="px-4 py-3">
-                        <Skeleton className="h-4 w-20" />
-                      </td>
-                      <td className="px-4 py-3">
-                        <Skeleton className="h-4 w-24" />
-                      </td>
-                      <td className="px-4 py-3 text-right">
-                        <Skeleton className="ml-auto h-4 w-12" />
-                      </td>
-                    </tr>
-                  ))
-                ) : leads.length === 0 ? (
-                  <tr className="border-base border-t">
-                    <td className="text-muted px-4 py-6" colSpan={5}>
-                      No leads found.
-                    </td>
+          {viewMode === "board" ? (
+            loadingLeads ? (
+              <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+                {Array.from({ length: 6 }).map((_, i) => (
+                  <div key={i} className="rounded-lg border p-3">
+                    <Skeleton className="mb-2 h-4 w-28" />
+                    <Skeleton className="h-3 w-full" />
+                  </div>
+                ))}
+              </div>
+            ) : leads.length === 0 ? (
+              <div className="text-muted rounded-lg border border-dashed p-4 text-sm">
+                No leads found.
+              </div>
+            ) : (
+              <KanbanBoard
+                leads={leads}
+                columns={LEAD_PIPELINE_COLUMNS}
+                onMove={handleMoveLeadStatus}
+              />
+            )
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead className="bg-accent">
+                  <tr className="text-left">
+                    <th className="px-4 py-3 font-medium">Name</th>
+                    <th className="px-4 py-3 font-medium">Status</th>
+                    <th className="px-4 py-3 font-medium">Source</th>
+                    <th className="px-4 py-3 font-medium">Assignee</th>
+                    <th className="px-4 py-3 font-medium">Created</th>
                   </tr>
-                ) : (
-                  leads.map((lead) => (
-                    <tr
-                      key={lead.id}
-                      className="border-base hover:bg-accent border-t transition"
-                    >
-                      <td className="px-4 py-3">
-                        <div className="font-medium">
-                          {lead.first_name} {lead.last_name}
-                        </div>
-                        <div className="text-muted mt-1 text-xs">
-                          {(lead.email ?? "—") + (lead.phone ? ` • ${lead.phone}` : "")}
-                        </div>
-                      </td>
+                </thead>
 
-                      <td className="px-4 py-3">
-                        <span className="status-chip">{lead.status}</span>
-                      </td>
-
-                      <td className="px-4 py-3">{lead.source ?? "—"}</td>
-                      <td className="px-4 py-3">{formatDate(lead.created_at)}</td>
-
-                      <td className="px-4 py-3 text-right">
-                        <Link
-                          className="underline underline-offset-4 hover:opacity-80"
-                          href={`/leads/${lead.id}`}
-                        >
-                          View
-                        </Link>
+                <tbody>
+                  {loadingLeads ? (
+                    Array.from({ length: 3 }).map((_, i) => (
+                      <tr key={i} className="border-base border-t">
+                        <td className="px-4 py-3">
+                          <Skeleton className="mb-2 h-4 w-32" />
+                          <Skeleton className="h-3 w-48" />
+                        </td>
+                        <td className="px-4 py-3">
+                          <Skeleton className="h-5 w-16 rounded-full" />
+                        </td>
+                        <td className="px-4 py-3">
+                          <Skeleton className="h-4 w-20" />
+                        </td>
+                        <td className="px-4 py-3">
+                          <Skeleton className="h-4 w-24" />
+                        </td>
+                        <td className="px-4 py-3">
+                          <Skeleton className="h-4 w-24" />
+                        </td>
+                      </tr>
+                    ))
+                  ) : leads.length === 0 ? (
+                    <tr className="border-base border-t">
+                      <td className="text-muted px-4 py-6" colSpan={5}>
+                        No leads found.
                       </td>
                     </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
-          </div>
+                  ) : (
+                    leads.map((lead) => (
+                      <tr
+                        key={lead.id}
+                        className="border-base hover:bg-accent cursor-pointer border-t transition"
+                        role="link"
+                        tabIndex={0}
+                        onClick={() => router.push(`/leads/${lead.id}`)}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter" || e.key === " ") {
+                            e.preventDefault();
+                            router.push(`/leads/${lead.id}`);
+                          }
+                        }}
+                      >
+                        <td className="px-4 py-3">
+                          <div className="font-medium">
+                            {lead.first_name} {lead.last_name}
+                          </div>
+                          <div className="text-muted mt-1 text-xs">
+                            {(lead.email ?? "—") + (lead.phone ? ` • ${lead.phone}` : "")}
+                          </div>
+                        </td>
+
+                        <td className="px-4 py-3">
+                          <span className="status-chip">{lead.status}</span>
+                        </td>
+
+                        <td className="px-4 py-3">{lead.source ?? "—"}</td>
+                        <td className="px-4 py-3">
+                          {canViewAll ? (
+                            <select
+                              className="input"
+                              value={lead.assigned_to || ""}
+                              onClick={(e) => e.stopPropagation()}
+                              onKeyDown={(e) => e.stopPropagation()}
+                              onChange={(e) => {
+                                e.stopPropagation();
+                                handleAssignLead(lead.id, e.target.value);
+                              }}
+                            >
+                              <option value="">Unassigned</option>
+                              {teamUsers.map((user) => (
+                                <option key={user.id} value={user.id}>
+                                  {user.first_name} {user.last_name}
+                                </option>
+                              ))}
+                            </select>
+                          ) : lead.assigned_user ? (
+                            `${lead.assigned_user.first_name || ""} ${lead.assigned_user.last_name || ""}`.trim() ||
+                            lead.assigned_user.email
+                          ) : (
+                            <span className="text-muted">—</span>
+                          )}
+                        </td>
+                        <td className="px-4 py-3">{formatDate(lead.created_at)}</td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
+          )}
         </CollapsibleSection>
       </div>
     </AppShell>

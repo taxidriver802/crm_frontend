@@ -10,6 +10,8 @@ import { api } from "@/lib/api";
 import { formatDate } from "@/lib/helper";
 import { CollapsibleSection } from "@/components/forms/collapsible-section";
 import { TableRowSkeleton } from "@/components/loading/loadingSkeletons";
+import { ListToolbar } from "@/components/list-toolbar";
+import { SavedViewsControls } from "@/components/saved-views-controls";
 
 function JobsPageInner() {
   const [q, setQ] = useState("");
@@ -26,6 +28,10 @@ function JobsPageInner() {
 
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [addressPreview, setAddressPreview] = useState(null);
+  const [currentUser, setCurrentUser] = useState(null);
+  const [teamUsers, setTeamUsers] = useState([]);
+  const [viewScope, setViewScope] = useState("mine");
+  const [assignedFilter, setAssignedFilter] = useState("");
 
   const searchParams = useSearchParams();
   const prefillLeadId = searchParams.get("lead_id") || "";
@@ -33,6 +39,38 @@ function JobsPageInner() {
   const statusFromUrl = searchParams.get("status") || "";
 
   const [form, setForm] = useState(createEmptyJobForm({ lead_id: prefillLeadId }));
+
+  const canViewAll = currentUser?.role === "owner" || currentUser?.role === "admin";
+  const currentFiltersForSave = useMemo(
+    () => ({ q, status, assignedFilter, viewScope }),
+    [q, status, assignedFilter, viewScope],
+  );
+
+  useEffect(() => {
+    let alive = true;
+    async function loadMeAndTeam() {
+      try {
+        const meRes = await fetch("/api/auth/me", { credentials: "include" });
+        const meData = await meRes.json();
+        if (!alive) return;
+        const me = meData?.user || null;
+        setCurrentUser(me);
+        if (me?.role === "owner" || me?.role === "admin") {
+          const usersRes = await api("/users");
+          if (!alive) return;
+          setTeamUsers(usersRes.users || []);
+        }
+      } catch {
+        if (!alive) return;
+        setCurrentUser(null);
+        setTeamUsers([]);
+      }
+    }
+    loadMeAndTeam();
+    return () => {
+      alive = false;
+    };
+  }, []);
 
   useEffect(() => {
     if (prefillLeadId) {
@@ -66,12 +104,54 @@ function JobsPageInner() {
       params.set("q", q.trim());
     }
 
+    if (canViewAll && viewScope === "all") {
+      params.set("view", "all");
+    }
+
+    if (assignedFilter) {
+      params.set("assignedTo", assignedFilter);
+    }
+
     params.set("limit", "50");
     params.set("offset", "0");
 
     const s = params.toString();
     return s ? `?${s}` : "";
-  }, [q, status]);
+  }, [q, status, canViewAll, viewScope, assignedFilter]);
+
+  async function handleAssignJob(jobId, assignedTo) {
+    const assignee = teamUsers.find((user) => user.id === assignedTo) || null;
+    const previous = jobs;
+
+    setJobs((prev) =>
+      prev.map((job) =>
+        job.id === jobId
+          ? {
+              ...job,
+              assigned_to: assignedTo || null,
+              assigned_user: assignee
+                ? {
+                    id: assignee.id,
+                    first_name: assignee.first_name,
+                    last_name: assignee.last_name,
+                    email: assignee.email,
+                  }
+                : null,
+            }
+          : job,
+      ),
+    );
+
+    try {
+      await api(`/jobs/${jobId}`, {
+        method: "PATCH",
+        body: JSON.stringify({ assigned_to: assignedTo || null }),
+      });
+    } catch (e) {
+      setJobs(previous);
+      setError(e?.message || "Failed to reassign job");
+    }
+  }
 
   async function loadJobs() {
     setLoadingJobs(true);
@@ -234,6 +314,23 @@ function JobsPageInner() {
               </select>
             </div>
 
+            <div className="w-full sm:w-56">
+              <label className="text-muted text-xs">Assigned To</label>
+              <select
+                className="input mt-1"
+                value={assignedFilter}
+                onChange={(e) => setAssignedFilter(e.target.value)}
+              >
+                <option value="">All</option>
+                <option value="unassigned">Unassigned</option>
+                {teamUsers.map((user) => (
+                  <option key={user.id} value={user.id}>
+                    {user.first_name} {user.last_name}
+                  </option>
+                ))}
+              </select>
+            </div>
+
             <div className="flex gap-2">
               <Link
                 href={prefillLeadId ? `/jobs/new?lead_id=${prefillLeadId}` : "/jobs/new"}
@@ -252,6 +349,44 @@ function JobsPageInner() {
             </div>
           </div>
         </section>
+        <ListToolbar
+          left={
+            canViewAll ? (
+              <div className="border-base bg-surface flex items-center gap-1 rounded-md border p-1">
+                <button
+                  type="button"
+                  className={`btn px-2 py-1 text-xs ${
+                    viewScope === "mine" ? "btn-primary" : "btn-ghost"
+                  }`}
+                  onClick={() => setViewScope("mine")}
+                >
+                  My Jobs
+                </button>
+                <button
+                  type="button"
+                  className={`btn px-2 py-1 text-xs ${
+                    viewScope === "all" ? "btn-primary" : "btn-ghost"
+                  }`}
+                  onClick={() => setViewScope("all")}
+                >
+                  Team
+                </button>
+              </div>
+            ) : null
+          }
+          right={
+            <SavedViewsControls
+              entityType="jobs"
+              currentFilters={currentFiltersForSave}
+              onApplyFilters={(filters) => {
+                setQ(String(filters?.q || ""));
+                setStatus(String(filters?.status || ""));
+                setAssignedFilter(String(filters?.assignedFilter || ""));
+                setViewScope(String(filters?.viewScope || "mine"));
+              }}
+            />
+          }
+        />
 
         <CollapsibleSection title={jobTitle} defaultOpen={true}>
           <div className="scrollbar-theme overflow-x-auto">
@@ -262,6 +397,7 @@ function JobsPageInner() {
                   <th className="px-4 py-3 font-medium">Lead</th>
                   <th className="px-4 py-3 font-medium">Status</th>
                   <th className="px-4 py-3 font-medium">Address</th>
+                  <th className="px-4 py-3 font-medium">Assignee</th>
                   <th className="px-4 py-3 font-medium">Created</th>
                   <th className="px-4 py-3 text-right font-medium">Action</th>
                 </tr>
@@ -270,11 +406,11 @@ function JobsPageInner() {
               <tbody>
                 {loadingJobs ? (
                   Array.from({ length: 3 }).map((_, i) => (
-                    <TableRowSkeleton key={i} cols={6} />
+                    <TableRowSkeleton key={i} cols={7} />
                   ))
                 ) : jobs.length === 0 ? (
                   <tr className="border-base border-t">
-                    <td className="text-muted px-4 py-6" colSpan={6}>
+                    <td className="text-muted px-4 py-6" colSpan={7}>
                       No jobs found.
                     </td>
                   </tr>
@@ -318,6 +454,27 @@ function JobsPageInner() {
                           >
                             <span className="block truncate">{job.address}</span>
                           </button>
+                        ) : (
+                          <span className="text-muted">—</span>
+                        )}
+                      </td>
+                      <td className="px-4 py-3">
+                        {canViewAll ? (
+                          <select
+                            className="input"
+                            value={job.assigned_to || ""}
+                            onChange={(e) => handleAssignJob(job.id, e.target.value)}
+                          >
+                            <option value="">Unassigned</option>
+                            {teamUsers.map((user) => (
+                              <option key={user.id} value={user.id}>
+                                {user.first_name} {user.last_name}
+                              </option>
+                            ))}
+                          </select>
+                        ) : job.assigned_user ? (
+                          `${job.assigned_user.first_name || ""} ${job.assigned_user.last_name || ""}`.trim() ||
+                          job.assigned_user.email
                         ) : (
                           <span className="text-muted">—</span>
                         )}

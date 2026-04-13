@@ -323,6 +323,29 @@
     color: var(--text);
   }
 
+  .kanban-board {
+    @apply grid gap-3 overflow-x-auto pb-2;
+    grid-auto-flow: column;
+    grid-auto-columns: minmax(260px, 300px);
+  }
+
+  .kanban-column {
+    @apply rounded-lg border p-3;
+    background: var(--surface);
+    min-height: 320px;
+  }
+
+  .kanban-column-over {
+    background: var(--accent-soft);
+    border-color: var(--accent);
+  }
+
+  .kanban-card {
+    @apply rounded-md border p-3;
+    background: var(--surface-elevated);
+    box-shadow: var(--shadow-sm);
+  }
+
   /* ------------------- */
   /* DAY PICKER TWEAKS */
   /* ------------------- */

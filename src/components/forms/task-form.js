@@ -3,6 +3,10 @@
 import { useEffect, useState, useRef } from "react";
 import { DayPicker } from "react-day-picker";
 import "react-day-picker/dist/style.css";
+import {
+  DAY_PICKER_CLASSNAMES,
+  parseLocalDate,
+} from "@/components/calendar/calendar-shared";
 
 const STATUS_OPTIONS = ["Pending", "Completed"];
 
@@ -397,13 +401,6 @@ export function CustomDateTimePicker({ value, onChange }) {
     });
   }
 
-  function parseLocalDate(dateString) {
-    if (!dateString) return null;
-
-    const [year, month, day] = dateString.split("-").map(Number);
-    return new Date(year, month - 1, day); // 👈 local date
-  }
-
   useEffect(() => {
     function handleClick(e) {
       if (pickerRef.current && !pickerRef.current.contains(e.target)) {
@@ -439,28 +436,7 @@ export function CustomDateTimePicker({ value, onChange }) {
               endMonth={new Date(2035, 11)}
               showOutsideDays
               className="text-main text-sm"
-              classNames={{
-                root: "rdp-root",
-                month: "space-y-3",
-                caption: "px-0",
-                caption_label: "hidden",
-                dropdowns: "flex w-full justify-center gap-2",
-                dropdown: "input h-9 w-auto px-2 py-1 text-sm",
-                nav: "flex justify-center gap-2",
-                button_previous: "icon-btn h-9 w-9",
-                button_next: "icon-btn h-9 w-9",
-                table: "w-full border-collapse",
-                head_row: "grid grid-cols-7",
-                row: "grid grid-cols-7",
-                weekday: "text-muted py-1 text-center text-xs font-medium",
-                day: "h-10 w-10 rounded-md p-0 text-sm",
-                day_button:
-                  "h-10 w-10 rounded-md transition hover:bg-accent focus:outline-none focus:ring-2 focus:ring-[var(--accent)]",
-                selected: "bg-accent rounded-md text-white hover:bg-accent",
-                today: "text-muted opacity-25 font-normal",
-                outside: "text-soft opacity-50",
-                disabled: "text-soft opacity-40",
-              }}
+              classNames={DAY_PICKER_CLASSNAMES}
             />
           </div>
         )}

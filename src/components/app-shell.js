@@ -7,6 +7,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { useToast } from "./toast/toast-provider";
 import { InviteUserModal } from "@/components/modals/invite-user-modal";
 import { ThemeToggle } from "@/components/theme/theme-toggle";
+import { CommandPalette } from "@/components/command-palette";
 
 import MainLogo from "@/assets/mainlogo.svg";
 import { api } from "@/lib/api";
@@ -20,6 +21,7 @@ const WORKFLOW_NAV = [
 
 const SYSTEM_NAV = [
   { href: "/files", label: "Files", priority: "secondary" },
+  { href: "/reports", label: "Reports", priority: "secondary" },
   { href: "/integrations", label: "Integrations", priority: "secondary" },
 ];
 
@@ -91,6 +93,7 @@ export function AppShell({ children, title, description, right }) {
   const [notificationsLoading, setNotificationsLoading] = useState(false);
   const [markingAllRead, setMarkingAllRead] = useState(false);
   const [inviteModalOpen, setInviteModalOpen] = useState(false);
+  const [searchOpen, setSearchOpen] = useState(false);
 
   const notificationsOpenRef = useRef(false);
   const prevNotificationsRef = useRef([]);
@@ -111,6 +114,19 @@ export function AppShell({ children, title, description, right }) {
 
     document.addEventListener("click", handleClickOutside);
     return () => document.removeEventListener("click", handleClickOutside);
+  }, []);
+
+  useEffect(() => {
+    function onShortcut(event) {
+      const isK = event.key?.toLowerCase() === "k";
+      const isMeta = event.metaKey || event.ctrlKey;
+      if (!isK || !isMeta) return;
+      event.preventDefault();
+      setSearchOpen(true);
+    }
+
+    window.addEventListener("keydown", onShortcut);
+    return () => window.removeEventListener("keydown", onShortcut);
   }, []);
 
   useEffect(() => {
@@ -501,6 +517,16 @@ export function AppShell({ children, title, description, right }) {
             <div className="notifications-menu relative">
               <button
                 type="button"
+                onClick={() => setSearchOpen(true)}
+                aria-label="Open search"
+                className="icon-btn mr-2"
+                title="Search (Ctrl/Cmd + K)"
+              >
+                <span className="leading-none">🔍</span>
+              </button>
+
+              <button
+                type="button"
                 onClick={handleToggleNotifications}
                 aria-label="Open notifications"
                 aria-expanded={notificationsOpen}
@@ -629,6 +655,7 @@ export function AppShell({ children, title, description, right }) {
       </div>
 
       <InviteUserModal open={inviteModalOpen} onClose={() => setInviteModalOpen(false)} />
+      <CommandPalette open={searchOpen} onClose={() => setSearchOpen(false)} />
     </div>
   );
 }

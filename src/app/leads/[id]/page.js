@@ -17,6 +17,7 @@ import { FilePreviewModal } from "@/components/modals/file-preview-modal";
 import { CollapsibleSection } from "@/components/forms/collapsible-section";
 import { DetailMoreMenu, DetailMoreMenuItem } from "@/components/detail-more-menu";
 import { Skeleton } from "@/components/loading/loadingSkeletons";
+import { NotesSection } from "@/components/notes-section";
 
 function isCompletedTask(task) {
   return String(task?.status || "").toLowerCase() === "completed";
@@ -385,6 +386,14 @@ export default function LeadDetailPage() {
             <StatCard label="Files" value={files.length} />
           </section>
         )}
+
+        <CollapsibleSection
+          title="Notes"
+          description="Call notes, decisions, and context for this lead."
+          defaultOpen={true}
+        >
+          <NotesSection entityType="lead" entityId={id} />
+        </CollapsibleSection>
 
         <CollapsibleSection
           title="Jobs"
