@@ -87,6 +87,10 @@ export default function JobDetailPage() {
   const [loadingEstimates, setLoadingEstimates] = useState(true);
   const [estimatesError, setEstimatesError] = useState("");
 
+  const [invoices, setInvoices] = useState([]);
+  const [loadingInvoices, setLoadingInvoices] = useState(true);
+  const [invoicesError, setInvoicesError] = useState("");
+
   const [measurements, setMeasurements] = useState([]);
   const [loadingMeasurements, setLoadingMeasurements] = useState(true);
   const [measurementsError, setMeasurementsError] = useState("");
@@ -114,6 +118,8 @@ export default function JobDetailPage() {
   );
 
   const [previewFile, setPreviewFile] = useState(null);
+  const [portalBusy, setPortalBusy] = useState(false);
+  const [portalHint, setPortalHint] = useState("");
 
   useEffect(() => {
     if (!id) return;
@@ -207,6 +213,19 @@ export default function JobDetailPage() {
     }
   }
 
+  async function loadInvoices() {
+    setLoadingInvoices(true);
+    setInvoicesError("");
+    try {
+      const res = await api(`/invoices/job/${id}`);
+      setInvoices(res.invoices || []);
+    } catch (e) {
+      setInvoicesError(e.message || "Failed to load invoices");
+    } finally {
+      setLoadingInvoices(false);
+    }
+  }
+
   async function loadFiles() {
     try {
       setLoadingFiles(true);
@@ -231,6 +250,7 @@ export default function JobDetailPage() {
         loadActivity(),
         loadEstimates(),
         loadMeasurements(),
+        loadInvoices(),
       ]);
     } catch (e) {
       setError(e.message || "Failed to load job");
@@ -452,6 +472,25 @@ export default function JobDetailPage() {
     }
   }
 
+  async function handleGeneratePortalLink() {
+    setPortalBusy(true);
+    setPortalHint("");
+    try {
+      const res = await api(`/portal/generate/${id}`, { method: "POST" });
+      const url = `${window.location.origin}/public/portal/${res.token}`;
+      if (navigator.clipboard?.writeText) {
+        await navigator.clipboard.writeText(url);
+        setPortalHint("Customer portal link copied to clipboard.");
+      } else {
+        setPortalHint(url);
+      }
+    } catch (e) {
+      setPortalHint(e?.message || "Failed to generate portal link");
+    } finally {
+      setPortalBusy(false);
+    }
+  }
+
   const canManageFiles = currentUser?.role === "owner" || currentUser?.role === "admin";
 
   useEffect(() => {
@@ -634,11 +673,23 @@ export default function JobDetailPage() {
 
                     <div className="flex flex-wrap items-center gap-2">
                       <JobStatusBadge status={job.status} />
+                      <button
+                        type="button"
+                        className="btn px-3 py-2 text-xs"
+                        onClick={handleGeneratePortalLink}
+                        disabled={portalBusy}
+                      >
+                        {portalBusy ? "Link…" : "Customer Portal"}
+                      </button>
                       <Link href={`/jobs/${id}/edit`} className="btn px-3 py-2 text-xs">
                         Edit
                       </Link>
                     </div>
                   </div>
+
+                  {portalHint ? (
+                    <div className="text-muted text-sm">{portalHint}</div>
+                  ) : null}
 
                   <div className="border-base border-t pt-4">
                     <p className="text-muted text-sm leading-6">
@@ -771,6 +822,65 @@ export default function JobDetailPage() {
                         </div>
                       </Link>
                     ))}
+                  </div>
+                )}
+              </CollapsibleSection>
+
+              <CollapsibleSection
+                title="Invoices"
+                description="Billing tied to this job"
+                defaultOpen={true}
+                actions={
+                  <Link
+                    href={`/invoices/new?job_id=${id}`}
+                    className="btn px-3 py-2 text-xs"
+                  >
+                    + New Invoice
+                  </Link>
+                }
+              >
+                {!isInitialLoading && loadingInvoices ? (
+                  <SectionSkeleton rows={3} />
+                ) : invoicesError ? (
+                  <div className="text-sm text-red-500">{invoicesError}</div>
+                ) : invoices.length === 0 ? (
+                  <div className="text-muted rounded-lg border border-dashed p-4 text-sm">
+                    No invoices for this job yet.
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    {[...invoices]
+                      .sort(
+                        (a, b) =>
+                          new Date(b.updated_at || b.created_at) -
+                          new Date(a.updated_at || a.created_at),
+                      )
+                      .map((inv) => (
+                        <Link
+                          key={inv.id}
+                          href={`/invoices/${inv.id}`}
+                          className="hover:bg-accent flex items-start justify-between gap-3 rounded-lg border p-4 transition"
+                        >
+                          <div className="min-w-0 flex-1">
+                            <div className="font-medium">{inv.invoice_number}</div>
+                            <div className="text-muted mt-1 flex flex-wrap items-center gap-2 text-xs">
+                              <span>{formatDate(inv.updated_at || inv.created_at)}</span>
+                              {inv.due_date ? (
+                                <>
+                                  <span>•</span>
+                                  <span>Due {formatDate(inv.due_date)}</span>
+                                </>
+                              ) : null}
+                            </div>
+                          </div>
+                          <div className="flex shrink-0 flex-col items-end gap-2">
+                            <span className="status-chip text-xs">{inv.status}</span>
+                            <div className="text-sm font-semibold">
+                              ${formatCurrency(Number(inv.grand_total || 0).toFixed(2))}
+                            </div>
+                          </div>
+                        </Link>
+                      ))}
                   </div>
                 )}
               </CollapsibleSection>

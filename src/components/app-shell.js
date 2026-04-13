@@ -17,11 +17,13 @@ const WORKFLOW_NAV = [
   { href: "/leads", label: "Leads", priority: "primary" },
   { href: "/jobs", label: "Jobs", priority: "primary" },
   { href: "/tasks", label: "Tasks", priority: "primary" },
+  { href: "/invoices", label: "Invoices", priority: "primary" },
 ];
 
 const SYSTEM_NAV = [
   { href: "/files", label: "Files", priority: "secondary" },
   { href: "/reports", label: "Reports", priority: "secondary" },
+  { href: "/automation", label: "Automation", priority: "secondary" },
   { href: "/integrations", label: "Integrations", priority: "secondary" },
 ];
 
@@ -70,6 +72,10 @@ function getNotificationHref(notification) {
 
   if (notification.entity_type === "estimate" && notification.entity_id) {
     return `/estimates/${notification.entity_id}`;
+  }
+
+  if (notification.entity_type === "invoice" && notification.entity_id) {
+    return `/invoices/${notification.entity_id}`;
   }
 
   if (notification.type === "FILE_UPLOADED" && !notification.entity_type) {
@@ -196,6 +202,7 @@ export function AppShell({ children, title, description, right }) {
     if (notification.entity_type === "lead") return "Open lead";
     if (notification.entity_type === "job") return "Open job";
     if (notification.entity_type === "estimate") return "Open estimate";
+    if (notification.entity_type === "invoice") return "Open invoice";
     return null;
   }
 
@@ -653,6 +660,35 @@ export function AppShell({ children, title, description, right }) {
           </div>
         </main>
       </div>
+
+      {/* MOBILE BOTTOM NAV */}
+      <nav
+        className="border-base bg-surface fixed inset-x-0 bottom-0 z-30 flex items-center justify-around border-t py-1.5 lg:hidden"
+        style={{ paddingBottom: "max(0.375rem, env(safe-area-inset-bottom, 0px))" }}
+      >
+        {[
+          { href: "/dashboard", label: "Home", icon: "🏠" },
+          { href: "/leads", label: "Leads", icon: "👤" },
+          { href: "/jobs", label: "Jobs", icon: "🔨" },
+          { href: "/tasks", label: "Tasks", icon: "📋" },
+          { href: "/reports", label: "Reports", icon: "📊" },
+        ].map((item) => {
+          const active = isActivePath(pathname, item.href);
+          return (
+            <Link
+              key={item.href}
+              href={item.href}
+              className={cx(
+                "flex flex-col items-center gap-0.5 px-2 py-1 text-[10px] transition",
+                active ? "text-main font-semibold" : "text-muted",
+              )}
+            >
+              <span className="text-base leading-none">{item.icon}</span>
+              <span>{item.label}</span>
+            </Link>
+          );
+        })}
+      </nav>
 
       <InviteUserModal open={inviteModalOpen} onClose={() => setInviteModalOpen(false)} />
       <CommandPalette open={searchOpen} onClose={() => setSearchOpen(false)} />

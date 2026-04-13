@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import { AppShell } from "@/components/app-shell";
 import { api } from "@/lib/api";
 import { CollapsibleSection } from "@/components/forms/collapsible-section";
@@ -32,6 +32,7 @@ function StatusBadge({ status }) {
 
 export default function EstimateDetailPage() {
   const { id } = useParams();
+  const router = useRouter();
 
   const [estimate, setEstimate] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -47,6 +48,7 @@ export default function EstimateDetailPage() {
   const [shareBusy, setShareBusy] = useState(false);
   const [resendBusy, setResendBusy] = useState(false);
   const [shareHint, setShareHint] = useState("");
+  const [invoiceBusy, setInvoiceBusy] = useState(false);
   const lineItems = estimate?.line_items || [];
 
   async function loadEstimate() {
@@ -143,6 +145,19 @@ export default function EstimateDetailPage() {
       setError(e?.message || "Failed to load estimate");
     } finally {
       setLoading(false);
+    }
+  }
+
+  async function handleCreateInvoice() {
+    setInvoiceBusy(true);
+    setError("");
+    try {
+      const res = await api(`/invoices/from-estimate/${id}`, { method: "POST" });
+      router.push(`/invoices/${res.invoice.id}`);
+    } catch (e) {
+      setError(e?.message || "Failed to create invoice");
+    } finally {
+      setInvoiceBusy(false);
     }
   }
 
@@ -318,6 +333,16 @@ export default function EstimateDetailPage() {
                   >
                     {shareBusy ? "Link…" : "Copy share link"}
                   </button>
+                  {estimate.status === "Approved" ? (
+                    <button
+                      type="button"
+                      className="btn btn-sm px-3 py-1.5"
+                      disabled={invoiceBusy}
+                      onClick={handleCreateInvoice}
+                    >
+                      {invoiceBusy ? "Creating…" : "Create Invoice"}
+                    </button>
+                  ) : null}
                   <Link
                     className="btn text-muted btn-ghost btn-sm hover:bg-surface cursor-pointer"
                     href={`/estimates/${estimate.id}/edit`}

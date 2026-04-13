@@ -16,6 +16,11 @@ const TYPE_ICONS = {
   ESTIMATE_CLIENT_RESPONDED: "✉️",
   ESTIMATE_DELETED: "🗑️",
   ESTIMATE_RESENT_TO_CLIENT: "🔁",
+  INVOICE_CREATED: "🧾",
+  INVOICE_UPDATED: "✏️",
+  INVOICE_STATUS_CHANGED: "🔄",
+  INVOICE_DELETED: "🗑️",
+  INVOICE_PAID: "💰",
 };
 
 function safeMeta(activity) {
@@ -35,8 +40,9 @@ export function getActivityHref(activity) {
   if (activity.entity_type === "lead") return `/leads/${activity.entity_id}`;
   if (activity.entity_type === "job") return `/jobs/${activity.entity_id}`;
   if (activity.entity_type === "task") return `/tasks/${activity.entity_id}`;
-  if (activity.entity_type === "file") return `/files/${activity.entity_id}`;
+  if (activity.entity_type === "file") return `/files`;
   if (activity.entity_type === "estimate") return `/estimates/${activity.entity_id}`;
+  if (activity.entity_type === "invoice") return `/invoices/${activity.entity_id}`;
   return null;
 }
 
@@ -181,6 +187,49 @@ export function formatActivity(activity) {
         title: "Estimate resent",
         detail:
           meta.estimateTitle || activity.message || "Share link refreshed for the client",
+        meta: null,
+      };
+
+    case "INVOICE_CREATED":
+      return {
+        icon,
+        title: activity.title || "Invoice created",
+        detail: activity.message || "An invoice was created",
+        meta: meta.invoiceNumber || null,
+      };
+
+    case "INVOICE_UPDATED":
+      return {
+        icon,
+        title: "Invoice updated",
+        detail: meta.invoiceNumber || activity.message || "An invoice was updated",
+        meta: null,
+      };
+
+    case "INVOICE_STATUS_CHANGED":
+      return {
+        icon,
+        title: "Invoice status changed",
+        detail:
+          meta.previousStatus && meta.newStatus
+            ? `${meta.previousStatus} → ${meta.newStatus}`
+            : activity.message || "Invoice status updated",
+        meta: meta.invoiceNumber || null,
+      };
+
+    case "INVOICE_DELETED":
+      return {
+        icon,
+        title: "Invoice deleted",
+        detail: meta.invoiceNumber || activity.message || "An invoice was deleted",
+        meta: null,
+      };
+
+    case "INVOICE_PAID":
+      return {
+        icon,
+        title: "Invoice paid",
+        detail: meta.invoiceNumber || activity.message || "An invoice was marked as paid",
         meta: null,
       };
 

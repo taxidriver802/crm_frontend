@@ -392,3 +392,31 @@
     fill: currentColor;
   }
 }
+
+/* ─── MOBILE PWA ───────────────────────────────── */
+@media (max-width: 1023px) {
+  main {
+    padding-bottom: calc(3.5rem + env(safe-area-inset-bottom, 0px));
+  }
+}
+
+@supports (padding: max(0px)) {
+  body {
+    padding-left: env(safe-area-inset-left, 0px);
+    padding-right: env(safe-area-inset-right, 0px);
+  }
+}
+
+@media (hover: none) and (pointer: coarse) {
+  .btn,
+  .icon-btn,
+  button,
+  a {
+    min-height: 44px;
+    min-width: 44px;
+  }
+
+  .status-chip {
+    min-height: 32px;
+  }
+}

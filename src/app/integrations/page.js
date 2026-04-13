@@ -67,6 +67,7 @@ function IntegrationCard({ title, description, href, health, loading, note }) {
 
 export default function IntegrationsPage() {
   const [abc, setAbc] = useState(null);
+  const [qb, setQb] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
@@ -74,11 +75,14 @@ export default function IntegrationsPage() {
     try {
       setLoading(true);
       setError("");
-      const res = await api("/integrations/abc/status");
-      setAbc(res.integration);
+      const [abcRes, qbRes] = await Promise.allSettled([
+        api("/integrations/abc/status"),
+        api("/integrations/quickbooks/status"),
+      ]);
+      if (abcRes.status === "fulfilled") setAbc(abcRes.value?.integration);
+      if (qbRes.status === "fulfilled") setQb(qbRes.value?.integration);
     } catch (e) {
       setError(e.message || "Failed to load integrations");
-      setAbc(null);
     } finally {
       setLoading(false);
     }
@@ -89,6 +93,7 @@ export default function IntegrationsPage() {
   }, []);
 
   const abcHealth = getIntegrationHealth(abc);
+  const qbHealth = getIntegrationHealth(qb);
 
   return (
     <AppShell title="Integrations">
@@ -118,18 +123,14 @@ export default function IntegrationsPage() {
             note="Current page focuses on setup visibility and status, not full operational flows yet."
           />
 
-          <div className="card rounded-lg p-4 opacity-80">
-            <div className="flex items-start justify-between gap-3">
-              <div>
-                <div className="font-medium">More integrations coming</div>
-                <div className="text-muted mt-1 text-sm">
-                  This space is ready for future providers like calendar sync, email sync,
-                  listing platforms, and vendor tools.
-                </div>
-              </div>
-              <StatusBadge>Planned</StatusBadge>
-            </div>
-          </div>
+          <IntegrationCard
+            title="QuickBooks Online"
+            description="Sync invoices to QuickBooks and pull back payment status for streamlined accounting."
+            href="/integrations/quickbooks"
+            health={qbHealth}
+            loading={loading}
+            note="OAuth2 connection required. Set QB_CLIENT_ID, QB_CLIENT_SECRET, and QB_REDIRECT_URI."
+          />
         </section>
       </div>
     </AppShell>

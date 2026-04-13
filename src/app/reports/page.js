@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import Link from "next/link";
 import { AppShell } from "@/components/app-shell";
 import { api } from "@/lib/api";
 import { Skeleton } from "@/components/loading/loadingSkeletons";
@@ -142,7 +143,14 @@ export default function ReportsPage() {
   }, [trends]);
 
   return (
-    <AppShell title="Reports">
+    <AppShell
+      title="Reports"
+      right={
+        <Link href="/reports/product" className="btn px-3 py-2 text-xs">
+          Product Metrics
+        </Link>
+      }
+    >
       <div className="space-y-6">
         {error ? <div className="text-sm text-red-500">{error}</div> : null}
 

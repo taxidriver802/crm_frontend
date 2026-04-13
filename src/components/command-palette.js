@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { api } from "@/lib/api";
 
@@ -37,6 +38,7 @@ function flattenResults(results) {
 }
 
 export function CommandPalette({ open, onClose }) {
+  const router = useRouter();
   const [query, setQuery] = useState("");
   const [loading, setLoading] = useState(false);
   const [results, setResults] = useState({ leads: [], jobs: [], tasks: [] });
@@ -104,7 +106,8 @@ export function CommandPalette({ open, onClose }) {
     if (e.key === "Enter") {
       const selected = flatItems[activeIndex];
       if (selected) {
-        window.location.href = selected.href;
+        onClose();
+        router.push(selected.href);
       }
     }
   }
