@@ -18,19 +18,20 @@ export const metadata = {
   title: "Rooftop Realty CRM",
   description: "Roofing, Gutters, Siding, Windows, Buy & Sell",
   manifest: "/manifest.json",
-  themeColor: "#6366f1",
-  viewport: {
-    width: "device-width",
-    initialScale: 1,
-    maximumScale: 1,
-    userScalable: false,
-    viewportFit: "cover",
-  },
   appleWebApp: {
     capable: true,
     statusBarStyle: "black-translucent",
     title: "CRM",
   },
+};
+
+export const viewport = {
+  themeColor: "#6366f1",
+  width: "device-width",
+  initialScale: 1,
+  maximumScale: 1,
+  userScalable: false,
+  viewportFit: "cover",
 };
 
 function ServiceWorkerRegistrar() {

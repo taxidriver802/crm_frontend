@@ -1,4 +1,8 @@
 /** @type {import('next').NextConfig} */
+
+const BACKEND_URL =
+  process.env.API_INTERNAL_BASE_URL || "http://localhost:4000";
+
 const nextConfig = {
   turbopack: {
     rules: {
@@ -19,8 +23,10 @@ const nextConfig = {
   async rewrites() {
     return [
       {
+        // Browser calls /api/... (via NEXT_PUBLIC_API_BASE_URL=/api)
+        // while Next.js pages keep /leads, /jobs, etc.
         source: "/api/:path*",
-        destination: "http://localhost:4000/:path*",
+        destination: `${BACKEND_URL}/:path*`,
       },
     ];
   },

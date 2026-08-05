@@ -1,11 +1,14 @@
 import { NextResponse } from "next/server";
-import { API_BASE } from "@/lib/helper";
+
+const BACKEND_URL =
+  process.env.API_INTERNAL_BASE_URL || "http://localhost:4000";
 
 async function handler(req, { params }) {
   const path = params.path || [];
 
   const search = new URL(req.url).search;
-  const target = `${API_BASE}/notifications/${path.join("/")}${search}`;
+  // Use absolute backend URL — API_BASE (/api) is relative and breaks server-side fetch
+  const target = `${BACKEND_URL}/notifications/${path.join("/")}${search}`;
 
   try {
     const res = await fetch(target, {
