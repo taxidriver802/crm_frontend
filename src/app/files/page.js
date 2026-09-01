@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 
+
 import { AppShell } from "@/components/app-shell";
 import { FilePreviewModal } from "@/components/modals/file-preview-modal";
 import { api } from "@/lib/api";
@@ -19,6 +20,7 @@ import {
   FilterBarSkeleton,
   Skeleton,
   StatCardSkeleton,
+  TableRowSkeleton,
 } from "@/components/loading/loadingSkeletons";
 
 function StatCard({ label, value, sub }) {

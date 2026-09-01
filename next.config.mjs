@@ -18,7 +18,11 @@ const nextConfig = {
     pagesBufferLength: 5,
   },
 
-  allowedDevOrigins: ["unusuriously-interlocutory-dann.ngrok-free.dev", "192.168.137.1"],
+  allowedDevOrigins: [
+    "unusuriously-interlocutory-dann.ngrok-free.dev",
+    "192.168.137.1",
+    "192.168.0.15",
+  ],
 
   async rewrites() {
     return [

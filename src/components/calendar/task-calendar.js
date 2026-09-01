@@ -140,7 +140,7 @@ export function TaskCalendar({ tasks, onTaskClick, onRangeChange, onDayCreate })
       </div>
 
       <div
-        className="bg-surface grid gap-2 rounded-lg"
+        className="bg-surface grid gap-2 rounded-lg p-2"
         style={{ gridTemplateColumns: `repeat(${columnCount}, minmax(0, 1fr))` }}
       >
         {weekHeaderDays.map((day) => (
@@ -160,9 +160,10 @@ export function TaskCalendar({ tasks, onTaskClick, onRangeChange, onDayCreate })
           return (
             <div
               key={key}
-              className={`rounded-md border p-2 ${isCurrentMonth ? "" : "opacity-60"}`}
+              className={`rounded-md border  ${isCurrentMonth ? "" : "opacity-25"}`}
             >
-              <div className="mb-2 flex items-center justify-between">
+              <div className=" flex items-center justify-between p-2 rounded-t-md border-b">
+         
                 <div className="text-xs font-semibold">{day.getDate()}</div>
                 <button
                   type="button"
@@ -172,8 +173,9 @@ export function TaskCalendar({ tasks, onTaskClick, onRangeChange, onDayCreate })
                   + task
                 </button>
               </div>
+         
 
-              <div className="space-y-1">
+              <div className="space-y-1 pb-2 p-2">
                 {dayTasks.length === 0 ? (
                   <div className="text-muted text-[11px]">No tasks</div>
                 ) : (

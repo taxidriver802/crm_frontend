@@ -1,6 +1,13 @@
 "use client";
 
-import { Suspense, useCallback, useEffect, useMemo, useState } from "react";
+import {
+  Suspense,
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useState,
+} from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { AppShell } from "@/components/app-shell";
@@ -13,6 +20,25 @@ import { Skeleton, TableRowSkeleton } from "@/components/loading/loadingSkeleton
 import { TaskCalendar } from "@/components/calendar/task-calendar";
 import { ListToolbar } from "@/components/list-toolbar";
 import { SavedViewsControls } from "@/components/saved-views-controls";
+
+/** 12rem — matches `min-w-[12rem]` menus */
+const TABLE_DROPDOWN_MENU_WIDTH_PX = 192;
+const TABLE_DROPDOWN_MENU_GAP_PX = 4;
+
+function getTableDropdownMenuPosition(triggerEl) {
+  const rect = triggerEl.getBoundingClientRect();
+  let left = rect.right - TABLE_DROPDOWN_MENU_WIDTH_PX;
+  const pad = 8;
+  left = Math.max(
+    pad,
+    Math.min(left, window.innerWidth - TABLE_DROPDOWN_MENU_WIDTH_PX - pad),
+  );
+  return {
+    top: rect.bottom + TABLE_DROPDOWN_MENU_GAP_PX,
+    left,
+    width: TABLE_DROPDOWN_MENU_WIDTH_PX,
+  };
+}
 
 function SummaryCard({ label, value, sub }) {
   return (
@@ -86,6 +112,9 @@ function TasksPageInner() {
   const [viewMode, setViewMode] = useState("list");
   const [calendarRange, setCalendarRange] = useState({ dateFrom: "", dateTo: "" });
   const [unscheduledCount, setUnscheduledCount] = useState(0);
+  const [openActionsTaskId, setOpenActionsTaskId] = useState(null);
+  /** Viewport-fixed placement so the menu does not expand `overflow-x-auto` scroll height */
+  const [actionsMenuPosition, setActionsMenuPosition] = useState(null);
   const [taskForm, setTaskForm] = useState(
     createEmptyTaskForm({
       lead_id: prefillLeadId,
@@ -381,6 +410,53 @@ function TasksPageInner() {
     loadTasks();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [queryString]);
+
+  function syncActionsMenuPosition(taskId) {
+    if (taskId == null) {
+      setActionsMenuPosition(null);
+      return;
+    }
+    const el = document.querySelector(`[data-task-actions-menu="${taskId}"]`);
+    if (el) {
+      setActionsMenuPosition(getTableDropdownMenuPosition(el));
+    }
+  }
+
+  useLayoutEffect(() => {
+    syncActionsMenuPosition(openActionsTaskId);
+  }, [openActionsTaskId]);
+
+  useEffect(() => {
+    if (openActionsTaskId == null) return undefined;
+
+    function handlePointerDown(e) {
+      if (e.target.closest("[data-task-actions-menu]")) return;
+      setOpenActionsTaskId(null);
+      setActionsMenuPosition(null);
+    }
+
+    function handleKeyDown(e) {
+      if (e.key === "Escape") {
+        setOpenActionsTaskId(null);
+        setActionsMenuPosition(null);
+      }
+    }
+
+    function handleReposition() {
+      syncActionsMenuPosition(openActionsTaskId);
+    }
+
+    window.addEventListener("resize", handleReposition);
+    document.addEventListener("scroll", handleReposition, true);
+    document.addEventListener("mousedown", handlePointerDown);
+    document.addEventListener("keydown", handleKeyDown);
+    return () => {
+      window.removeEventListener("resize", handleReposition);
+      document.removeEventListener("scroll", handleReposition, true);
+      document.removeEventListener("mousedown", handlePointerDown);
+      document.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [openActionsTaskId]);
 
   async function setTaskStatus(taskId, nextStatus) {
     try {
@@ -776,18 +852,27 @@ function TasksPageInner() {
                         </td>
                       </tr>
                     ) : (
-                      tasks.map((task) => (
-                        <tr
-                          key={task.id}
-                          className="border-base hover:bg-accent border-t transition"
-                        >
-                          <td className="px-4 py-3">
-                            <Link
-                              href={`/tasks/${task.id}`}
-                              className="block hover:opacity-80"
-                            >
+                      tasks.map((task) => {
+                        const menuOpen = openActionsTaskId === task.id;
+                        const isCompleted = task.status === "Completed";
+
+                        return (
+                          <tr
+                            key={task.id}
+                            className="border-base hover:bg-accent cursor-pointer border-t transition"
+                            role="link"
+                            tabIndex={0}
+                            onClick={() => router.push(`/tasks/${task.id}`)}
+                            onKeyDown={(e) => {
+                              if (e.key === "Enter" || e.key === " ") {
+                                e.preventDefault();
+                                router.push(`/tasks/${task.id}`);
+                              }
+                            }}
+                          >
+                            <td className="px-4 py-3">
                               <div
-                                className="truncate font-medium underline underline-offset-4"
+                                className="truncate font-medium"
                                 style={{ maxWidth: 240, display: "block" }}
                                 title={task.title}
                               >
@@ -802,80 +887,134 @@ function TasksPageInner() {
                                   {task.description}
                                 </div>
                               ) : null}
-                            </Link>
-                          </td>
+                            </td>
 
-                          <td className="truncate px-4 py-3">
-                            <LinkedEntityCell task={task} />
-                          </td>
+                            <td
+                              className="truncate px-4 py-3"
+                              onClick={(e) => e.stopPropagation()}
+                            >
+                              <LinkedEntityCell task={task} />
+                            </td>
 
-                          <td className="truncate px-4 py-3">
-                            {formatDue(task.due_date)}
-                          </td>
+                            <td className="truncate px-4 py-3">
+                              {formatDue(task.due_date)}
+                            </td>
 
-                          <td className="truncate px-4 py-3">
-                            <TaskStatusBadge status={task.status} />
-                          </td>
+                            <td className="truncate px-4 py-3">
+                              <TaskStatusBadge status={task.status} />
+                            </td>
 
-                          <td className="truncate px-4 py-3">
-                            {canViewAll ? (
-                              <select
-                                className="input"
-                                value={task.assigned_to || ""}
-                                onChange={(e) =>
-                                  handleAssignTask(task.id, e.target.value)
-                                }
-                              >
-                                <option value="">Unassigned</option>
-                                {teamUsers.map((user) => (
-                                  <option key={user.id} value={user.id}>
-                                    {user.first_name} {user.last_name}
-                                  </option>
-                                ))}
-                              </select>
-                            ) : task.assigned_user ? (
-                              `${task.assigned_user.first_name || ""} ${task.assigned_user.last_name || ""}`.trim() ||
-                              task.assigned_user.email
-                            ) : (
-                              <span className="text-muted">—</span>
-                            )}
-                          </td>
-
-                          <td className="truncate px-4 py-3 text-right">
-                            <div className="flex justify-end gap-2">
-                              <Link
-                                href={`/tasks/${task.id}`}
-                                className="btn px-3 py-2 text-xs"
-                              >
-                                View
-                              </Link>
-
-                              <Link
-                                href={`/tasks/${task.id}/edit`}
-                                className="btn px-3 py-2 text-xs"
-                              >
-                                Edit
-                              </Link>
-
-                              {task.status === "Completed" ? (
-                                <button
-                                  className="btn px-3 py-2 text-xs"
-                                  onClick={() => setTaskStatus(task.id, "Pending")}
+                            <td className="truncate px-4 py-3">
+                              {canViewAll ? (
+                                <select
+                                  className="input"
+                                  value={task.assigned_to || ""}
+                                  onClick={(e) => e.stopPropagation()}
+                                  onKeyDown={(e) => e.stopPropagation()}
+                                  onChange={(e) => {
+                                    e.stopPropagation();
+                                    handleAssignTask(task.id, e.target.value);
+                                  }}
                                 >
-                                  Mark pending
-                                </button>
+                                  <option value="">Unassigned</option>
+                                  {teamUsers.map((user) => (
+                                    <option key={user.id} value={user.id}>
+                                      {user.first_name} {user.last_name}
+                                    </option>
+                                  ))}
+                                </select>
+                              ) : task.assigned_user ? (
+                                `${task.assigned_user.first_name || ""} ${task.assigned_user.last_name || ""}`.trim() ||
+                                task.assigned_user.email
                               ) : (
-                                <button
-                                  className="btn px-3 py-2 text-xs"
-                                  onClick={() => setTaskStatus(task.id, "Completed")}
-                                >
-                                  Mark completed
-                                </button>
+                                <span className="text-muted">—</span>
                               )}
-                            </div>
-                          </td>
-                        </tr>
-                      ))
+                            </td>
+
+                            <td
+                              className="truncate px-4 py-3 text-right"
+                              onClick={(e) => e.stopPropagation()}
+                              onKeyDown={(e) => e.stopPropagation()}
+                            >
+                              <div
+                                className="relative flex justify-end"
+                                data-task-actions-menu={task.id}
+                              >
+                                <button
+                                  type="button"
+                                  className="btn flex items-center gap-1 px-3 py-1.5 text-xs"
+                                  aria-label={`Actions for ${task.title}`}
+                                  aria-expanded={menuOpen}
+                                  aria-haspopup="menu"
+                                  onClick={(e) => {
+                                    const wrap = e.currentTarget.closest(
+                                      "[data-task-actions-menu]",
+                                    );
+                                    if (openActionsTaskId === task.id) {
+                                      setOpenActionsTaskId(null);
+                                      setActionsMenuPosition(null);
+                                      return;
+                                    }
+                                    if (wrap) {
+                                      setActionsMenuPosition(
+                                        getTableDropdownMenuPosition(wrap),
+                                      );
+                                    }
+                                    setOpenActionsTaskId(task.id);
+                                  }}
+                                >
+                                  Actions
+                                  <span className="text-muted" aria-hidden>
+                                    ▾
+                                  </span>
+                                </button>
+
+                                {menuOpen && actionsMenuPosition ? (
+                                  <div
+                                    role="menu"
+                                    aria-label={`Actions for ${task.title}`}
+                                    className="dropdown-panel fixed z-[100] min-w-[12rem] overflow-hidden py-1 shadow-lg"
+                                    style={{
+                                      top: actionsMenuPosition.top,
+                                      left: actionsMenuPosition.left,
+                                      width: actionsMenuPosition.width,
+                                    }}
+                                  >
+                                    <Link
+                                      href={`/tasks/${task.id}/edit`}
+                                      role="menuitem"
+                                      className="hover:bg-accent focus-visible:bg-accent block w-full px-3 py-2 text-left text-xs transition-colors"
+                                      onClick={() => {
+                                        setOpenActionsTaskId(null);
+                                        setActionsMenuPosition(null);
+                                      }}
+                                    >
+                                      Edit
+                                    </Link>
+                                    <button
+                                      type="button"
+                                      role="menuitem"
+                                      className="hover:bg-accent focus-visible:bg-accent block w-full px-3 py-2 text-left text-xs transition-colors"
+                                      onClick={() => {
+                                        setOpenActionsTaskId(null);
+                                        setActionsMenuPosition(null);
+                                        setTaskStatus(
+                                          task.id,
+                                          isCompleted ? "Pending" : "Completed",
+                                        );
+                                      }}
+                                    >
+                                      {isCompleted
+                                        ? "Mark pending"
+                                        : "Mark completed"}
+                                    </button>
+                                  </div>
+                                ) : null}
+                              </div>
+                            </td>
+                          </tr>
+                        );
+                      })
                     )}
                   </tbody>
                 </table>
