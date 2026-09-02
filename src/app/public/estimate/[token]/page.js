@@ -4,6 +4,13 @@ import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
 import { API_BASE } from "@/lib/helper";
+import { Alert } from "@/components/ui/alert";
+import { StatusBadge } from "@/components/ui/status-badge";
+import { SectionCard } from "@/components/ui/section-card";
+import { Field, FormActions } from "@/components/ui/field";
+import { EmptyState } from "@/components/error-boundary";
+import { Skeleton } from "@/components/loading/loadingSkeletons";
+import { PublicFrame } from "@/components/public/public-frame";
 
 async function publicFetchJson(path, options = {}) {
   const res = await fetch(`${API_BASE}${path}`, {
@@ -96,29 +103,41 @@ export default function PublicEstimatePage() {
     : "#";
 
   return (
-    <div className="bg-surface min-h-screen">
-      <div className="mx-auto max-w-2xl px-4 py-10">
-        <div className="mb-8 text-center">
-          <div className="text-muted text-sm">Shared estimate</div>
-          <h1 className="mt-2 text-2xl font-semibold">{estimate?.title || "Estimate"}</h1>
-          {estimate?.job?.address ? (
-            <p className="text-muted mt-2 text-sm">{estimate.job.address}</p>
-          ) : null}
-        </div>
+    <PublicFrame
+      width="narrow"
+      eyebrow="Shared estimate"
+      title={estimate?.title || "Estimate"}
+      description={estimate?.job?.address || undefined}
+      footer={
+        <Link href="/" className="hover:text-main underline-offset-4 hover:underline">
+          Contractor sign-in
+        </Link>
+      }
+    >
+      {error ? <Alert>{error}</Alert> : null}
 
-        {error ? (
-          <div className="card rounded-lg p-4 text-sm text-red-600">{error}</div>
-        ) : null}
-
-        {loading ? (
-          <div className="text-muted text-center text-sm">Loading…</div>
-        ) : !estimate ? (
-          <div className="text-muted text-center text-sm">Nothing to show.</div>
-        ) : (
-          <div className="space-y-6">
-            <div className="card rounded-lg p-4">
-              <div className="flex flex-wrap items-center justify-between gap-3">
-                <span className="status-chip text-xs">{estimate.status}</span>
+      {loading ? (
+        <SectionCard title="Estimate">
+          <div className="space-y-3">
+            <Skeleton className="h-4 w-24" />
+            <Skeleton className="h-4 w-2/3" />
+            <Skeleton className="h-4 w-1/2" />
+          </div>
+        </SectionCard>
+      ) : !estimate ? (
+        error ? null : (
+          <EmptyState
+            title="Nothing to show"
+            description="This estimate link is invalid or has expired."
+          />
+        )
+      ) : (
+        <>
+          <SectionCard
+            title="Summary"
+            right={
+              <div className="flex flex-wrap items-center gap-2">
+                <StatusBadge kind="estimate" status={estimate.status} />
                 <a
                   href={pdfHref}
                   target="_blank"
@@ -128,123 +147,113 @@ export default function PublicEstimatePage() {
                   View PDF
                 </a>
               </div>
+            }
+          >
+            {estimate.job?.lead_name ? (
+              <p className="text-muted text-sm">
+                Prepared for: {estimate.job.lead_name}
+              </p>
+            ) : null}
+            {estimate.notes ? (
+              <div className={estimate.job?.lead_name ? "mt-4" : ""}>
+                <div className="kv-label">Notes</div>
+                <div className="mt-1 whitespace-pre-wrap text-sm">{estimate.notes}</div>
+              </div>
+            ) : null}
+          </SectionCard>
 
-              {estimate.job?.lead_name ? (
-                <div className="text-muted mt-3 text-sm">
-                  Prepared for: {estimate.job.lead_name}
-                </div>
-              ) : null}
-
-              {estimate.notes ? (
-                <div className="mt-4">
-                  <div className="text-muted text-xs">Notes</div>
-                  <div className="mt-1 whitespace-pre-wrap text-sm">{estimate.notes}</div>
-                </div>
-              ) : null}
-            </div>
-
-            <div className="card rounded-lg p-4">
-              <h2 className="text-sm font-medium">Line items</h2>
-              <div className="mt-3 space-y-3">
-                {(estimate.line_items || []).map((item) => (
-                  <div
-                    key={item.id}
-                    className="border-base flex justify-between gap-3 border-b pb-3 last:border-0 last:pb-0"
-                  >
-                    <div>
-                      <div className="font-medium">{item.name}</div>
-                      {item.description ? (
-                        <div className="text-muted mt-1 text-sm">{item.description}</div>
-                      ) : null}
-                      <div className="text-muted mt-1 text-xs">
-                        {Number(item.quantity).toLocaleString()} × $
-                        {formatCurrency(item.unit_price)}
-                      </div>
-                    </div>
-                    <div className="shrink-0 font-semibold">
-                      ${formatCurrency(item.line_total)}
+          <SectionCard title="Line items">
+            <div className="space-y-3">
+              {(estimate.line_items || []).map((item) => (
+                <div
+                  key={item.id}
+                  className="border-base flex justify-between gap-3 border-b pb-3 last:border-0 last:pb-0"
+                >
+                  <div>
+                    <div className="font-medium">{item.name}</div>
+                    {item.description ? (
+                      <div className="text-muted mt-1 text-sm">{item.description}</div>
+                    ) : null}
+                    <div className="text-muted mt-1 text-xs">
+                      {Number(item.quantity).toLocaleString()} × $
+                      {formatCurrency(item.unit_price)}
                     </div>
                   </div>
-                ))}
-              </div>
-
-              <div className="border-base mt-4 flex justify-between border-t pt-4 text-lg font-semibold">
-                <span>Total</span>
-                <span>${formatCurrency(estimate.grand_total)}</span>
-              </div>
+                  <div className="shrink-0 font-semibold">
+                    ${formatCurrency(item.line_total)}
+                  </div>
+                </div>
+              ))}
             </div>
 
-            {estimate.client_responded_at ? (
-              <div className="card rounded-lg p-4 text-sm">
-                <div className="font-medium">Your response</div>
-                <div className="text-muted mt-2">
-                  Recorded {new Date(estimate.client_responded_at).toLocaleString()}
-                </div>
-                {estimate.client_response_note ? (
-                  <div className="mt-2 whitespace-pre-wrap">
-                    {estimate.client_response_note}
-                  </div>
-                ) : null}
-              </div>
-            ) : (
-              <div className="card space-y-4 rounded-lg p-4">
-                <div>
-                  <div className="text-sm font-medium">Respond to this estimate</div>
-                  <p className="text-muted mt-1 text-sm">
-                    Accept, decline, or ask for a revision. Optional note for your
-                    contractor.
-                  </p>
-                </div>
+            <div className="border-base mt-4 flex justify-between border-t pt-4 text-lg font-semibold">
+              <span>Total</span>
+              <span>${formatCurrency(estimate.grand_total)}</span>
+            </div>
+          </SectionCard>
 
+          {estimate.client_responded_at ? (
+            <SectionCard title="Your response">
+              {doneMessage ? (
+                <Alert tone="success" className="mb-3">
+                  {doneMessage}
+                </Alert>
+              ) : null}
+              <p className="text-muted text-sm">
+                Recorded {new Date(estimate.client_responded_at).toLocaleString()}
+              </p>
+              {estimate.client_response_note ? (
+                <div className="mt-2 whitespace-pre-wrap text-sm">
+                  {estimate.client_response_note}
+                </div>
+              ) : null}
+            </SectionCard>
+          ) : (
+            <SectionCard
+              title="Respond to this estimate"
+              description="Accept, decline, or ask for a revision. Optional note for your contractor."
+            >
+              <Field htmlFor="estimate-note" label="Optional note">
                 <textarea
-                  className="border-base bg-surface w-full rounded-md border px-3 py-2 text-sm"
+                  id="estimate-note"
+                  className="input"
                   rows={3}
                   placeholder="Optional note"
                   value={note}
                   onChange={(e) => setNote(e.target.value)}
                 />
+              </Field>
 
-                <div className="flex flex-wrap gap-2">
-                  <button
-                    type="button"
-                    className="btn px-4 py-2 text-sm"
-                    disabled={submitting}
-                    onClick={() => respond("approve")}
-                  >
-                    Accept
-                  </button>
-                  <button
-                    type="button"
-                    className="btn btn-ghost px-4 py-2 text-sm"
-                    disabled={submitting}
-                    onClick={() => respond("revision")}
-                  >
-                    Request revision
-                  </button>
-                  <button
-                    type="button"
-                    className="btn border-red-500/40 px-4 py-2 text-sm text-red-700 dark:text-red-300"
-                    disabled={submitting}
-                    onClick={() => respond("reject")}
-                  >
-                    Decline
-                  </button>
-                </div>
-
-                {doneMessage ? (
-                  <div className="text-muted text-sm">{doneMessage}</div>
-                ) : null}
-              </div>
-            )}
-          </div>
-        )}
-
-        <p className="text-muted mt-10 text-center text-xs">
-          <Link href="/" className="underline underline-offset-4">
-            Contractor sign-in
-          </Link>
-        </p>
-      </div>
-    </div>
+              <FormActions className="mt-4">
+                <button
+                  type="button"
+                  className="btn btn-primary px-4 py-2 text-sm"
+                  disabled={submitting}
+                  onClick={() => respond("approve")}
+                >
+                  Accept
+                </button>
+                <button
+                  type="button"
+                  className="btn px-4 py-2 text-sm"
+                  disabled={submitting}
+                  onClick={() => respond("revision")}
+                >
+                  Request revision
+                </button>
+                <button
+                  type="button"
+                  className="btn btn-danger px-4 py-2 text-sm"
+                  disabled={submitting}
+                  onClick={() => respond("reject")}
+                >
+                  Decline
+                </button>
+              </FormActions>
+            </SectionCard>
+          )}
+        </>
+      )}
+    </PublicFrame>
   );
 }

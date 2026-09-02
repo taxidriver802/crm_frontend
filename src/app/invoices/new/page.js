@@ -1,5 +1,7 @@
 "use client";
 
+import { Alert } from "@/components/ui/alert";
+import { Field, FormActions } from "@/components/ui/field";
 import { Suspense, useEffect, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { AppShell } from "@/components/app-shell";
@@ -90,7 +92,7 @@ function NewInvoicePageInner() {
 
   return (
     <AppShell title={title}>
-      <section className="card rounded-lg p-4">
+      <section className="card p-4">
         {loadingJobs ? (
           <div className="space-y-4">
             <Skeleton className="h-5 w-40" />
@@ -105,13 +107,12 @@ function NewInvoicePageInner() {
         ) : (
           <form onSubmit={handleSubmit} className="space-y-5">
             {error ? (
-              <div className="text-sm font-medium text-red-600">{error}</div>
+              <Alert variant="inline" className="font-medium">{error}</Alert>
             ) : null}
 
-            <label className="block text-sm">
-              <span className="text-muted text-xs font-medium">Job</span>
+            <Field label="Job" required>
               <select
-                className="input mt-1 w-full"
+                className="input"
                 value={form.job_id}
                 onChange={(e) =>
                   setForm((f) => ({ ...f, job_id: e.target.value }))
@@ -126,28 +127,22 @@ function NewInvoicePageInner() {
                   </option>
                 ))}
               </select>
-            </label>
+            </Field>
 
-            <label className="block text-sm">
-              <span className="text-muted text-xs font-medium">
-                Due Date (optional)
-              </span>
+            <Field label="Due Date (optional)">
               <input
                 type="date"
-                className="input mt-1 w-full"
+                className="input"
                 value={form.due_date}
                 onChange={(e) =>
                   setForm((f) => ({ ...f, due_date: e.target.value }))
                 }
               />
-            </label>
+            </Field>
 
-            <label className="block text-sm">
-              <span className="text-muted text-xs font-medium">
-                Notes (optional)
-              </span>
+            <Field label="Notes (optional)">
               <textarea
-                className="input mt-1 w-full"
+                className="input"
                 rows={3}
                 value={form.notes}
                 onChange={(e) =>
@@ -155,24 +150,24 @@ function NewInvoicePageInner() {
                 }
                 placeholder="Any notes for this invoice…"
               />
-            </label>
+            </Field>
 
-            <div className="flex flex-wrap gap-2">
+            <FormActions>
               <button
                 type="submit"
-                className="btn px-4 py-2 text-sm"
+                className="btn btn-primary"
                 disabled={saving}
               >
                 {saving ? "Creating…" : "Create Invoice"}
               </button>
               <button
                 type="button"
-                className="btn btn-ghost px-4 py-2 text-sm"
+                className="btn btn-ghost"
                 onClick={() => router.back()}
               >
                 Cancel
               </button>
-            </div>
+            </FormActions>
           </form>
         )}
       </section>
@@ -185,7 +180,7 @@ export default function NewInvoicePage() {
     <Suspense
       fallback={
         <AppShell title="New Invoice">
-          <section className="card rounded-lg p-4">
+          <section className="card p-4">
             <SectionSkeleton rows={4} />
           </section>
         </AppShell>

@@ -1,5 +1,8 @@
 "use client";
 
+import { Alert } from "@/components/ui/alert";
+import { Field, FormActions } from "@/components/ui/field";
+
 const STATUS_OPTIONS = ["New", "Contacted", "Qualified", "Closed", "Inactive"];
 
 const EMPTY_FORM = {
@@ -37,60 +40,54 @@ export function LeadForm({
 
   return (
     <form onSubmit={onSubmit} className="space-y-4">
-      {error ? <div className="text-sm text-red-500">{error}</div> : null}
+      {error ? <Alert variant="inline">{error}</Alert> : null}
 
       <div className={`grid gap-4 ${isCompact ? "md:grid-cols-2" : "sm:grid-cols-2"}`}>
-        <div>
-          <label className="text-muted text-xs">First name *</label>
+        <Field label="First name" required>
           <input
-            className="input mt-1"
+            className="input"
             value={form.first_name}
             onChange={(e) => setField("first_name", e.target.value)}
           />
-        </div>
+        </Field>
 
-        <div>
-          <label className="text-muted text-xs">Last name *</label>
+        <Field label="Last name" required>
           <input
-            className="input mt-1"
+            className="input"
             value={form.last_name}
             onChange={(e) => setField("last_name", e.target.value)}
           />
-        </div>
+        </Field>
 
-        <div>
-          <label className="text-muted text-xs">Email</label>
+        <Field label="Email">
           <input
-            className="input mt-1"
+            className="input"
             value={form.email}
             onChange={(e) => setField("email", e.target.value)}
             inputMode="email"
           />
-        </div>
+        </Field>
 
-        <div>
-          <label className="text-muted text-xs">Phone</label>
+        <Field label="Phone">
           <input
-            className="input mt-1"
+            className="input"
             value={form.phone}
             onChange={(e) => setField("phone", e.target.value)}
           />
-        </div>
+        </Field>
 
-        <div>
-          <label className="text-muted text-xs">Source</label>
+        <Field label="Source">
           <input
-            className="input mt-1"
+            className="input"
             placeholder="Referral, Website, Open House..."
             value={form.source}
             onChange={(e) => setField("source", e.target.value)}
           />
-        </div>
+        </Field>
 
-        <div>
-          <label className="text-muted text-xs">Status</label>
+        <Field label="Status">
           <select
-            className="input mt-1"
+            className="input"
             value={form.status}
             onChange={(e) => setField("status", e.target.value)}
           >
@@ -100,43 +97,43 @@ export function LeadForm({
               </option>
             ))}
           </select>
-        </div>
+        </Field>
 
-        <div>
-          <label className="text-muted text-xs">Budget min</label>
+        <Field label="Budget min">
           <input
-            className="input mt-1"
+            className="input"
             value={form.budget_min}
             onChange={(e) => setField("budget_min", e.target.value)}
             inputMode="numeric"
             placeholder="e.g. 250000"
           />
-        </div>
+        </Field>
 
-        <div>
-          <label className="text-muted text-xs">Budget max</label>
+        <Field label="Budget max">
           <input
-            className="input mt-1"
+            className="input"
             value={form.budget_max}
             onChange={(e) => setField("budget_max", e.target.value)}
             inputMode="numeric"
             placeholder="e.g. 400000"
           />
-        </div>
+        </Field>
 
-        <div className={isCompact ? "md:col-span-2" : "sm:col-span-2"}>
-          <label className="text-muted text-xs">Notes</label>
+        <Field
+          label="Notes"
+          className={isCompact ? "md:col-span-2" : "sm:col-span-2"}
+        >
           <textarea
-            className="input mt-1 min-h-[120px]"
+            className="input min-h-[120px]"
             value={form.notes}
             onChange={(e) => setField("notes", e.target.value)}
             placeholder="Motivation, timeline, preferences..."
           />
-        </div>
+        </Field>
       </div>
 
-      <div className="flex flex-wrap gap-2">
-        <button type="submit" className="btn" disabled={saving}>
+      <FormActions>
+        <button type="submit" className="btn btn-primary" disabled={saving}>
           {saving ? "Saving…" : submitLabel}
         </button>
 
@@ -145,7 +142,7 @@ export function LeadForm({
             {cancelLabel || "Cancel"}
           </button>
         ) : null}
-      </div>
+      </FormActions>
     </form>
   );
 }

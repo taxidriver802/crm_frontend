@@ -167,7 +167,7 @@ export default function EditEstimatePage() {
 
   return (
     <AppShell title={title}>
-      <section className="card rounded-lg p-4">
+      <section className="card p-4">
         {loadingEstimate ? (
           <EstimateFormSkeleton onCancel={() => router.back()} />
         ) : (

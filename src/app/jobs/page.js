@@ -1,5 +1,6 @@
 "use client";
 
+import { Alert } from "@/components/ui/alert";
 import { Suspense, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
@@ -12,6 +13,12 @@ import { CollapsibleSection } from "@/components/forms/collapsible-section";
 import { TableRowSkeleton } from "@/components/loading/loadingSkeletons";
 import { ListToolbar } from "@/components/list-toolbar";
 import { SavedViewsControls } from "@/components/saved-views-controls";
+import { ModalFrame } from "@/components/ui/overlay";
+import { StatusBadge } from "@/components/ui/status-badge";
+import { Field } from "@/components/ui/field";
+import { FilterBar } from "@/components/ui/filter-bar";
+import { Segmented } from "@/components/ui/segmented";
+import { Icon } from "@/components/icons";
 
 function JobsPageInner() {
   const [q, setQ] = useState("");
@@ -257,7 +264,7 @@ function JobsPageInner() {
   return (
     <AppShell title="Jobs">
       <div className="space-y-6">
-        {error ? <div className="text-sm text-red-500">{error}</div> : null}
+        {error ? <Alert variant="inline">{error}</Alert> : null}
 
         <ToggleFormSection
           title="Create Job"
@@ -266,6 +273,11 @@ function JobsPageInner() {
           onToggle={() => setIsCreateOpen((prev) => !prev)}
           openLabel="+ New Job"
           closeLabel="Hide Form"
+          fullFormUrl={
+            prefillLeadId ? `/jobs/new?lead_id=${prefillLeadId}` : "/jobs/new"
+          }
+          fullFormLabel="Full Form"
+          disabled={creating}
         >
           <JobForm
             form={form}
@@ -285,93 +297,73 @@ function JobsPageInner() {
           />
         </ToggleFormSection>
 
-        <section className="card rounded-lg p-4">
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
-            <div className="flex-1">
-              <label className="text-muted text-xs">Search</label>
-              <input
-                className="input mt-1"
-                placeholder="Search title, description, address..."
-                value={q}
-                onChange={(e) => setQ(e.target.value)}
-              />
-            </div>
+        <FilterBar
+          actions={
+            <button
+              type="button"
+              className="icon-btn"
+              onClick={refreshAll}
+              disabled={loadingJobs || loadingLeads}
+              title="Refresh"
+              aria-label="Refresh"
+            >
+              <Icon name="refreshCcw" className="h-4 w-4" />
+            </button>
+          }
+        >
+          <Field label="Search" className="flex-1">
+            <input
+              className="input"
+              placeholder="Search title, description, address..."
+              value={q}
+              onChange={(e) => setQ(e.target.value)}
+            />
+          </Field>
 
-            <div className="w-full sm:w-56">
-              <label className="text-muted text-xs">Status</label>
-              <select
-                className="input mt-1"
-                value={status}
-                onChange={(e) => setStatus(e.target.value)}
-              >
-                <option value="">All</option>
-                <option value="New">New</option>
-                <option value="Contacted">Contacted</option>
-                <option value="Appointment Scheduled">Appointment Scheduled</option>
-                <option value="Proposal Sent">Proposal Sent</option>
-                <option value="Closed Won">Closed Won</option>
-                <option value="Closed Lost">Closed Lost</option>
-              </select>
-            </div>
+          <Field label="Status" className="w-full sm:w-56">
+            <select
+              className="input"
+              value={status}
+              onChange={(e) => setStatus(e.target.value)}
+            >
+              <option value="">All</option>
+              <option value="New">New</option>
+              <option value="Contacted">Contacted</option>
+              <option value="Appointment Scheduled">Appointment Scheduled</option>
+              <option value="Proposal Sent">Proposal Sent</option>
+              <option value="Closed Won">Closed Won</option>
+              <option value="Closed Lost">Closed Lost</option>
+            </select>
+          </Field>
 
-            <div className="w-full sm:w-56">
-              <label className="text-muted text-xs">Assigned To</label>
-              <select
-                className="input mt-1"
-                value={assignedFilter}
-                onChange={(e) => setAssignedFilter(e.target.value)}
-              >
-                <option value="">All</option>
-                <option value="unassigned">Unassigned</option>
-                {teamUsers.map((user) => (
-                  <option key={user.id} value={user.id}>
-                    {user.first_name} {user.last_name}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            <div className="flex gap-2">
-              <Link
-                href={prefillLeadId ? `/jobs/new?lead_id=${prefillLeadId}` : "/jobs/new"}
-                className="btn"
-              >
-                Full Form
-              </Link>
-
-              <button
-                className="btn disabled:opacity-60"
-                onClick={refreshAll}
-                disabled={loadingJobs || loadingLeads}
-              >
-                Refresh
-              </button>
-            </div>
-          </div>
-        </section>
+          <Field label="Assigned To" className="w-full sm:w-56">
+            <select
+              className="input"
+              value={assignedFilter}
+              onChange={(e) => setAssignedFilter(e.target.value)}
+            >
+              <option value="">All</option>
+              <option value="unassigned">Unassigned</option>
+              {teamUsers.map((user) => (
+                <option key={user.id} value={user.id}>
+                  {user.first_name} {user.last_name}
+                </option>
+              ))}
+            </select>
+          </Field>
+        </FilterBar>
         <ListToolbar
           left={
             canViewAll ? (
-              <div className="border-base bg-surface flex items-center gap-1 rounded-md border p-1">
-                <button
-                  type="button"
-                  className={`btn px-2 py-1 text-xs ${
-                    viewScope === "mine" ? "btn-primary" : "btn-ghost"
-                  }`}
-                  onClick={() => setViewScope("mine")}
-                >
-                  My Jobs
-                </button>
-                <button
-                  type="button"
-                  className={`btn px-2 py-1 text-xs ${
-                    viewScope === "all" ? "btn-primary" : "btn-ghost"
-                  }`}
-                  onClick={() => setViewScope("all")}
-                >
-                  Team
-                </button>
-              </div>
+              <Segmented
+                aria-label="Job scope"
+                value={viewScope}
+                onChange={setViewScope}
+                options={[
+                  { value: "mine", label: "My Jobs" },
+                  { value: "all", label: "Team" },
+                ]}
+              />
             ) : null
           }
           right={
@@ -390,16 +382,16 @@ function JobsPageInner() {
 
         <CollapsibleSection title={jobTitle} defaultOpen={true}>
           <div className="scrollbar-theme overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead className="bg-accent">
-                <tr className="text-left">
-                  <th className="px-4 py-3 font-medium">Title</th>
-                  <th className="px-4 py-3 font-medium">Lead</th>
-                  <th className="px-4 py-3 font-medium">Status</th>
-                  <th className="px-4 py-3 font-medium">Address</th>
-                  <th className="px-4 py-3 font-medium">Assignee</th>
-                  <th className="px-4 py-3 font-medium">Created</th>
-                  <th className="px-4 py-3 text-right font-medium">Action</th>
+            <table className="data-table">
+              <thead>
+                <tr>
+                  <th>Title</th>
+                  <th>Lead</th>
+                  <th>Status</th>
+                  <th>Address</th>
+                  <th>Assignee</th>
+                  <th>Created</th>
+                  <th className="text-right">Action</th>
                 </tr>
               </thead>
 
@@ -409,25 +401,22 @@ function JobsPageInner() {
                     <TableRowSkeleton key={i} cols={7} />
                   ))
                 ) : jobs.length === 0 ? (
-                  <tr className="border-base border-t">
-                    <td className="text-muted px-4 py-6" colSpan={7}>
+                  <tr>
+                    <td className="text-muted" colSpan={7}>
                       No jobs found.
                     </td>
                   </tr>
                 ) : (
                   jobs.map((job) => (
-                    <tr
-                      key={job.id}
-                      className="border-base hover:bg-accent border-t transition"
-                    >
-                      <td className="px-4 py-3">
+                    <tr key={job.id}>
+                      <td>
                         <div className="font-medium">{job.title}</div>
                         <div className="text-muted mt-1 max-w-[12.5rem] truncate text-xs">
                           {job.description || "—"}
                         </div>
                       </td>
 
-                      <td className="px-4 py-3">
+                      <td>
                         {job.lead ? (
                           <Link
                             className="underline underline-offset-4 hover:opacity-80"
@@ -440,11 +429,11 @@ function JobsPageInner() {
                         )}
                       </td>
 
-                      <td className="px-4 py-3">
-                        <span className="status-chip">{job.status}</span>
+                      <td>
+                        <StatusBadge kind="job" status={job.status} />
                       </td>
 
-                      <td className="px-4 py-3 align-top">
+                      <td>
                         {job.address ? (
                           <button
                             type="button"
@@ -458,7 +447,7 @@ function JobsPageInner() {
                           <span className="text-muted">—</span>
                         )}
                       </td>
-                      <td className="px-4 py-3">
+                      <td>
                         {canViewAll ? (
                           <select
                             className="input"
@@ -479,9 +468,9 @@ function JobsPageInner() {
                           <span className="text-muted">—</span>
                         )}
                       </td>
-                      <td className="px-4 py-3">{formatDate(job.created_at)}</td>
+                      <td>{formatDate(job.created_at)}</td>
 
-                      <td className="px-4 py-3 text-right">
+                      <td className="text-right">
                         <Link
                           className="underline underline-offset-4 hover:opacity-80"
                           href={`/jobs/${job.id}`}
@@ -498,19 +487,13 @@ function JobsPageInner() {
         </CollapsibleSection>
 
         {addressPreview ? (
-          <div
-            className="fixed inset-0 z-50 flex items-center justify-center p-4"
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="job-address-preview-title"
+          <ModalFrame
+            open
+            onClose={() => setAddressPreview(null)}
+            layer="modal"
+            labelledBy="job-address-preview-title"
+            panelClassName="dropdown-panel relative w-full max-w-md p-4 shadow-lg"
           >
-            <button
-              type="button"
-              className="absolute inset-0 bg-black/40"
-              aria-label="Close"
-              onClick={() => setAddressPreview(null)}
-            />
-            <div className="dropdown-panel relative z-10 w-full max-w-md p-4 shadow-lg">
               <h2
                 id="job-address-preview-title"
                 className="flex w-full items-center gap-2 text-sm font-semibold"
@@ -544,8 +527,7 @@ function JobsPageInner() {
                   Close
                 </button>
               </div>
-            </div>
-          </div>
+          </ModalFrame>
         ) : null}
       </div>
     </AppShell>

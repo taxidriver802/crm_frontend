@@ -1,39 +1,23 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import { AppShell } from "@/components/app-shell";
 import { api } from "@/lib/api";
-import { SectionSkeleton } from "@/components/loading/loadingSkeletons";
 import { PageError } from "@/components/error-boundary";
-import Link from "next/link";
+import { Skeleton, StatCardSkeleton } from "@/components/loading/loadingSkeletons";
+import { StatCard } from "@/components/ui/stat-card";
+import { SectionCard } from "@/components/ui/section-card";
+import { Segmented } from "@/components/ui/segmented";
+import { ListRow } from "@/components/ui/list-row";
+import { FunnelBars } from "@/components/ui/chart";
 
-function MetricCard({ label, value, sub }) {
-  return (
-    <div className="card rounded-lg p-4">
-      <div className="text-muted text-xs">{label}</div>
-      <div className="mt-1 text-2xl font-semibold">{value}</div>
-      {sub ? <div className="text-muted mt-1 text-xs">{sub}</div> : null}
-    </div>
-  );
-}
-
-function FunnelBar({ label, value, max }) {
-  const pct = max > 0 ? Math.round((value / max) * 100) : 0;
-  return (
-    <div className="space-y-1">
-      <div className="flex items-center justify-between text-sm">
-        <span>{label}</span>
-        <span className="font-semibold">{value}</span>
-      </div>
-      <div className="bg-surface h-3 overflow-hidden rounded-full">
-        <div
-          className="bg-accent-solid h-full rounded-full transition-all"
-          style={{ width: `${pct}%` }}
-        />
-      </div>
-    </div>
-  );
-}
+const FUNNEL_STEPS = [
+  { key: "leads_created", label: "Leads Created", series: 1 },
+  { key: "estimates_approved", label: "Estimates Approved", series: 2 },
+  { key: "invoices_created", label: "Invoices Created", series: 3 },
+  { key: "invoices_paid", label: "Invoices Paid", series: 4 },
+];
 
 export default function ProductMetricsPage() {
   const [data, setData] = useState(null);
@@ -62,88 +46,74 @@ export default function ProductMetricsPage() {
   const automation = data?.automation || {};
   const counts = data?.counts || [];
 
-  const funnelMax = Math.max(
-    funnel.leads_created || 0,
-    funnel.estimates_approved || 0,
-    funnel.invoices_created || 0,
-    funnel.invoices_paid || 0,
-    1,
-  );
-
   return (
     <AppShell
       title="Product Metrics"
       description="Internal usage and conversion insights."
+      right={
+        <Link href="/reports" className="btn px-3 py-2 text-xs">
+          Reports
+        </Link>
+      }
     >
       <div className="space-y-6">
-        <div className="flex items-center gap-2">
-          <Link href="/reports" className="text-muted text-sm hover:underline">
-            ← Reports
-          </Link>
-        </div>
-
-        <div className="flex items-center gap-2">
-          {[7, 30, 90].map((d) => (
-            <button
-              key={d}
-              type="button"
-              className={`btn px-3 py-2 text-xs ${days === d ? "bg-accent text-main" : ""}`}
-              onClick={() => setDays(d)}
-            >
-              {d}d
-            </button>
-          ))}
-        </div>
+        <Segmented
+          aria-label="Metrics window"
+          value={days}
+          onChange={setDays}
+          options={[
+            { value: 7, label: "7 days", short: "7d" },
+            { value: 30, label: "30 days", short: "30d" },
+            { value: 90, label: "90 days", short: "90d" },
+          ]}
+        />
 
         {error ? <PageError message={error} onRetry={loadData} /> : null}
 
         {loading ? (
-          <SectionSkeleton rows={4} />
+          <>
+            <SectionCard title={`Conversion Funnel (${days} days)`}>
+              <Skeleton className="h-40 w-full" />
+            </SectionCard>
+            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+              {Array.from({ length: 4 }).map((_, i) => (
+                <StatCardSkeleton key={i} />
+              ))}
+            </div>
+          </>
         ) : (
           <>
-            <section className="card rounded-lg p-4">
-              <div className="mb-4 font-medium">Conversion Funnel ({days} days)</div>
-              <div className="space-y-3">
-                <FunnelBar
-                  label="Leads Created"
-                  value={funnel.leads_created || 0}
-                  max={funnelMax}
-                />
-                <FunnelBar
-                  label="Estimates Approved"
-                  value={funnel.estimates_approved || 0}
-                  max={funnelMax}
-                />
-                <FunnelBar
-                  label="Invoices Created"
-                  value={funnel.invoices_created || 0}
-                  max={funnelMax}
-                />
-                <FunnelBar
-                  label="Invoices Paid"
-                  value={funnel.invoices_paid || 0}
-                  max={funnelMax}
-                />
-              </div>
-            </section>
+            <SectionCard title={`Conversion Funnel (${days} days)`}>
+              <FunnelBars
+                steps={FUNNEL_STEPS.map((step) => ({
+                  label: step.label,
+                  value: funnel[step.key] || 0,
+                  series: step.series,
+                }))}
+              />
+            </SectionCard>
 
             <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-              <MetricCard
+              <StatCard
+                size="metric"
                 label="Automation Fires"
                 value={automation.triggered || 0}
                 sub={`Last ${days} days`}
               />
-              <MetricCard
+              <StatCard
+                size="metric"
                 label="Portal Views"
                 value={automation.portal_views || 0}
                 sub={`Last ${days} days`}
               />
-              <MetricCard
+              <StatCard
+                size="metric"
                 label="QB Sync Success"
                 value={automation.qb_success || 0}
                 sub={`Last ${days} days`}
               />
-              <MetricCard
+              <StatCard
+                size="metric"
                 label="QB Sync Failed"
                 value={automation.qb_failed || 0}
                 sub={`Last ${days} days`}
@@ -151,20 +121,19 @@ export default function ProductMetricsPage() {
             </div>
 
             {counts.length > 0 ? (
-              <section className="card rounded-lg p-4">
-                <div className="mb-3 font-medium">All Events ({days} days)</div>
+              <SectionCard title={`All Events (${days} days)`}>
                 <div className="space-y-2">
                   {counts.map((row) => (
-                    <div
+                    <ListRow
                       key={row.event_name}
-                      className="flex items-center justify-between rounded-lg border p-3 text-sm"
+                      className="flex items-center justify-between text-sm"
                     >
                       <span className="text-muted">{row.event_name}</span>
                       <span className="font-semibold">{row.count}</span>
-                    </div>
+                    </ListRow>
                   ))}
                 </div>
-              </section>
+              </SectionCard>
             ) : null}
           </>
         )}

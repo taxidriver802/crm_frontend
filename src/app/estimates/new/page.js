@@ -115,7 +115,7 @@ function NewEstimatePageInner() {
 
   return (
     <AppShell title={title}>
-      <section className="card rounded-lg p-4">
+      <section className="card p-4">
         {loadingJobs ? (
           <EstimateFormSkeleton onCancel={() => router.back()} />
         ) : (
@@ -146,7 +146,7 @@ export default function NewEstimatePage() {
     <Suspense
       fallback={
         <AppShell title="New Estimate">
-          <section className="card rounded-lg p-4">
+          <section className="card p-4">
             <EstimateFormSkeleton onCancel={() => {}} />
           </section>
         </AppShell>

@@ -1,5 +1,9 @@
 "use client";
 
+import { Alert } from "@/components/ui/alert";
+import { Skeleton } from "@/components/loading/loadingSkeletons";
+import { Field, FormActions } from "@/components/ui/field";
+
 const ESTIMATE_STATUS_OPTIONS = ["Draft", "Sent", "Approved", "Rejected"];
 
 const EMPTY_ESTIMATE_FORM = {
@@ -46,13 +50,16 @@ export function EstimateForm({
 
   return (
     <form onSubmit={onSubmit} className="space-y-4">
-      {error ? <div className="text-sm text-red-500">{error}</div> : null}
+      {error ? <Alert variant="inline">{error}</Alert> : null}
 
       <div className={`grid gap-4 ${isCompact ? "md:grid-cols-2" : "sm:grid-cols-2"}`}>
-        <div className={isCompact ? "md:col-span-2" : "sm:col-span-2"}>
-          <label className="text-muted text-xs">Job *</label>
+        <Field
+          label="Job"
+          required
+          className={isCompact ? "md:col-span-2" : "sm:col-span-2"}
+        >
           <select
-            className="input mt-1"
+            className="input"
             value={form.job_id}
             onChange={(e) => setField("job_id", e.target.value)}
             disabled={loadingJobs || saving || isContextLocked}
@@ -72,27 +79,29 @@ export function EstimateForm({
               </option>
             ))}
           </select>
-        </div>
+        </Field>
 
         {loadingEstimate ? (
           <>Loading...</>
         ) : (
           <>
-            <div className={isCompact ? "md:col-span-2" : "sm:col-span-2"}>
-              <label className="text-muted text-xs">Title *</label>
+            <Field
+              label="Title"
+              required
+              className={isCompact ? "md:col-span-2" : "sm:col-span-2"}
+            >
               <input
-                className="input mt-1"
+                className="input"
                 placeholder="Example: Roof replacement estimate"
                 value={form.title}
                 onChange={(e) => setField("title", e.target.value)}
                 required
               />
-            </div>
+            </Field>
 
-            <div>
-              <label className="text-muted text-xs">Status</label>
+            <Field label="Status">
               <select
-                className="input mt-1"
+                className="input"
                 value={form.status}
                 onChange={(e) => setField("status", e.target.value)}
                 disabled={saving}
@@ -103,24 +112,26 @@ export function EstimateForm({
                   </option>
                 ))}
               </select>
-            </div>
+            </Field>
 
-            <div className={isCompact ? "md:col-span-2" : "sm:col-span-2"}>
-              <label className="text-muted text-xs">Notes</label>
+            <Field
+              label="Notes"
+              className={isCompact ? "md:col-span-2" : "sm:col-span-2"}
+            >
               <textarea
-                className="input mt-1 min-h-[120px]"
+                className="input min-h-[120px]"
                 placeholder="Add internal notes or estimate context..."
                 value={form.notes}
                 onChange={(e) => setField("notes", e.target.value)}
                 disabled={saving}
               />
-            </div>
+            </Field>
           </>
         )}
       </div>
       <div className="flex flex-row justify-between">
-        <div className="flex flex-wrap gap-2">
-          <button type="submit" disabled={saving || loadingJobs} className="btn">
+        <FormActions>
+          <button type="submit" disabled={saving || loadingJobs} className="btn btn-primary">
             {saving
               ? submitLabel == "Create Estimate"
                 ? "Creating..."
@@ -133,7 +144,7 @@ export function EstimateForm({
               {cancelLabel || "Cancel"}
             </button>
           ) : null}
-        </div>
+        </FormActions>
         {estimateId ? (
           <button type="button" className="btn btn-danger" onClick={onDelete}>
             Delete
@@ -141,14 +152,6 @@ export function EstimateForm({
         ) : null}
       </div>
     </form>
-  );
-}
-
-function Skeleton({ className = "" }) {
-  return (
-    <div
-      className={`animate-pulse rounded-md bg-gray-200 dark:bg-gray-700 ${className}`}
-    />
   );
 }
 

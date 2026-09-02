@@ -11,13 +11,20 @@ export default async function Home() {
     .map((c) => `${c.name}=${c.value}`)
     .join("; ");
 
-  const res = await fetch(`${base}/dashboard`, {
-    headers: {
-      cookie: cookieHeader,
-    },
-    cache: "no-store",
-  });
+  let sessionOk = false;
 
-  if (res.ok) redirect("/dashboard");
+  try {
+    const res = await fetch(`${base}/dashboard`, {
+      headers: {
+        cookie: cookieHeader,
+      },
+      cache: "no-store",
+    });
+    sessionOk = res.ok;
+  } catch (err) {
+    console.error("Home auth check failed:", err?.cause?.code || err?.message || err);
+  }
+
+  if (sessionOk) redirect("/dashboard");
   redirect("/login");
 }

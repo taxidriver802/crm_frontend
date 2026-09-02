@@ -1,5 +1,8 @@
 "use client";
 
+import { Alert } from "@/components/ui/alert";
+import { Field, FormActions } from "@/components/ui/field";
+
 const JOB_STATUS_OPTIONS = [
   "New",
   "Contacted",
@@ -50,13 +53,16 @@ export function JobForm({
 
   return (
     <form onSubmit={onSubmit} className="space-y-4">
-      {error ? <div className="text-sm text-red-500">{error}</div> : null}
+      {error ? <Alert variant="inline">{error}</Alert> : null}
 
       <div className={`grid gap-4 ${isCompact ? "md:grid-cols-2" : "sm:grid-cols-2"}`}>
-        <div className={isCompact ? "md:col-span-2" : "sm:col-span-2"}>
-          <label className="text-muted text-xs">Lead *</label>
+        <Field
+          label="Lead"
+          required
+          className={isCompact ? "md:col-span-2" : "sm:col-span-2"}
+        >
           <select
-            className="input mt-1"
+            className="input"
             value={form.lead_id}
             onChange={(e) => setField("lead_id", e.target.value)}
             disabled={loadingLeads || saving}
@@ -76,23 +82,25 @@ export function JobForm({
               </option>
             ))}
           </select>
-        </div>
+        </Field>
 
-        <div className={isCompact ? "md:col-span-2" : "sm:col-span-2"}>
-          <label className="text-muted text-xs">Title *</label>
+        <Field
+          label="Title"
+          required
+          className={isCompact ? "md:col-span-2" : "sm:col-span-2"}
+        >
           <input
-            className="input mt-1"
+            className="input"
             placeholder="Example: Roof inspection for 123 Main St"
             value={form.title}
             onChange={(e) => setField("title", e.target.value)}
             required
           />
-        </div>
+        </Field>
 
-        <div>
-          <label className="text-muted text-xs">Status</label>
+        <Field label="Status">
           <select
-            className="input mt-1"
+            className="input"
             value={form.status}
             onChange={(e) => setField("status", e.target.value)}
           >
@@ -102,31 +110,32 @@ export function JobForm({
               </option>
             ))}
           </select>
-        </div>
+        </Field>
 
-        <div>
-          <label className="text-muted text-xs">Address</label>
+        <Field label="Address">
           <input
-            className="input mt-1"
+            className="input"
             placeholder="123 Main St"
             value={form.address}
             onChange={(e) => setField("address", e.target.value)}
           />
-        </div>
+        </Field>
 
-        <div className={isCompact ? "md:col-span-2" : "sm:col-span-2"}>
-          <label className="text-muted text-xs">Description</label>
+        <Field
+          label="Description"
+          className={isCompact ? "md:col-span-2" : "sm:col-span-2"}
+        >
           <textarea
-            className="input mt-1 min-h-[96px]"
+            className="input min-h-[96px]"
             placeholder="Add any context or notes for this job..."
             value={form.description}
             onChange={(e) => setField("description", e.target.value)}
           />
-        </div>
+        </Field>
       </div>
 
-      <div className="flex flex-wrap gap-2">
-        <button type="submit" disabled={saving || loadingLeads} className="btn">
+      <FormActions>
+        <button type="submit" disabled={saving || loadingLeads} className="btn btn-primary">
           {saving ? "Creating..." : submitLabel}
         </button>
 
@@ -135,7 +144,7 @@ export function JobForm({
             {cancelLabel || "Cancel"}
           </button>
         ) : null}
-      </div>
+      </FormActions>
     </form>
   );
 }

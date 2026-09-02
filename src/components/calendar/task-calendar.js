@@ -12,15 +12,17 @@ import {
   startOfMonth,
   startOfWeekMonday,
 } from "@/components/calendar/calendar-shared";
+import { Segmented } from "@/components/ui/segmented";
+import { cx } from "@/lib/cx";
 
-function taskColorClass(task) {
+function taskEventClass(task) {
   if (String(task?.status || "").toLowerCase() === "completed") {
-    return "bg-green-500/15 text-green-700 dark:text-green-300";
+    return "cal-event cal-event-done";
   }
   if (task?.due_date && new Date(task.due_date).getTime() < Date.now()) {
-    return "bg-red-500/15 text-red-700 dark:text-red-300";
+    return "cal-event cal-event-overdue";
   }
-  return "bg-accent text-main";
+  return "cal-event cal-event-upcoming";
 }
 
 export function TaskCalendar({ tasks, onTaskClick, onRangeChange, onDayCreate }) {
@@ -80,7 +82,7 @@ export function TaskCalendar({ tasks, onTaskClick, onRangeChange, onDayCreate })
   }
 
   const isMonth = viewMode === "month";
-  const columnCount = isMonth ? 7 : 7;
+  const columnCount = 7;
   const title = isMonth
     ? formatMonthLabel(anchorDate)
     : `${startOfWeekMonday(anchorDate).toLocaleDateString()} - ${addDays(
@@ -92,6 +94,7 @@ export function TaskCalendar({ tasks, onTaskClick, onRangeChange, onDayCreate })
   const weekHeaderDays = Array.from({ length: 7 }).map((_, i) =>
     addDays(weekHeaderStart, i),
   );
+  const todayKey = formatDayKey(new Date());
 
   return (
     <div className="space-y-4">
@@ -99,48 +102,37 @@ export function TaskCalendar({ tasks, onTaskClick, onRangeChange, onDayCreate })
         <div className="flex items-center gap-2">
           <button
             type="button"
-            className="btn px-3 py-1.5 text-xs"
+            className="btn btn-sm"
             onClick={() => shiftRange(-1)}
           >
             Prev
           </button>
           <button
             type="button"
-            className="btn px-3 py-1.5 text-xs"
+            className="btn btn-sm"
             onClick={() => setAnchorDate(startOfDay(new Date()))}
           >
             Today
           </button>
-          <button
-            type="button"
-            className="btn px-3 py-1.5 text-xs"
-            onClick={() => shiftRange(1)}
-          >
+          <button type="button" className="btn btn-sm" onClick={() => shiftRange(1)}>
             Next
           </button>
           <div className="ml-1 text-sm font-medium">{title}</div>
         </div>
 
-        <div className="border-base bg-surface flex items-center gap-1 rounded-md border p-1">
-          <button
-            type="button"
-            className={`btn px-2 py-1 text-xs ${viewMode === "month" ? "btn-primary" : "btn-ghost"}`}
-            onClick={() => setViewMode("month")}
-          >
-            Month
-          </button>
-          <button
-            type="button"
-            className={`btn px-2 py-1 text-xs ${viewMode === "week" ? "btn-primary" : "btn-ghost"}`}
-            onClick={() => setViewMode("week")}
-          >
-            Week
-          </button>
-        </div>
+        <Segmented
+          aria-label="Calendar view"
+          value={viewMode}
+          onChange={setViewMode}
+          options={[
+            { value: "month", label: "Month" },
+            { value: "week", label: "Week" },
+          ]}
+        />
       </div>
 
       <div
-        className="bg-surface grid gap-2 rounded-lg p-2"
+        className="bg-surface grid gap-2 rounded-theme-lg p-2"
         style={{ gridTemplateColumns: `repeat(${columnCount}, minmax(0, 1fr))` }}
       >
         {weekHeaderDays.map((day) => (
@@ -156,15 +148,21 @@ export function TaskCalendar({ tasks, onTaskClick, onRangeChange, onDayCreate })
           const key = formatDayKey(day);
           const dayTasks = tasksByDay.get(key) || [];
           const isCurrentMonth = day.getMonth() === anchorDate.getMonth();
+          const isToday = key === todayKey;
 
           return (
             <div
               key={key}
-              className={`rounded-md border  ${isCurrentMonth ? "" : "opacity-25"}`}
+              className={cx(
+                "cal-day",
+                isMonth && !isCurrentMonth && "cal-day-outside",
+                isToday && "cal-day-today",
+              )}
             >
-              <div className=" flex items-center justify-between p-2 rounded-t-md border-b">
-         
-                <div className="text-xs font-semibold">{day.getDate()}</div>
+              <div className="border-base flex items-center justify-between border-b p-2">
+                <div className={cx("cal-day-num text-xs font-semibold", isToday && "text-accent")}>
+                  {day.getDate()}
+                </div>
                 <button
                   type="button"
                   className="text-muted text-[11px] underline"
@@ -173,9 +171,8 @@ export function TaskCalendar({ tasks, onTaskClick, onRangeChange, onDayCreate })
                   + task
                 </button>
               </div>
-         
 
-              <div className="space-y-1 pb-2 p-2">
+              <div className="space-y-1 p-2 pb-2">
                 {dayTasks.length === 0 ? (
                   <div className="text-muted text-[11px]">No tasks</div>
                 ) : (
@@ -183,7 +180,7 @@ export function TaskCalendar({ tasks, onTaskClick, onRangeChange, onDayCreate })
                     <button
                       key={task.id}
                       type="button"
-                      className={`block w-full truncate rounded px-2 py-1 text-left text-[11px] ${taskColorClass(task)}`}
+                      className={taskEventClass(task)}
                       onClick={() => onTaskClick?.(task)}
                       title={task.title}
                     >
@@ -192,9 +189,7 @@ export function TaskCalendar({ tasks, onTaskClick, onRangeChange, onDayCreate })
                   ))
                 )}
                 {dayTasks.length > 3 ? (
-                  <div className="text-muted text-[11px]">
-                    +{dayTasks.length - 3} more
-                  </div>
+                  <div className="text-muted text-[11px]">+{dayTasks.length - 3} more</div>
                 ) : null}
               </div>
             </div>

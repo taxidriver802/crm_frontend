@@ -14,7 +14,7 @@ export function CardSkeleton() {
 
 export function FilterBarSkeleton() {
   return (
-    <div className="card rounded-lg p-4">
+    <div className="card p-4">
       <div className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
         <div className="min-w-0 flex-1 space-y-2">
           <Skeleton className="h-3 w-16" />
@@ -56,7 +56,7 @@ export function SectionSkeleton({ rows = 3 }) {
 
 export function ListItemSkeleton() {
   return (
-    <div className="space-y-2 rounded-lg border p-3">
+    <div className="list-row space-y-2">
       <Skeleton className="h-4 w-40" />
       <Skeleton className="h-3 w-60" />
     </div>
@@ -65,9 +65,9 @@ export function ListItemSkeleton() {
 
 export function TableRowSkeleton({ cols = 5 }) {
   return (
-    <tr className="border-base border-t">
+    <tr>
       {Array.from({ length: cols }).map((_, i) => (
-        <td key={i} className="px-4 py-3">
+        <td key={i}>
           <div className="flex flex-col space-y-2">
             <Skeleton className={`${i === 0 ? "w-full" : "w-34"} h-4`} />
             {i === 0 && <Skeleton className="h-3 w-40" />}

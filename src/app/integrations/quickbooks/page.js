@@ -6,25 +6,7 @@ import { api } from "@/lib/api";
 import { DetailSkeleton } from "@/components/loading/loadingSkeletons";
 import { PageError } from "@/components/error-boundary";
 import Link from "next/link";
-
-function StatusBadge({ tone = "neutral", children }) {
-  const toneClass =
-    tone === "success"
-      ? "border-green-500/30 bg-green-500/10 text-green-700"
-      : tone === "warning"
-        ? "border-yellow-500/30 bg-yellow-500/10 text-yellow-700"
-        : tone === "danger"
-          ? "border-red-500/30 bg-red-500/10 text-red-700"
-          : "border-base bg-surface text-main";
-
-  return (
-    <span
-      className={`inline-flex rounded-full border px-2.5 py-1 text-xs font-medium ${toneClass}`}
-    >
-      {children}
-    </span>
-  );
-}
+import { StatusBadge } from "@/components/ui/status-badge";
 
 export default function QuickBooksPage() {
   const [status, setStatus] = useState(null);
@@ -155,7 +137,7 @@ export default function QuickBooksPage() {
                 {isConnected ? (
                   <button
                     type="button"
-                    className="btn px-4 py-2 text-sm text-red-600"
+                    className="btn btn-danger px-4 py-2 text-sm"
                     onClick={handleDisconnect}
                     disabled={busy}
                   >

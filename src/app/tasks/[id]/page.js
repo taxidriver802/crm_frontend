@@ -1,5 +1,6 @@
 "use client";
 
+import { Alert } from "@/components/ui/alert";
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
@@ -17,6 +18,9 @@ import { FilePreviewModal } from "@/components/modals/file-preview-modal";
 import { CollapsibleSection } from "@/components/forms/collapsible-section";
 import { DetailMoreMenu, DetailMoreMenuItem } from "@/components/detail-more-menu";
 import { SectionSkeleton, Skeleton } from "@/components/loading/loadingSkeletons";
+import { StatusBadge } from "@/components/ui/status-badge";
+import { DetailHeader } from "@/components/ui/detail-header";
+import { MetaItem } from "@/components/ui/meta";
 
 function isCompleted(task) {
   return String(task?.status || "").toLowerCase() === "completed";
@@ -38,28 +42,21 @@ function isDueSoon(task) {
 
 function TaskStatusBadge({ task }) {
   if (isCompleted(task)) {
-    return (
-      <span className="inline-flex items-center rounded-full border border-green-500/30 bg-green-500/10 px-2 py-0.5 text-xs text-green-700 dark:text-green-300">
-        Completed
-      </span>
-    );
+    return <StatusBadge tone="success">Completed</StatusBadge>;
   }
-
   if (isOverdue(task)) {
-    return (
-      <span className="inline-flex items-center rounded-full border border-red-500/30 bg-red-500/10 px-2 py-0.5 text-xs text-red-700 dark:text-red-300">
-        Pending
-      </span>
-    );
+    return <StatusBadge tone="danger">{task?.status ?? "Pending"}</StatusBadge>;
   }
-
-  return <span className="status-chip">{task?.status ?? "Pending"}</span>;
+  if (isDueSoon(task)) {
+    return <StatusBadge tone="warning">{task?.status ?? "Pending"}</StatusBadge>;
+  }
+  return <StatusBadge kind="task" status={task?.status ?? "Pending"} />;
 }
 
 function InfoCard({ title, children, className = "" }) {
   return (
-    <section className={`card rounded-lg p-4 ${className}`}>
-      <h2 className="text-lg font-semibold">{title}</h2>
+    <section className={`card p-4 ${className}`}>
+      <h2 className="section-heading">{title}</h2>
       <div className="mt-3">{children}</div>
     </section>
   );
@@ -327,91 +324,67 @@ export default function TaskDetailPage() {
   return (
     <AppShell title={task?.title || `Task #${id}`}>
       <div className="space-y-6">
-        {error ? <div className="text-sm text-red-500">{error}</div> : null}
-        {success ? <div className="text-sm text-green-600">{success}</div> : null}
+        {error ? <Alert variant="inline">{error}</Alert> : null}
+        {success ? <Alert variant="inline" tone="success">{success}</Alert> : null}
 
-        <section className="card rounded-lg p-4">
-          {loadingTask ? (
-            <>
-              <div className="space-y-4">
-                <Skeleton className="h-7 w-64" />
-                <Skeleton className="h-4 w-48" />
-
-                <div className="flex gap-2">
-                  <Skeleton className="h-5 w-20 rounded-full" />
-                  <Skeleton className="h-5 w-24 rounded-full" />
-                </div>
-
-                <Skeleton className="h-16 w-full" />
+        {loadingTask ? (
+          <section className="card p-4">
+            <div className="space-y-4">
+              <Skeleton className="h-7 w-64" />
+              <Skeleton className="h-4 w-48" />
+              <div className="flex gap-2">
+                <Skeleton className="h-5 w-20 rounded-full" />
+                <Skeleton className="h-5 w-24 rounded-full" />
               </div>
-            </>
-          ) : !task ? (
-            <div className="text-muted text-sm">Task not found.</div>
-          ) : (
-            <div className="space-y-5">
-              <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-                <div className="min-w-0">
-                  <div className="text-2xl font-semibold">{task.title}</div>
-
-                  <div className="text-muted mt-2 text-sm">
-                    {linked.href ? (
-                      <>
-                        Related {linked.kind?.toLowerCase()}:{" "}
-                        <Link
-                          href={linked.href}
-                          className="underline underline-offset-4 hover:opacity-80"
-                        >
-                          {linked.label}
-                        </Link>
-                      </>
-                    ) : (
-                      "No context linked"
-                    )}
-                  </div>
-                </div>
-
-                <div className="flex flex-wrap gap-2">
-                  <TaskStatusBadge task={task} />
-
-                  <span className="inline-flex items-center rounded-full border px-2 py-0.5 text-xs">
-                    {formatDue(task.due_date)}
-                  </span>
-
-                  {isOverdue(task) ? (
-                    <span className="inline-flex items-center rounded-full border border-red-500/30 bg-red-500/10 px-2 py-0.5 text-xs text-red-700 dark:text-red-300">
-                      Overdue
-                    </span>
-                  ) : isDueSoon(task) ? (
-                    <span className="inline-flex items-center rounded-full border border-amber-500/30 bg-amber-500/10 px-2 py-0.5 text-xs text-amber-700 dark:text-amber-300">
-                      Due soon
-                    </span>
-                  ) : null}
-                </div>
-              </div>
-
-              <div>
-                <div className="text-muted text-xs">Description</div>
-                <div className="mt-1 whitespace-pre-wrap text-sm">
-                  {task.description || "No description provided."}
-                </div>
-              </div>
-
-              <div className="flex flex-wrap items-center gap-2">
+              <Skeleton className="h-16 w-full" />
+            </div>
+          </section>
+        ) : !task ? (
+          <DetailHeader title="Task not found" />
+        ) : (
+          <DetailHeader
+            title={task.title}
+            subtitle={
+              linked.href ? (
+                <>
+                  Related {linked.kind?.toLowerCase()}:{" "}
+                  <Link
+                    href={linked.href}
+                    className="underline underline-offset-4 hover:opacity-80"
+                  >
+                    {linked.label}
+                  </Link>
+                </>
+              ) : (
+                "No context linked"
+              )
+            }
+            badges={
+              <>
+                <TaskStatusBadge task={task} />
+                <StatusBadge>{formatDue(task.due_date)}</StatusBadge>
+                {isOverdue(task) ? (
+                  <StatusBadge tone="danger">Overdue</StatusBadge>
+                ) : isDueSoon(task) ? (
+                  <StatusBadge tone="warning">Due soon</StatusBadge>
+                ) : null}
+              </>
+            }
+            actions={
+              <>
                 <Link href={`/tasks/${id}/edit`} className="btn">
                   Edit Task
                 </Link>
-
                 <button
                   type="button"
                   onClick={() =>
                     updateStatus(isCompleted(task) ? "Pending" : "Completed")
                   }
                   disabled={busy}
-                  className="btn disabled:opacity-60"
+                  className="btn"
                 >
                   {isCompleted(task) ? "Reopen Task" : "Mark Complete"}
                 </button>
-
                 <DetailMoreMenu label="More">
                   {task.lead_id ? (
                     <DetailMoreMenuItem
@@ -462,20 +435,26 @@ export default function TaskDetailPage() {
 
                   <DetailMoreMenuItem
                     type="button"
-                    className="text-red-600 disabled:opacity-50"
+                    className="text-danger disabled:opacity-50"
                     disabled={busy}
                     onClick={handleDelete}
                   >
                     Delete task
                   </DetailMoreMenuItem>
                 </DetailMoreMenu>
-              </div>
-            </div>
-          )}
-        </section>
+              </>
+            }
+          >
+            <MetaItem label="Description">
+              <span className="whitespace-pre-wrap">
+                {task.description || "No description provided."}
+              </span>
+            </MetaItem>
+          </DetailHeader>
+        )}
         {loadingTask ? (
           <div className="flex flex-row gap-5">
-            <section className="card h-[15rem] w-[40rem] rounded-lg p-4">
+            <section className="card h-[15rem] w-[40rem] p-4">
               <div className="space-y-3">
                 <Skeleton className="h-4 w-40" />
                 <Skeleton className="h-4 w-52" />
@@ -483,7 +462,7 @@ export default function TaskDetailPage() {
               </div>
             </section>
 
-            <section className="card w-[45rem] rounded-lg p-4">
+            <section className="card w-[45rem] p-4">
               <div className="space-y-3">
                 <Skeleton className="h-4 w-40" />
                 <Skeleton className="h-4 w-52" />
@@ -505,41 +484,33 @@ export default function TaskDetailPage() {
                     <Skeleton className="h-4 w-32" />
                   </div>
                 ) : leadError ? (
-                  <div className="text-sm text-red-500">{leadError}</div>
+                  <Alert variant="inline">{leadError}</Alert>
                 ) : !lead ? (
                   <div className="text-muted text-sm">Lead details unavailable.</div>
                 ) : (
                   <div className="space-y-3 text-sm">
-                    <div>
-                      <div className="text-muted text-xs">Name</div>
-                      <div className="mt-1 font-medium">
+                    <MetaItem label="Name">
+                      <span className="font-medium">
                         {lead.first_name} {lead.last_name}
-                      </div>
-                    </div>
+                      </span>
+                    </MetaItem>
 
-                    <div>
-                      <div className="text-muted text-xs">Contact</div>
-                      <div className="mt-1">
-                        {lead.email || "—"}
-                        {lead.phone ? ` • ${lead.phone}` : ""}
-                      </div>
-                    </div>
+                    <MetaItem label="Contact">
+                      {lead.email || "—"}
+                      {lead.phone ? ` • ${lead.phone}` : ""}
+                    </MetaItem>
 
                     <div className="flex flex-wrap gap-2 pt-1">
-                      <span className="inline-flex items-center rounded-full border px-2 py-0.5 text-xs">
-                        {lead.status ?? "—"}
-                      </span>
+                      <StatusBadge kind="lead" status={lead.status ?? "—"} />
 
                       {lead.source ? (
-                        <span className="inline-flex items-center rounded-full border px-2 py-0.5 text-xs">
-                          Source: {lead.source}
-                        </span>
+                        <StatusBadge>Source: {lead.source}</StatusBadge>
                       ) : null}
                     </div>
 
                     {lead.notes ? (
                       <div>
-                        <div className="text-muted text-xs">Notes</div>
+                        <div className="kv-label">Notes</div>
                         <div className="mt-1 whitespace-pre-wrap text-sm">
                           {lead.notes}
                         </div>
@@ -553,23 +524,18 @@ export default function TaskDetailPage() {
             {task?.job ? (
               <InfoCard title="Job Snapshot">
                 <div className="space-y-3 text-sm">
-                  <div>
-                    <div className="text-muted text-xs">Title</div>
-                    <div className="mt-1 font-medium">{task.job.title}</div>
-                  </div>
+                  <MetaItem label="Title">
+                    <span className="font-medium">{task.job.title}</span>
+                  </MetaItem>
 
                   {task.job.address ? (
-                    <div>
-                      <div className="text-muted text-xs">Address</div>
-                      <div className="mt-1">{task.job.address}</div>
-                    </div>
+                    <MetaItem label="Address">{task.job.address}</MetaItem>
                   ) : null}
 
                   {task.job.status ? (
-                    <div>
-                      <div className="text-muted text-xs">Status</div>
-                      <div className="mt-1">{task.job.status}</div>
-                    </div>
+                    <MetaItem label="Status">
+                      <StatusBadge kind="job" status={task.job.status} />
+                    </MetaItem>
                   ) : null}
                 </div>
               </InfoCard>
@@ -578,7 +544,9 @@ export default function TaskDetailPage() {
             <CollapsibleSection
               title="Related Files"
               description="Recent files connected to this task."
-              defaultOpen={true}
+              syncKey={id}
+              ready={!loadingFiles}
+              empty={recentFiles.length === 0}
               actions={
                 <>
                   {task?.lead ? (
@@ -601,7 +569,7 @@ export default function TaskDetailPage() {
               {loadingFiles ? (
                 <SectionSkeleton rows={3} />
               ) : filesError ? (
-                <div className="text-sm text-red-500">{filesError}</div>
+                <Alert variant="inline">{filesError}</Alert>
               ) : recentFiles.length === 0 ? (
                 <div className="text-muted rounded-lg border border-dashed p-4 text-sm">
                   No files available for this task yet.
@@ -611,7 +579,7 @@ export default function TaskDetailPage() {
                   {recentFiles.map((file) => (
                     <div
                       key={file.id}
-                      className="flex items-start justify-between gap-3 rounded-lg border p-3"
+                      className="list-row flex items-start justify-between gap-3"
                     >
                       {" "}
                       <div className="min-w-0">
@@ -648,7 +616,7 @@ export default function TaskDetailPage() {
                           <button
                             onClick={() => handleDeleteFile(file.id)}
                             disabled={busyFileId === file.id}
-                            className="btn px-3 py-1.5 text-xs text-red-600"
+                            className="btn btn-danger px-3 py-1.5 text-xs"
                           >
                             {busyFileId === file.id ? "Deleting..." : "Delete"}
                           </button>

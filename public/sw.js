@@ -1,9 +1,21 @@
-const CACHE_NAME = "crm-v1";
-const PRECACHE_URLS = ["/dashboard", "/leads", "/jobs", "/tasks"];
+const CACHE_NAME = "crm-v2";
+
+function canCache(request, response) {
+  if (request.method !== "GET" || !response.ok) return false;
+  if (new URL(request.url).origin !== self.location.origin) return false;
+
+  const cacheControl = response.headers.get("Cache-Control") || "";
+  if (cacheControl.includes("no-store") || cacheControl.includes("private")) {
+    return false;
+  }
+
+  const dest = request.destination;
+  return dest === "script" || dest === "style" || dest === "image" || dest === "font";
+}
 
 self.addEventListener("install", (event) => {
-  event.waitUntil(caches.open(CACHE_NAME).then((cache) => cache.addAll(PRECACHE_URLS)));
   self.skipWaiting();
+  event.waitUntil(Promise.resolve());
 });
 
 self.addEventListener("activate", (event) => {
@@ -14,9 +26,10 @@ self.addEventListener("activate", (event) => {
         Promise.all(
           names.filter((name) => name !== CACHE_NAME).map((name) => caches.delete(name)),
         ),
-      ),
+      )
+      .then(() => self.clients.claim())
+      .catch(() => {}),
   );
-  self.clients.claim();
 });
 
 self.addEventListener("fetch", (event) => {
@@ -31,9 +44,9 @@ self.addEventListener("fetch", (event) => {
   event.respondWith(
     fetch(event.request)
       .then((response) => {
-        if (response.ok && url.origin === self.location.origin) {
+        if (canCache(event.request, response)) {
           const clone = response.clone();
-          caches.open(CACHE_NAME).then((cache) => cache.put(event.request, clone));
+          caches.open(CACHE_NAME).then((cache) => cache.put(event.request, clone)).catch(() => {});
         }
         return response;
       })

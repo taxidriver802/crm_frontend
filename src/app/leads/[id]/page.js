@@ -1,5 +1,6 @@
 "use client";
 
+import { Alert } from "@/components/ui/alert";
 import { useEffect, useMemo, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
@@ -18,6 +19,10 @@ import { CollapsibleSection } from "@/components/forms/collapsible-section";
 import { DetailMoreMenu, DetailMoreMenuItem } from "@/components/detail-more-menu";
 import { Skeleton } from "@/components/loading/loadingSkeletons";
 import { NotesSection } from "@/components/notes-section";
+import { StatCard } from "@/components/ui/stat-card";
+import { StatusBadge } from "@/components/ui/status-badge";
+import { DetailHeader } from "@/components/ui/detail-header";
+import { MetaItem } from "@/components/ui/meta";
 
 function isCompletedTask(task) {
   return String(task?.status || "").toLowerCase() === "completed";
@@ -27,30 +32,6 @@ function isOverdueTask(task) {
   if (!task?.due_date || isCompletedTask(task)) return false;
   const due = new Date(task.due_date);
   return !Number.isNaN(due.getTime()) && due.getTime() < Date.now();
-}
-
-function statusPillClasses(status) {
-  const value = String(status || "").toLowerCase();
-
-  if (value === "completed") {
-    return "border-green-500/30 bg-green-500/10 text-green-700 dark:text-green-300";
-  }
-
-  if (value === "pending") {
-    return "border-amber-500/30 bg-amber-500/10 text-amber-700 dark:text-amber-300";
-  }
-
-  return "border-base bg-app text-main";
-}
-
-function StatCard({ label, value, sub }) {
-  return (
-    <div className="card rounded-lg p-4">
-      <div className="text-muted text-xs">{label}</div>
-      <div className="mt-1 text-2xl font-semibold">{value}</div>
-      {sub ? <div className="text-muted mt-1 text-xs">{sub}</div> : null}
-    </div>
-  );
 }
 
 export default function LeadDetailPage() {
@@ -77,6 +58,7 @@ export default function LeadDetailPage() {
   const [tasksError, setTasksError] = useState("");
   const [filesError, setFilesError] = useState("");
   const [success, setSuccess] = useState("");
+  const [notesLoadState, setNotesLoadState] = useState({ ready: false, empty: true });
 
   const canManageFiles = currentUser?.role === "owner" || currentUser?.role === "admin";
 
@@ -273,11 +255,11 @@ export default function LeadDetailPage() {
       }
     >
       <div className="space-y-6">
-        {error ? <div className="text-sm text-red-500">{error}</div> : null}
-        {success ? <div className="text-sm text-green-600">{success}</div> : null}
+        {error ? <Alert variant="inline">{error}</Alert> : null}
+        {success ? <Alert variant="inline" tone="success">{success}</Alert> : null}
 
-        <section className="card rounded-lg p-4">
-          {loading ? (
+        {loading ? (
+          <section className="card p-4">
             <div className="space-y-4">
               <Skeleton className="h-10 w-48" />
               <Skeleton className="h-4 w-64" />
@@ -286,52 +268,27 @@ export default function LeadDetailPage() {
                 <Skeleton className="h-5 w-24 rounded-full" />
                 <Skeleton className="h-5 w-24 rounded-full" />
               </div>
-
-              <Skeleton className="h-10 w-full" />
-              <div className="flex gap-2">
-                <Skeleton className="h-8 w-20 rounded-full" />
-                <Skeleton className="h-8 w-24 rounded-full" />
-                <Skeleton className="h-8 w-24 rounded-full" />
-              </div>
             </div>
-          ) : !lead ? (
-            <div className="text-muted text-sm">Lead not found.</div>
-          ) : (
-            <div className="space-y-5">
-              <div className="min-w-0">
-                <div className="text-2xl font-semibold">
-                  {lead.first_name} {lead.last_name}
-                </div>
-
-                <div className="text-muted mt-2 text-sm">
-                  {(lead.email ?? "—") + (lead.phone ? ` • ${lead.phone}` : "")}
-                </div>
-
-                <div className="mt-3 flex flex-wrap gap-2">
-                  <span className="status-chip">{lead.status ?? "—"}</span>
-
-                  {lead.source ? (
-                    <span className="inline-flex items-center rounded-full border px-2 py-0.5 text-xs">
-                      Source: {lead.source}
-                    </span>
-                  ) : null}
-
-                  {lead.budget_min != null || lead.budget_max != null ? (
-                    <span className="inline-flex items-center rounded-full border px-2 py-0.5 text-xs">
-                      Budget: {lead.budget_min ?? "—"} - {lead.budget_max ?? "—"}
-                    </span>
-                  ) : null}
-                </div>
-              </div>
-
-              {lead.notes ? (
-                <div>
-                  <div className="text-muted text-xs">Notes</div>
-                  <div className="mt-1 whitespace-pre-wrap text-sm">{lead.notes}</div>
-                </div>
-              ) : null}
-
-              <div className="flex flex-wrap items-center gap-2">
+          </section>
+        ) : !lead ? (
+          <DetailHeader title="Lead not found" />
+        ) : (
+          <DetailHeader
+            title={`${lead.first_name} ${lead.last_name}`.trim() || `Lead #${id}`}
+            subtitle={(lead.email ?? "—") + (lead.phone ? ` • ${lead.phone}` : "")}
+            badges={
+              <>
+                <StatusBadge kind="lead" status={lead.status ?? "—"} />
+                {lead.source ? <StatusBadge>Source: {lead.source}</StatusBadge> : null}
+                {lead.budget_min != null || lead.budget_max != null ? (
+                  <StatusBadge>
+                    Budget: {lead.budget_min ?? "—"} - {lead.budget_max ?? "—"}
+                  </StatusBadge>
+                ) : null}
+              </>
+            }
+            actions={
+              <>
                 <button
                   type="button"
                   className="btn"
@@ -339,7 +296,7 @@ export default function LeadDetailPage() {
                 >
                   Back to Leads
                 </button>
-                <Link href={`/leads/${id}/edit`} className="btn px-3 py-2 text-xs">
+                <Link href={`/leads/${id}/edit`} className="btn btn-sm">
                   Edit
                 </Link>
                 <DetailMoreMenu label="More">
@@ -359,16 +316,22 @@ export default function LeadDetailPage() {
                   </DetailMoreMenuItem>
                   <DetailMoreMenuItem
                     type="button"
-                    className="text-red-600"
+                    className="text-danger"
                     onClick={handleDeleteLead}
                   >
                     Delete lead
                   </DetailMoreMenuItem>
                 </DetailMoreMenu>
-              </div>
-            </div>
-          )}
-        </section>
+              </>
+            }
+          >
+            {lead.notes ? (
+              <MetaItem label="Notes">
+                <span className="whitespace-pre-wrap">{lead.notes}</span>
+              </MetaItem>
+            ) : null}
+          </DetailHeader>
+        )}
 
         {loading ? (
           <div className="grid gap-4 sm:grid-cols-3">
@@ -381,24 +344,32 @@ export default function LeadDetailPage() {
           </div>
         ) : (
           <section className="grid gap-4 sm:grid-cols-3">
-            <StatCard label="Open Tasks" value={openTasks.length} />
-            <StatCard label="Overdue" value={overdueOpenTasks.length} />
-            <StatCard label="Files" value={files.length} />
+            <StatCard size="metric" label="Open Tasks" value={openTasks.length} />
+            <StatCard size="metric" label="Overdue" value={overdueOpenTasks.length} />
+            <StatCard size="metric" label="Files" value={files.length} />
           </section>
         )}
 
         <CollapsibleSection
           title="Notes"
           description="Call notes, decisions, and context for this lead."
-          defaultOpen={true}
+          syncKey={id}
+          ready={notesLoadState.ready}
+          empty={notesLoadState.empty}
         >
-          <NotesSection entityType="lead" entityId={id} />
+          <NotesSection
+            entityType="lead"
+            entityId={id}
+            onLoadState={setNotesLoadState}
+          />
         </CollapsibleSection>
 
         <CollapsibleSection
           title="Jobs"
           description="Workspaces tied to this lead."
-          defaultOpen={true}
+          syncKey={id}
+          ready={!loadingJobs}
+          empty={jobs.length === 0}
           actions={
             <Link
               href={`/jobs?lead_id=${id}&open=create`}
@@ -409,15 +380,19 @@ export default function LeadDetailPage() {
           }
         >
           {jobsError ? (
-            <div className="text-sm text-red-500">{jobsError}</div>
+            <Alert variant="inline">{jobsError}</Alert>
           ) : loadingJobs ? (
             <div className="space-y-3">
               {Array.from({ length: 3 }).map((_, i) => (
-                <div key={i} className="space-y-2 rounded-lg border p-3">
+                <div key={i} className="list-row space-y-2">
                   <Skeleton className="h-4 w-40" />
                   <Skeleton className="h-3 w-60" />
                 </div>
               ))}
+            </div>
+          ) : jobs.length === 0 ? (
+            <div className="text-muted rounded-lg border border-dashed p-4 text-sm">
+              No jobs for this lead yet.
             </div>
           ) : (
             <div className="space-y-3">
@@ -425,7 +400,7 @@ export default function LeadDetailPage() {
                 <Link
                   key={job.id}
                   href={`/jobs/${job.id}`}
-                  className="hover:bg-accent block rounded-lg border p-3 transition"
+                  className="list-row list-row-interactive block"
                 >
                   <div className="flex items-center justify-between gap-3">
                     <div className="min-w-0">
@@ -447,7 +422,9 @@ export default function LeadDetailPage() {
           <CollapsibleSection
             title="Lead Tasks"
             description="Open and completed work tied to this lead."
-            defaultOpen={true}
+            syncKey={id}
+            ready={!loadingTasks}
+            empty={tasks.length === 0}
             actions={
               <Link href={`/tasks/new?lead_id=${id}`} className="btn px-3 py-2 text-xs">
                 + New Task
@@ -455,11 +432,11 @@ export default function LeadDetailPage() {
             }
           >
             {tasksError ? (
-              <div className="text-sm text-red-500">{tasksError}</div>
+              <Alert variant="inline">{tasksError}</Alert>
             ) : loadingTasks ? (
               <div className="space-y-3">
                 {Array.from({ length: 4 }).map((_, i) => (
-                  <div key={i} className="space-y-2 rounded-lg border p-3">
+                  <div key={i} className="list-row space-y-2">
                     <Skeleton className="h-4 w-48" />
                     <Skeleton className="h-3 w-32" />
                   </div>
@@ -481,7 +458,7 @@ export default function LeadDetailPage() {
                       <Link
                         key={task.id}
                         href={`/tasks/${task.id}`}
-                        className="hover:bg-accent block rounded-lg border p-3 transition"
+                        className="list-row list-row-interactive block"
                       >
                         <div className="flex items-start justify-between gap-3">
                           <div className="min-w-0">
@@ -492,14 +469,10 @@ export default function LeadDetailPage() {
                           </div>
 
                           <div className="flex shrink-0 flex-col items-end gap-2">
-                            <span
-                              className={`inline-flex items-center rounded-full border px-2 py-0.5 text-xs ${statusPillClasses(task.status)}`}
-                            >
-                              {task.status ?? "—"}
-                            </span>
+                            <StatusBadge kind="task" status={task.status} />
 
                             {isOverdueTask(task) ? (
-                              <span className="text-xs text-red-500">Overdue</span>
+                              <span className="text-xs text-danger">Overdue</span>
                             ) : null}
                           </div>
                         </div>
@@ -518,7 +491,7 @@ export default function LeadDetailPage() {
                       <Link
                         key={task.id}
                         href={`/tasks/${task.id}`}
-                        className="hover:bg-accent block rounded-lg border p-3 opacity-85 transition"
+                        className="list-row list-row-interactive block opacity-85"
                       >
                         <div className="flex items-start justify-between gap-3">
                           <div className="min-w-0">
@@ -528,11 +501,7 @@ export default function LeadDetailPage() {
                             </div>
                           </div>
 
-                          <span
-                            className={`inline-flex items-center rounded-full border px-2 py-0.5 text-xs ${statusPillClasses(task.status)}`}
-                          >
-                            {task.status ?? "—"}
-                          </span>
+                          <StatusBadge kind="task" status={task.status} />
                         </div>
                       </Link>
                     ))
@@ -545,7 +514,9 @@ export default function LeadDetailPage() {
           <CollapsibleSection
             title="Attached Files"
             description="Files uploaded directly to this lead."
-            defaultOpen={true}
+            syncKey={id}
+            ready={!loadingFiles}
+            empty={files.length === 0}
             actions={
               canManageFiles ? (
                 <label className="btn cursor-pointer px-3 py-2 text-xs">
@@ -561,13 +532,13 @@ export default function LeadDetailPage() {
             }
           >
             {filesError ? (
-              <div className="mb-3 text-sm text-red-500">{filesError}</div>
+              <Alert variant="inline" className="mb-3">{filesError}</Alert>
             ) : null}
 
             {loadingFiles ? (
               <div className="space-y-3">
                 {Array.from({ length: 3 }).map((_, i) => (
-                  <div key={i} className="space-y-2 rounded-lg border p-3">
+                  <div key={i} className="list-row space-y-2">
                     <Skeleton className="h-4 w-52" />
                     <Skeleton className="h-3 w-40" />
                   </div>
@@ -582,7 +553,7 @@ export default function LeadDetailPage() {
                 {files.map((file) => (
                   <div
                     key={file.id}
-                    className="flex items-start justify-between gap-3 rounded-lg border p-3"
+                    className="list-row flex items-start justify-between gap-3"
                   >
                     <div className="min-w-0">
                       <div className="truncate font-medium">{file.original_name}</div>
@@ -619,7 +590,7 @@ export default function LeadDetailPage() {
                         <button
                           onClick={() => handleDeleteFile(file.id)}
                           disabled={busyFileId === file.id}
-                          className="btn px-3 py-1.5 text-xs text-red-600"
+                          className="btn btn-danger px-3 py-1.5 text-xs"
                         >
                           {busyFileId === file.id ? "Deleting..." : "Delete"}
                         </button>

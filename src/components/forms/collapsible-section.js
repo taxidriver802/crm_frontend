@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import { cx } from "@/lib/cx";
 
 export function CollapsibleSection({
   title,
@@ -8,28 +9,60 @@ export function CollapsibleSection({
   actions,
   secondaryActions,
   defaultOpen = true,
-
+  empty = false,
+  ready = true,
+  syncKey,
   children,
   contentClassName = "",
 }) {
-  const [open, setOpen] = useState(defaultOpen);
+  const [open, setOpen] = useState(() => (ready && empty ? false : defaultOpen));
+  const userToggledRef = useRef(false);
+
+  useEffect(() => {
+    userToggledRef.current = false;
+  }, [syncKey]);
+
+  useEffect(() => {
+    if (!ready || userToggledRef.current) return;
+    setOpen(empty ? false : defaultOpen);
+  }, [ready, empty, defaultOpen]);
+
+  function toggleOpen() {
+    userToggledRef.current = true;
+    setOpen((prev) => !prev);
+  }
 
   return (
-    <section className="card rounded-lg">
-      <div className="border-base flex items-start justify-between gap-3 border-b p-4">
+    <section className="card">
+      <div
+        className={cx(
+          "flex items-start justify-between gap-3 p-4",
+          open && "border-base border-b",
+        )}
+      >
         <div className="min-w-0 flex-1">
-          <div className="text-lg font-semibold">{title}</div>
+          <div className="section-heading">{title}</div>
           {description ? <p className="text-muted mt-1 text-sm">{description}</p> : null}
         </div>
 
         <div className="flex shrink-0 flex-wrap items-center justify-end gap-2">
           {actions ? (
-            <div className="flex flex-wrap items-center gap-2">{actions}</div>
+            <div
+              className="flex flex-wrap items-center gap-2"
+              onClickCapture={() => {
+                if (!open) {
+                  userToggledRef.current = true;
+                  setOpen(true);
+                }
+              }}
+            >
+              {actions}
+            </div>
           ) : null}
 
           <button
             type="button"
-            onClick={() => setOpen((prev) => !prev)}
+            onClick={toggleOpen}
             className="btn px-3 py-2 text-xs"
             aria-expanded={open}
           >

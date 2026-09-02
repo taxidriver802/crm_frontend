@@ -13,6 +13,12 @@ import {
   StatCardSkeleton,
   TableRowSkeleton,
 } from "@/components/loading/loadingSkeletons";
+import { Alert } from "@/components/ui/alert";
+import { StatCard } from "@/components/ui/stat-card";
+import { StatusBadge } from "@/components/ui/status-badge";
+import { Field } from "@/components/ui/field";
+import { FilterBar } from "@/components/ui/filter-bar";
+import { EmptyState } from "@/components/error-boundary";
 
 /** 12rem — matches `min-w-[12rem]` menus */
 const TABLE_DROPDOWN_MENU_WIDTH_PX = 192;
@@ -31,40 +37,6 @@ function getTableDropdownMenuPosition(triggerEl) {
     left,
     width: TABLE_DROPDOWN_MENU_WIDTH_PX,
   };
-}
-
-function badgeClass(status) {
-  switch (status) {
-    case "Active":
-      return "border-green-300 bg-green-50 text-green-700";
-    case "Pending":
-      return "border-yellow-300 bg-yellow-50 text-yellow-700";
-    case "Expired":
-      return "border-red-300 bg-red-50 text-red-700";
-    case "Disabled":
-      return "border-red-300 bg-red-50 text-red-700";
-    case "Revoked":
-      return "border-slate-300 bg-slate-100 text-slate-700";
-    default:
-      return "border-base bg-surface text-main";
-  }
-}
-
-function StatCard({ label, value, active = false, onClick }) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      className={`rounded-lg border px-4 py-4 text-left transition ${
-        active
-          ? "bg-accent-soft border-transparent shadow-sm"
-          : "bg-surface hover:bg-accent"
-      }`}
-    >
-      <div className="text-muted text-sm">{label}</div>
-      <div className="mt-2 text-2xl font-semibold">{value}</div>
-    </button>
-  );
 }
 
 export default function UsersPage() {
@@ -396,7 +368,7 @@ export default function UsersPage() {
 
           <FilterBarSkeleton />
 
-          <div className="card rounded-lg p-4">
+          <div className="card p-4">
             <div className="space-y-3">
               {Array.from({ length: 5 }).map((_, i) => (
                 <Skeleton key={i} className="h-10 w-full" />
@@ -463,16 +435,12 @@ export default function UsersPage() {
           )}
         </section>
 
-        {error ? (
-          <div className="rounded-lg border border-red-300 bg-red-50 px-4 py-3 text-sm text-red-700">
-            {error}
-          </div>
-        ) : null}
+        {error ? <Alert className="px-4 py-3">{error}</Alert> : null}
 
         {successMessage ? (
-          <div className="rounded-lg border border-green-300 bg-green-50 px-4 py-3 text-sm text-green-800">
+          <Alert tone="success" className="px-4 py-3">
             {successMessage}
-          </div>
+          </Alert>
         ) : null}
 
         {isAdmin ? (
@@ -485,48 +453,43 @@ export default function UsersPage() {
         {isInitialLoading ? (
           <FilterBarSkeleton />
         ) : (
-          <section className="card rounded-lg p-4">
-            <div className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
-              <div className="min-w-0 flex-1">
-                <label className="text-muted text-xs">Search</label>
-                <input
-                  type="text"
-                  placeholder="Search users..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="input mt-1"
-                />
-              </div>
+          <FilterBar>
+            <Field label="Search" className="min-w-0 flex-1">
+              <input
+                type="text"
+                placeholder="Search users..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="input"
+              />
+            </Field>
 
-              <div className="w-full lg:w-40">
-                <label className="text-muted text-xs">Role</label>
-                <select
-                  value={roleFilter}
-                  onChange={(e) => setRoleFilter(e.target.value)}
-                  className="input mt-1"
-                >
-                  <option value="all">All Roles</option>
-                  <option value="owner">Owner</option>
-                  <option value="admin">Admin</option>
-                  <option value="agent">Agent</option>
-                </select>
-              </div>
+            <Field label="Role" className="w-full lg:w-40">
+              <select
+                value={roleFilter}
+                onChange={(e) => setRoleFilter(e.target.value)}
+                className="input"
+              >
+                <option value="all">All Roles</option>
+                <option value="owner">Owner</option>
+                <option value="admin">Admin</option>
+                <option value="agent">Agent</option>
+              </select>
+            </Field>
 
-              <div className="w-full lg:w-44">
-                <label className="text-muted text-xs">Status</label>
-                <select
-                  value={statusFilter}
-                  onChange={(e) => setStatusFilter(e.target.value)}
-                  className="input mt-1"
-                >
-                  <option value="all">All Statuses</option>
-                  <option value="active">Active</option>
-                  <option value="invited">Invited</option>
-                  <option value="disabled">Disabled</option>
-                </select>
-              </div>
-            </div>
-          </section>
+            <Field label="Status" className="w-full lg:w-44">
+              <select
+                value={statusFilter}
+                onChange={(e) => setStatusFilter(e.target.value)}
+                className="input"
+              >
+                <option value="all">All Statuses</option>
+                <option value="active">Active</option>
+                <option value="invited">Invited</option>
+                <option value="disabled">Disabled</option>
+              </select>
+            </Field>
+          </FilterBar>
         )}
 
         <CollapsibleSection
@@ -542,16 +505,16 @@ export default function UsersPage() {
         >
           {loadingUsers ? (
             <div className="scrollbar-theme overflow-x-auto">
-              <table className="min-w-full text-sm">
-                <thead className="bg-accent border-b text-left">
+              <table className="data-table">
+                <thead>
                   <tr>
-                    <th className="px-5 py-3 font-medium">User</th>
-                    <th className="px-5 py-3 font-medium">Role</th>
-                    <th className="px-5 py-3 font-medium">Status</th>
-                    <th className="px-5 py-3 font-medium">Invited</th>
-                    <th className="px-5 py-3 font-medium">Accepted</th>
-                    <th className="px-5 py-3 font-medium">Last Login</th>
-                    <th className="px-5 py-3 font-medium">Actions</th>
+                    <th>User</th>
+                    <th>Role</th>
+                    <th>Status</th>
+                    <th>Invited</th>
+                    <th>Accepted</th>
+                    <th>Last Login</th>
+                    <th>Actions</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -562,23 +525,21 @@ export default function UsersPage() {
               </table>
             </div>
           ) : users.length === 0 ? (
-            <div className="text-muted px-5 py-6 text-sm">No users found yet.</div>
+            <EmptyState title="No users found yet" />
           ) : filteredUsers.length === 0 ? (
-            <div className="text-muted px-5 py-8 text-sm">
-              No users match the selected filters.
-            </div>
+            <EmptyState title="No users match the selected filters" />
           ) : (
             <div className="scrollbar-theme overflow-x-auto">
-              <table className="min-w-full text-sm">
-                <thead className="bg-accent border-b text-left">
+              <table className="data-table">
+                <thead>
                   <tr>
-                    <th className="px-5 py-3 font-medium">User</th>
-                    <th className="px-5 py-3 font-medium">Role</th>
-                    <th className="px-5 py-3 font-medium">Status</th>
-                    <th className="px-5 py-3 font-medium">Invited</th>
-                    <th className="px-5 py-3 font-medium">Accepted</th>
-                    <th className="px-5 py-3 font-medium">Last Login</th>
-                    <th className="px-5 py-3 font-medium">Actions</th>
+                    <th>User</th>
+                    <th>Role</th>
+                    <th>Status</th>
+                    <th>Invited</th>
+                    <th>Accepted</th>
+                    <th>Last Login</th>
+                    <th>Actions</th>
                   </tr>
                 </thead>
 
@@ -603,11 +564,8 @@ export default function UsersPage() {
                       new Date(user.invite_expires_at) < new Date();
 
                     return (
-                      <tr
-                        key={user.id}
-                        className="border-base hover:bg-accent border-t transition"
-                      >
-                        <td className="px-5 py-4 align-top">
+                      <tr key={user.id}>
+                        <td className="align-top">
                           <div className="min-w-0">
                             <div className="truncate font-medium">
                               {[user.first_name, user.last_name]
@@ -625,7 +583,7 @@ export default function UsersPage() {
                           </div>
                         </td>
 
-                        <td className="px-5 py-4 align-top">
+                        <td className="align-top">
                           {(() => {
                             const roleLocked =
                               busyId === user.id || isSelf || adminLockedOwnerRow;
@@ -694,7 +652,7 @@ export default function UsersPage() {
                                   <div
                                     role="listbox"
                                     aria-label={`Choose role for ${user.email}`}
-                                    className="dropdown-panel fixed z-[100] min-w-[12rem] overflow-hidden py-1 shadow-lg"
+                                    className="dropdown-panel fixed z-dialog min-w-[12rem] overflow-hidden py-1 shadow-lg"
                                     style={{
                                       top: roleMenuPosition.top,
                                       left: roleMenuPosition.left,
@@ -730,13 +688,9 @@ export default function UsersPage() {
                           })()}
                         </td>
 
-                        <td className="px-5 py-4 align-top">
+                        <td className="align-top">
                           <div className="flex flex-col gap-1">
-                            <span
-                              className={`inline-flex w-fit rounded-full border px-2.5 py-1 text-xs font-medium ${badgeClass(displayStatus)}`}
-                            >
-                              {displayStatus}
-                            </span>
+                            <StatusBadge kind="user" status={displayStatus} size="md" />
 
                             {user.status === "invited" && user.invite_revoked_at ? (
                               <span className="text-muted text-xs">
@@ -756,19 +710,19 @@ export default function UsersPage() {
                           </div>
                         </td>
 
-                        <td className="text-muted px-5 py-4 align-top">
+                        <td className="text-muted align-top">
                           {user.invited_at
                             ? new Date(user.invited_at).toLocaleDateString()
                             : "—"}
                         </td>
 
-                        <td className="text-muted px-5 py-4 align-top">
+                        <td className="text-muted align-top">
                           {user.password_set_at
                             ? new Date(user.password_set_at).toLocaleDateString()
                             : "—"}
                         </td>
 
-                        <td className="text-muted px-5 py-4 align-top">
+                        <td className="text-muted align-top">
                           {user.last_login_at
                             ? new Date(user.last_login_at).toLocaleDateString()
                             : user.status === "invited"
@@ -776,7 +730,7 @@ export default function UsersPage() {
                               : "—"}
                         </td>
 
-                        <td className="px-5 py-4 align-top">
+                        <td className="align-top">
                           {(() => {
                             const canDisable =
                               user.status === "active" && !isSelf && !adminLockedOwnerRow;
@@ -857,7 +811,7 @@ export default function UsersPage() {
                               menuItems.push({
                                 key: "revoke",
                                 label: "Revoke invite",
-                                itemClassName: "text-xs text-red-700",
+                                itemClassName: "text-xs text-danger",
                                 disabled: busy,
                                 onClick: () => {
                                   setOpenActionsUserId(null);
@@ -869,7 +823,7 @@ export default function UsersPage() {
                               menuItems.push({
                                 key: "delete",
                                 label: "Delete user",
-                                itemClassName: "text-xs text-red-600",
+                                itemClassName: "text-xs text-danger",
                                 disabled: busy,
                                 onClick: () => {
                                   setOpenActionsUserId(null);
@@ -918,7 +872,7 @@ export default function UsersPage() {
                                   <div
                                     role="menu"
                                     aria-label={`Actions for ${user.email}`}
-                                    className="dropdown-panel fixed z-[100] min-w-[12rem] overflow-hidden py-1 shadow-lg"
+                                    className="dropdown-panel fixed z-dialog min-w-[12rem] overflow-hidden py-1 shadow-lg"
                                     style={{
                                       top: actionsMenuPosition.top,
                                       left: actionsMenuPosition.left,

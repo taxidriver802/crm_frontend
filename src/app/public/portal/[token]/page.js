@@ -4,23 +4,13 @@ import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import { API_BASE } from "@/lib/helper";
 import { PhotoGallery } from "@/components/photo-gallery";
-
-function StatusBadge({ status, tone }) {
-  const toneClass =
-    tone === "success"
-      ? "border-green-500/30 bg-green-500/10 text-green-700"
-      : tone === "warning"
-        ? "border-yellow-500/30 bg-yellow-500/10 text-yellow-700"
-        : "border-base bg-surface text-main";
-
-  return (
-    <span
-      className={`inline-flex rounded-full border px-2.5 py-1 text-xs font-medium ${toneClass}`}
-    >
-      {status}
-    </span>
-  );
-}
+import { StatusBadge } from "@/components/ui/status-badge";
+import { SectionCard } from "@/components/ui/section-card";
+import { ListRow } from "@/components/ui/list-row";
+import { MetaItem, MetaList } from "@/components/ui/meta";
+import { EmptyState } from "@/components/error-boundary";
+import { Skeleton } from "@/components/loading/loadingSkeletons";
+import { PublicFrame } from "@/components/public/public-frame";
 
 function formatDate(input) {
   if (!input) return "—";
@@ -44,167 +34,139 @@ export default function CustomerPortalPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
-  useEffect(() => {
+  async function load() {
     if (!token) return;
     setLoading(true);
     setError("");
 
-    fetch(`${API_BASE}/public/portal/${token}`)
-      .then(async (res) => {
-        if (!res.ok) {
-          const body = await res.json().catch(() => ({}));
-          throw new Error(body?.error || "This link is invalid or has expired.");
-        }
-        return res.json();
-      })
-      .then((res) => setData(res.portal))
-      .catch((e) => setError(e.message))
-      .finally(() => setLoading(false));
+    try {
+      const res = await fetch(`${API_BASE}/public/portal/${token}`);
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        throw new Error(body?.error || "This link is invalid or has expired.");
+      }
+      const json = await res.json();
+      setData(json.portal);
+    } catch (e) {
+      setError(e.message);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  useEffect(() => {
+    load();
   }, [token]);
 
   if (loading) {
     return (
-      <div className="bg-app text-main flex min-h-screen items-center justify-center">
-        <div className="text-muted text-sm">Loading your project portal…</div>
-      </div>
+      <PublicFrame eyebrow="Customer Project Portal" title="Your project">
+        <SectionCard title="Project Status">
+          <div className="space-y-3">
+            <Skeleton className="h-4 w-2/3" />
+            <Skeleton className="h-4 w-1/2" />
+            <Skeleton className="h-4 w-1/3" />
+          </div>
+        </SectionCard>
+      </PublicFrame>
     );
   }
 
   if (error || !data) {
     return (
-      <div className="bg-app text-main flex min-h-screen items-center justify-center p-6">
-        <div className="card max-w-md rounded-lg p-6 text-center">
-          <div className="text-lg font-semibold">Portal Unavailable</div>
-          <div className="text-muted mt-2 text-sm">
-            {error || "This link is invalid or has expired."}
-          </div>
-        </div>
-      </div>
+      <PublicFrame eyebrow="Customer Project Portal" title="Portal unavailable">
+        <EmptyState
+          title="This portal is unavailable"
+          description={error || "This link is invalid or has expired."}
+        />
+      </PublicFrame>
     );
   }
 
   const { job, estimates, invoices, files } = data;
 
   return (
-    <div className="bg-app text-main min-h-screen">
-      <header className="border-base bg-surface border-b px-6 py-4">
-        <div className="mx-auto max-w-4xl">
-          <div className="text-xl font-semibold">{job.title}</div>
-          <div className="text-muted mt-1 text-sm">Customer Project Portal</div>
-        </div>
-      </header>
+    <PublicFrame
+      eyebrow="Customer Project Portal"
+      title={job.title}
+      description={job.address || undefined}
+      footer="This portal was generated for your convenience. Contact your project manager for questions."
+    >
+      <SectionCard
+        title="Project Status"
+        right={<StatusBadge kind="job" status={job.status} />}
+      >
+        {job.description ? (
+          <p className="text-muted text-sm">{job.description}</p>
+        ) : null}
+        {job.lead_name ? (
+          <MetaList className={job.description ? "mt-4" : ""}>
+            <MetaItem label="Client">
+              {job.lead_name}
+              {job.lead_email ? ` · ${job.lead_email}` : ""}
+            </MetaItem>
+          </MetaList>
+        ) : null}
+      </SectionCard>
 
-      <main className="mx-auto max-w-4xl space-y-6 p-6">
-        {/* Job Overview */}
-        <section className="card rounded-lg p-4">
-          <div className="flex items-start justify-between gap-3">
-            <div>
-              <div className="font-medium">Project Status</div>
-              {job.address ? (
-                <div className="text-muted mt-1 text-sm">{job.address}</div>
-              ) : null}
-              {job.description ? (
-                <div className="text-muted mt-2 text-sm">{job.description}</div>
-              ) : null}
-            </div>
-            <StatusBadge
-              status={job.status}
-              tone={job.status === "Closed Won" ? "success" : "warning"}
-            />
+      {estimates.length > 0 ? (
+        <SectionCard title="Estimates">
+          <div className="space-y-2">
+            {estimates.map((est) => (
+              <ListRow
+                key={est.id}
+                className="flex items-center justify-between gap-3"
+              >
+                <div className="min-w-0">
+                  <div className="font-medium">{est.title}</div>
+                  <div className="text-muted mt-1 text-xs">
+                    {formatDate(est.created_at)}
+                  </div>
+                </div>
+                <div className="flex shrink-0 items-center gap-3">
+                  <span className="text-sm font-semibold">
+                    ${formatCurrency(est.grand_total)}
+                  </span>
+                  <StatusBadge kind="estimate" status={est.status} />
+                </div>
+              </ListRow>
+            ))}
           </div>
-          {job.lead_name ? (
-            <div className="border-base mt-4 border-t pt-3 text-sm">
-              <span className="text-muted">Client: </span>
-              <span>{job.lead_name}</span>
-              {job.lead_email ? (
-                <span className="text-muted"> • {job.lead_email}</span>
-              ) : null}
-            </div>
-          ) : null}
-        </section>
+        </SectionCard>
+      ) : null}
 
-        {/* Estimates */}
-        {estimates.length > 0 ? (
-          <section className="card rounded-lg p-4">
-            <div className="mb-3 font-medium">Estimates</div>
-            <div className="space-y-3">
-              {estimates.map((est) => (
-                <div
-                  key={est.id}
-                  className="flex items-center justify-between rounded-lg border p-3"
-                >
-                  <div>
-                    <div className="font-medium">{est.title}</div>
-                    <div className="text-muted mt-1 text-xs">
-                      {formatDate(est.created_at)}
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-3">
-                    <span className="text-sm font-semibold">
-                      ${formatCurrency(est.grand_total)}
-                    </span>
-                    <StatusBadge
-                      status={est.status}
-                      tone={est.status === "Approved" ? "success" : "warning"}
-                    />
+      {invoices.length > 0 ? (
+        <SectionCard title="Invoices">
+          <div className="space-y-2">
+            {invoices.map((inv) => (
+              <ListRow
+                key={inv.id}
+                className="flex items-center justify-between gap-3"
+              >
+                <div className="min-w-0">
+                  <div className="font-medium">{inv.invoice_number}</div>
+                  <div className="text-muted mt-1 text-xs">
+                    {formatDate(inv.created_at)}
+                    {inv.due_date ? ` · Due ${formatDate(inv.due_date)}` : ""}
                   </div>
                 </div>
-              ))}
-            </div>
-          </section>
-        ) : null}
-
-        {/* Invoices */}
-        {invoices.length > 0 ? (
-          <section className="card rounded-lg p-4">
-            <div className="mb-3 font-medium">Invoices</div>
-            <div className="space-y-3">
-              {invoices.map((inv) => (
-                <div
-                  key={inv.id}
-                  className="flex items-center justify-between rounded-lg border p-3"
-                >
-                  <div>
-                    <div className="font-medium">{inv.invoice_number}</div>
-                    <div className="text-muted mt-1 text-xs">
-                      {formatDate(inv.created_at)}
-                      {inv.due_date ? ` • Due ${formatDate(inv.due_date)}` : ""}
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-3">
-                    <span className="text-sm font-semibold">
-                      ${formatCurrency(inv.grand_total)}
-                    </span>
-                    <StatusBadge
-                      status={inv.status}
-                      tone={
-                        inv.status === "Paid"
-                          ? "success"
-                          : inv.status === "Overdue"
-                            ? "warning"
-                            : ""
-                      }
-                    />
-                  </div>
+                <div className="flex shrink-0 items-center gap-3">
+                  <span className="text-sm font-semibold">
+                    ${formatCurrency(inv.grand_total)}
+                  </span>
+                  <StatusBadge kind="invoice" status={inv.status} />
                 </div>
-              ))}
-            </div>
-          </section>
-        ) : null}
+              </ListRow>
+            ))}
+          </div>
+        </SectionCard>
+      ) : null}
 
-        {/* Photos */}
-        {files.length > 0 ? (
-          <section className="card rounded-lg p-4">
-            <div className="mb-3 font-medium">Project Photos</div>
-            <PhotoGallery files={files} loading={false} />
-          </section>
-        ) : null}
-
-        <footer className="text-muted pb-8 text-center text-xs">
-          This portal was generated for your convenience. Contact your project manager for
-          questions.
-        </footer>
-      </main>
-    </div>
+      {files.length > 0 ? (
+        <SectionCard title="Project Photos">
+          <PhotoGallery files={files} loading={false} />
+        </SectionCard>
+      ) : null}
+    </PublicFrame>
   );
 }

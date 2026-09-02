@@ -22,16 +22,12 @@ import {
   StatCardSkeleton,
   TableRowSkeleton,
 } from "@/components/loading/loadingSkeletons";
-
-function StatCard({ label, value, sub }) {
-  return (
-    <div className="card rounded-lg p-4">
-      <div className="text-muted text-sm">{label}</div>
-      <div className="mt-2 text-2xl font-semibold">{value}</div>
-      {sub ? <div className="text-muted mt-1 text-xs">{sub}</div> : null}
-    </div>
-  );
-}
+import { Alert } from "@/components/ui/alert";
+import { StatCard } from "@/components/ui/stat-card";
+import { StatusBadge } from "@/components/ui/status-badge";
+import { Field } from "@/components/ui/field";
+import { FilterBar } from "@/components/ui/filter-bar";
+import { EmptyState } from "@/components/error-boundary";
 
 function ScopeBadge({ file, router }) {
   if (file.lead_id) {
@@ -268,7 +264,7 @@ export default function FilesPage() {
 
           <FilterBarSkeleton />
 
-          <div className="card rounded-lg p-4">
+          <div className="card p-4">
             <div className="space-y-3">
               {Array.from({ length: 5 }).map((_, i) => (
                 <Skeleton key={i} className="h-10 w-full" />
@@ -321,78 +317,69 @@ export default function FilesPage() {
           )}
         </section>
 
-        {error ? (
-          <div className="rounded-lg border border-red-300 bg-red-50 px-4 py-3 text-sm text-red-700">
-            {error}
-          </div>
-        ) : null}
+        {error ? <Alert className="px-4 py-3">{error}</Alert> : null}
 
         {success ? (
-          <div className="rounded-lg border border-green-300 bg-green-50 px-4 py-3 text-sm text-green-700">
+          <Alert tone="success" className="px-4 py-3">
             {success}
-          </div>
+          </Alert>
         ) : null}
 
         {isInitialLoading ? (
           <FilterBarSkeleton />
         ) : (
-          <section className="card rounded-lg p-4">
-            <div className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
-              <div className="min-w-0 flex-1">
-                <label className="text-muted text-xs">Search</label>
-                <input
-                  type="text"
-                  placeholder="Search files, types, or uploader..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="input mt-1"
-                />
-              </div>
+          <FilterBar>
+            <Field label="Search" className="min-w-0 flex-1">
+              <input
+                type="text"
+                placeholder="Search files, types, or uploader..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="input"
+              />
+            </Field>
 
-              <div className="w-full lg:w-44">
-                <label className="text-muted text-xs">Scope</label>
-                <select
-                  value={scopeFilter}
-                  onChange={(e) => setScopeFilter(e.target.value)}
-                  className="input mt-1"
-                >
-                  <option value="all">All Scopes</option>
-                  <option value="general">General</option>
-                  <option value="lead">Lead Attached</option>
-                  <option value="job">Job Attached</option>
-                </select>
-              </div>
+            <Field label="Scope" className="w-full lg:w-44">
+              <select
+                value={scopeFilter}
+                onChange={(e) => setScopeFilter(e.target.value)}
+                className="input"
+              >
+                <option value="all">All Scopes</option>
+                <option value="general">General</option>
+                <option value="lead">Lead Attached</option>
+                <option value="job">Job Attached</option>
+              </select>
+            </Field>
 
-              <div className="w-full lg:w-40">
-                <label className="text-muted text-xs">Type</label>
-                <select
-                  value={typeFilter}
-                  onChange={(e) => setTypeFilter(e.target.value)}
-                  className="input mt-1"
-                >
-                  <option value="all">All Types</option>
-                  <option value="pdf">PDF</option>
-                  <option value="image">Image</option>
-                  <option value="other">Other</option>
-                </select>
-              </div>
-            </div>
-          </section>
+            <Field label="Type" className="w-full lg:w-40">
+              <select
+                value={typeFilter}
+                onChange={(e) => setTypeFilter(e.target.value)}
+                className="input"
+              >
+                <option value="all">All Types</option>
+                <option value="pdf">PDF</option>
+                <option value="image">Image</option>
+                <option value="other">Other</option>
+              </select>
+            </Field>
+          </FilterBar>
         )}
 
         <CollapsibleSection title={fileTitle} defaultOpen={true}>
           {loadingFiles ? (
             <div className="overflow-x-auto">
-              <table className="min-w-full text-sm">
-                <thead className="bg-accent border-b text-left">
+              <table className="data-table">
+                <thead>
                   <tr>
-                    <th className="px-5 py-3 font-medium">File</th>
-                    <th className="px-5 py-3 font-medium">Type</th>
-                    <th className="px-5 py-3 font-medium">Size</th>
-                    <th className="px-5 py-3 font-medium">Uploaded By</th>
-                    <th className="px-5 py-3 font-medium">Attached To</th>
-                    <th className="px-5 py-3 font-medium">Uploaded</th>
-                    <th className="px-5 py-3 font-medium">Actions</th>
+                    <th>File</th>
+                    <th>Type</th>
+                    <th>Size</th>
+                    <th>Uploaded By</th>
+                    <th>Attached To</th>
+                    <th>Uploaded</th>
+                    <th>Actions</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -403,23 +390,21 @@ export default function FilesPage() {
               </table>
             </div>
           ) : files.length === 0 ? (
-            <div className="text-muted px-5 py-6 text-sm">No files uploaded yet.</div>
+            <EmptyState title="No files uploaded yet" />
           ) : filteredFiles.length === 0 ? (
-            <div className="text-muted px-5 py-8 text-sm">
-              No files match the current filters.
-            </div>
+            <EmptyState title="No files match the current filters" />
           ) : (
             <div className="overflow-x-auto">
-              <table className="min-w-full text-sm">
-                <thead className="bg-accent border-b text-left">
+              <table className="data-table">
+                <thead>
                   <tr>
-                    <th className="px-5 py-3 font-medium">File</th>
-                    <th className="px-5 py-3 font-medium">Type</th>
-                    <th className="px-5 py-3 font-medium">Size</th>
-                    <th className="px-5 py-3 font-medium">Uploaded By</th>
-                    <th className="px-5 py-3 font-medium">Attached To</th>
-                    <th className="px-5 py-3 font-medium">Uploaded</th>
-                    <th className="px-5 py-3 font-medium">Actions</th>
+                    <th>File</th>
+                    <th>Type</th>
+                    <th>Size</th>
+                    <th>Uploaded By</th>
+                    <th>Attached To</th>
+                    <th>Uploaded</th>
+                    <th>Actions</th>
                   </tr>
                 </thead>
 
@@ -430,11 +415,8 @@ export default function FilesPage() {
                       "Unknown User";
 
                     return (
-                      <tr
-                        key={file.id}
-                        className="border-base hover:bg-accent border-t transition"
-                      >
-                        <td className="px-5 py-4 align-top">
+                      <tr key={file.id}>
+                        <td>
                           <div className="min-w-0">
                             <div className="truncate font-medium">
                               {file.original_name}
@@ -445,25 +427,25 @@ export default function FilesPage() {
                           </div>
                         </td>
 
-                        <td className="px-5 py-4 align-top">
-                          <span className="status-chip">{getFileTypeLabel(file)}</span>
+                        <td className="align-top">
+                          <StatusBadge>{getFileTypeLabel(file)}</StatusBadge>
                         </td>
 
-                        <td className="text-muted px-5 py-4 align-top">
+                        <td className="text-muted align-top">
                           {formatBytes(file.size_bytes)}
                         </td>
 
-                        <td className="text-muted px-5 py-4 align-top">{uploaderName}</td>
+                        <td className="text-muted align-top">{uploaderName}</td>
 
-                        <td className="px-5 py-4 align-top">
+                        <td className="align-top">
                           <ScopeBadge file={file} router={router} />
                         </td>
 
-                        <td className="text-muted px-5 py-4 align-top">
+                        <td className="text-muted align-top">
                           {formatDate(file.created_at)}
                         </td>
 
-                        <td className="px-5 py-4 align-top">
+                        <td className="align-top">
                           <div className="flex flex-wrap items-center gap-2">
                             {isPreviewableFile(file) ? (
                               <button
@@ -488,7 +470,7 @@ export default function FilesPage() {
                               <button
                                 onClick={() => deleteFile(file.id)}
                                 disabled={busyId === file.id}
-                                className="btn px-3 py-1.5 text-xs text-red-600"
+                                className="btn btn-danger px-3 py-1.5 text-xs"
                               >
                                 {busyId === file.id ? "Deleting..." : "Delete"}
                               </button>

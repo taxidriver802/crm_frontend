@@ -12,12 +12,12 @@ export const DAY_PICKER_CLASSNAMES = {
   head_row: "grid grid-cols-7",
   row: "grid grid-cols-7",
   weekday: "text-muted py-1 text-center text-xs font-medium",
-  day: "h-10 w-10 rounded-md p-0 text-sm",
+  day: "h-10 w-10 rounded-theme-md p-0 text-sm",
   day_button:
-    "h-10 w-10 rounded-md transition hover:bg-accent focus:outline-none focus:ring-2 focus:ring-[var(--accent)]",
-  selected: "bg-accent rounded-md text-white hover:bg-accent",
-  today: "text-muted opacity-25 font-normal",
-  outside: "text-soft opacity-50",
+    "h-10 w-10 rounded-theme-md transition hover:bg-accent focus:outline-none focus:ring-2 focus:ring-[var(--accent)]",
+  selected: "bg-accent-solid rounded-theme-md text-on-accent hover:bg-accent-solid",
+  today: "font-semibold",
+  outside: "text-soft",
   disabled: "text-soft opacity-40",
 };
 

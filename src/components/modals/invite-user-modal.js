@@ -1,6 +1,9 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { Alert } from "@/components/ui/alert";
+import { ModalFrame } from "@/components/ui/overlay";
+import { Field, FormActions } from "@/components/ui/field";
 
 const ROLE_OPTIONS = [
   { value: "agent", label: "Agent" },
@@ -37,15 +40,6 @@ export function InviteUserModal({ open, onClose }) {
       setEmailSent(false);
     }
   }, [open]);
-
-  useEffect(() => {
-    function onKeyDown(e) {
-      if (e.key === "Escape") onClose();
-    }
-
-    if (open) window.addEventListener("keydown", onKeyDown);
-    return () => window.removeEventListener("keydown", onKeyDown);
-  }, [open, onClose]);
 
   async function handleSubmit(e) {
     e.preventDefault();
@@ -101,19 +95,11 @@ export function InviteUserModal({ open, onClose }) {
   if (!open) return null;
 
   return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
-      <button
-        type="button"
-        aria-label="Close invite modal backdrop"
-        onClick={onClose}
-        className="absolute inset-0 bg-black/60"
-      />
-
-      <div className="card relative z-[101] w-full max-w-lg overflow-hidden rounded-2xl">
+    <ModalFrame open={open} onClose={onClose} label="Invite User">
         {/* HEADER */}
         <div className="border-base flex items-start justify-between gap-4 border-b p-4">
           <div>
-            <h2 className="text-lg font-semibold">Invite User</h2>
+            <h2 className="section-heading">Invite User</h2>
             <p className="text-muted mt-1 text-sm">
               Create an invited account and generate a one-time invite link.
             </p>
@@ -129,8 +115,7 @@ export function InviteUserModal({ open, onClose }) {
           {!successUser ? (
             <form onSubmit={handleSubmit} className="space-y-4">
               <div className="grid gap-4 sm:grid-cols-2">
-                <label className="block">
-                  <span className="mb-1 block text-sm font-medium">First name</span>
+                <Field label="First name" required>
                   <input
                     value={form.first_name}
                     onChange={(e) =>
@@ -139,10 +124,9 @@ export function InviteUserModal({ open, onClose }) {
                     className="input"
                     required
                   />
-                </label>
+                </Field>
 
-                <label className="block">
-                  <span className="mb-1 block text-sm font-medium">Last name</span>
+                <Field label="Last name" required>
                   <input
                     value={form.last_name}
                     onChange={(e) =>
@@ -151,11 +135,10 @@ export function InviteUserModal({ open, onClose }) {
                     className="input"
                     required
                   />
-                </label>
+                </Field>
               </div>
 
-              <label className="block">
-                <span className="mb-1 block text-sm font-medium">Email</span>
+              <Field label="Email" required>
                 <input
                   type="email"
                   value={form.email}
@@ -165,10 +148,9 @@ export function InviteUserModal({ open, onClose }) {
                   className="input"
                   required
                 />
-              </label>
+              </Field>
 
-              <label className="block">
-                <span className="mb-1 block text-sm font-medium">Role</span>
+              <Field label="Role">
                 <select
                   value={form.role}
                   onChange={(e) => setForm((prev) => ({ ...prev, role: e.target.value }))}
@@ -180,15 +162,11 @@ export function InviteUserModal({ open, onClose }) {
                     </option>
                   ))}
                 </select>
-              </label>
+              </Field>
 
-              {error && (
-                <div className="rounded-md border border-red-300 bg-red-50 px-3 py-2 text-sm text-red-700">
-                  {error}
-                </div>
-              )}
+              {error ? <Alert>{error}</Alert> : null}
 
-              <div className="flex items-center justify-end gap-2 pt-2">
+              <FormActions className="justify-end pt-2">
                 <button type="button" onClick={onClose} className="btn">
                   Cancel
                 </button>
@@ -196,7 +174,7 @@ export function InviteUserModal({ open, onClose }) {
                 <button type="submit" disabled={submitting} className="btn btn-primary">
                   {submitting ? "Creating..." : "Create Invite"}
                 </button>
-              </div>
+              </FormActions>
             </form>
           ) : (
             <div className="space-y-4">
@@ -232,11 +210,7 @@ export function InviteUserModal({ open, onClose }) {
                 )}
               </div>
 
-              {error && (
-                <div className="rounded-md border border-red-300 bg-red-50 px-3 py-2 text-sm text-red-700">
-                  {error}
-                </div>
-              )}
+              {error ? <Alert>{error}</Alert> : null}
 
               <div className="flex items-center justify-end gap-2">
                 {!emailSent && (
@@ -252,7 +226,6 @@ export function InviteUserModal({ open, onClose }) {
             </div>
           )}
         </div>
-      </div>
-    </div>
+    </ModalFrame>
   );
 }

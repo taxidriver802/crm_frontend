@@ -7,50 +7,19 @@ import { api } from "@/lib/api";
 import { formatDue } from "@/lib/helper";
 import { CollapsibleSection } from "@/components/forms/collapsible-section";
 import { ActivityList } from "@/components/activity-list";
+import { StatCard } from "@/components/ui/stat-card";
+import { SectionCard } from "@/components/ui/section-card";
+import { StatusBadge } from "@/components/ui/status-badge";
+import { PageError, EmptyState } from "@/components/error-boundary";
+import { Segmented } from "@/components/ui/segmented";
+import { ListRow } from "@/components/ui/list-row";
+import { Icon } from "@/components/icons";
 
 import LoadingDots, {
   Skeleton,
   SectionSkeleton,
   StatCardSkeleton,
 } from "@/components/loading/loadingSkeletons";
-
-function cx(...classes) {
-  return classes.filter(Boolean).join(" ");
-}
-
-function StatCard({ label, value, sub, href }) {
-  const inner = (
-    <div className="card hover:bg-accent h-full rounded-lg p-3 transition-colors sm:p-4">
-      <div className="text-muted text-xs sm:text-sm">{label}</div>
-      <div className="mt-1 text-xl font-semibold sm:mt-2 sm:text-2xl">{value}</div>
-      {sub ? <div className="text-muted mt-1 text-xs">{sub}</div> : null}
-    </div>
-  );
-
-  return href ? (
-    <Link href={href} className="block h-full">
-      {inner}
-    </Link>
-  ) : (
-    inner
-  );
-}
-
-function SectionCard({ title, right, children, className = "" }) {
-  return (
-    <section className={cx("card rounded-lg", className)}>
-      <div className="border-base flex items-center justify-between gap-3 border-b p-4">
-        <div className="text-sm font-medium">{title}</div>
-        {right ? <div className="text-sm">{right}</div> : null}
-      </div>
-      <div className="p-4">{children}</div>
-    </section>
-  );
-}
-
-function Badge({ children }) {
-  return <span className="status-chip">{children}</span>;
-}
 
 function getTaskLeadLabel(task) {
   if (task.lead_first_name && task.lead_last_name) {
@@ -166,6 +135,16 @@ export default function DashboardPage() {
     return taskData.nextUp || [];
   }, [data, tab]);
 
+  const dashboardTasksEmpty = useMemo(() => {
+    if (!data?.ok) return true;
+    const taskData = data.tasks || {};
+    return (
+      !(taskData.overdueTasks?.length) &&
+      !(taskData.dueTodayTasks?.length) &&
+      !(taskData.nextUp?.length)
+    );
+  }, [data]);
+
   const statusSummary = useMemo(() => {
     return Array.isArray(data?.leads?.byStatus) ? data.leads.byStatus : [];
   }, [data]);
@@ -238,41 +217,39 @@ export default function DashboardPage() {
     ) : null;
 
     return (
-      <div className="border-base hover:bg-accent rounded-lg border p-3 transition">
-        <div className="flex items-start justify-between gap-3">
-          <div className="min-w-0">
-            <Link
-              href={`/tasks/${t.id}`}
-              className="hover:text-main font-medium hover:underline"
-            >
-              {t.title}
-            </Link>
-            <div className="text-muted mt-1 flex flex-wrap items-center gap-x-1 text-sm">
-              {leadName ? <span>{leadName}</span> : null}
-              {leadName && jobPart ? <span>·</span> : null}
-              {jobPart}
-              {leadName || jobPart ? <span>·</span> : null}
-              <span>{formatDue(t.due_date)}</span>
-            </div>
+      <ListRow className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <Link
+            href={`/tasks/${t.id}`}
+            className="hover:text-main font-medium hover:underline"
+          >
+            {t.title}
+          </Link>
+          <div className="text-muted mt-1 flex flex-wrap items-center gap-x-1 text-sm">
+            {leadName ? <span>{leadName}</span> : null}
+            {leadName && jobPart ? <span>·</span> : null}
+            {jobPart}
+            {leadName || jobPart ? <span>·</span> : null}
+            <span>{formatDue(t.due_date)}</span>
           </div>
-
-          {t.status === "Completed" ? (
-            <button
-              className="btn px-3 py-2 text-xs"
-              onClick={() => setTaskStatus(t.id, "Pending")}
-            >
-              Mark pending
-            </button>
-          ) : (
-            <button
-              className="btn px-3 py-2 text-xs"
-              onClick={() => setTaskStatus(t.id, "Completed")}
-            >
-              Mark completed
-            </button>
-          )}
         </div>
-      </div>
+
+        {t.status === "Completed" ? (
+          <button
+            className="btn btn-sm"
+            onClick={() => setTaskStatus(t.id, "Pending")}
+          >
+            Mark pending
+          </button>
+        ) : (
+          <button
+            className="btn btn-sm"
+            onClick={() => setTaskStatus(t.id, "Completed")}
+          >
+            Mark completed
+          </button>
+        )}
+      </ListRow>
     );
   }
 
@@ -383,60 +360,32 @@ export default function DashboardPage() {
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-7">
           {isInitialLoading
             ? Array.from({ length: 7 }).map((_, i) => <StatCardSkeleton key={i} />)
-            : stats.map((s) => <StatCard key={s.label} {...s} />)}
+            : stats.map((s) => <StatCard key={s.label} size="compact" {...s} />)}
         </div>
 
-        {!loading && err ? (
-          <div className="card rounded-lg p-4">
-            <div className="text-sm font-medium">Couldn&apos;t load dashboard</div>
-            <div className="text-muted mt-1 text-sm">{err}</div>
-          </div>
-        ) : null}
+        {!loading && err ? <PageError message={err} /> : null}
 
         <div className="grid gap-4 xl:grid-cols-[minmax(0,2fr)_minmax(320px,1fr)]">
           <div className="space-y-4">
-            <CollapsibleSection title={taskTitle} defaultOpen={true}>
-              <div className="mb-4 flex items-center justify-between">
-                <div className="flex flex-wrap gap-1 gap-2 sm:gap-2">
-                  <button
-                    className={cx(
-                      "btn px-2 py-1 text-xs sm:px-3 sm:py-2",
-                      tab === "overdue" && "bg-accent text-main",
-                    )}
-                    style={{ minWidth: "64px" }}
-                    onClick={() => setTab("overdue")}
-                  >
-                    <span className="xs:inline hidden sm:inline">Overdue</span>
-                    <span className="xs:hidden inline sm:hidden">OD</span>
-                  </button>
-
-                  <button
-                    className={cx(
-                      "btn px-2 py-1 text-xs sm:px-3 sm:py-2",
-                      tab === "due_today" && "bg-accent text-main",
-                    )}
-                    style={{ minWidth: "64px" }}
-                    onClick={() => setTab("due_today")}
-                  >
-                    <span className="xs:inline hidden sm:inline">Due Today</span>
-                    <span className="xs:hidden inline sm:hidden">Today</span>
-                  </button>
-
-                  <button
-                    className={cx(
-                      "btn px-2 py-1 text-xs sm:px-3 sm:py-2",
-                      tab === "next_up" && "bg-accent text-main",
-                    )}
-                    style={{ minWidth: "64px" }}
-                    onClick={() => setTab("next_up")}
-                  >
-                    <span className="xs:inline hidden sm:inline">Next Up</span>
-                    <span className="xs:hidden inline sm:hidden">Next</span>
-                  </button>
-                </div>
+            <CollapsibleSection
+              title={taskTitle}
+              ready={!isInitialLoading}
+              empty={dashboardTasksEmpty}
+            >
+              <div className="mb-4 flex items-center justify-between gap-3">
+                <Segmented
+                  aria-label="Task window"
+                  value={tab}
+                  onChange={setTab}
+                  options={[
+                    { value: "overdue", label: "Overdue", short: "OD" },
+                    { value: "due_today", label: "Due Today", short: "Today" },
+                    { value: "next_up", label: "Next Up", short: "Next" },
+                  ]}
+                />
 
                 <Link
-                  className="text-muted hover:underline"
+                  className="text-muted text-xs hover:underline"
                   href={
                     tab === "overdue"
                       ? "/tasks?duePreset=overdue"
@@ -449,11 +398,15 @@ export default function DashboardPage() {
                 </Link>
               </div>
 
-              <div className="mt-4 space-y-3">
+              <div className="space-y-2">
                 {isInitialLoading ? (
                   <SectionSkeleton rows={3} />
                 ) : currentTasks.length === 0 ? (
-                  <div className="text-muted text-sm">Nothing here 🎉</div>
+                  <EmptyState
+                    icon={<Icon name="inbox" className="h-5 w-5" />}
+                    title="Nothing here"
+                    description="No tasks in this window."
+                  />
                 ) : (
                   currentTasks.map((t) => <TaskRow key={t.id} t={t} />)
                 )}
@@ -472,7 +425,11 @@ export default function DashboardPage() {
                 </Link>
               </div>
             </SectionCard>
-            <CollapsibleSection title={recentTitle} defaultOpen={true}>
+            <CollapsibleSection
+              title={recentTitle}
+              ready={!loadingActivity}
+              empty={activity.length === 0}
+            >
               {loadingActivity ? (
                 <div className="space-y-3">
                   <Skeleton className="h-4 w-40" />
@@ -480,9 +437,7 @@ export default function DashboardPage() {
                   <Skeleton className="h-4 w-32" />
                 </div>
               ) : activity.length === 0 ? (
-                <div className="space-y-3">
-                  <div className="text-muted text-sm">No recent activity</div>
-                </div>
+                <EmptyState title="No recent activity" />
               ) : (
                 <ActivityList
                   activity={activity}
@@ -492,96 +447,102 @@ export default function DashboardPage() {
               )}
             </CollapsibleSection>
 
-            <CollapsibleSection title={jobsByStatusTitle} defaultOpen={true}>
+            <CollapsibleSection
+              title={jobsByStatusTitle}
+              ready={!isInitialLoading}
+              empty={jobStatusSummary.length === 0}
+            >
               {isInitialLoading ? (
                 <div className="space-y-2">
                   {Array.from({ length: 4 }).map((_, i) => (
-                    <div key={i} className="border-base rounded-lg border p-3">
+                    <ListRow key={i}>
                       <div className="flex items-center justify-between">
                         <Skeleton className="h-5 w-24 rounded-full" />
                         <Skeleton className="h-4 w-8" />
                       </div>
-                    </div>
+                    </ListRow>
                   ))}
                 </div>
               ) : jobStatusSummary.length === 0 ? (
-                <div className="text-muted text-sm">No jobs yet</div>
+                <EmptyState title="No jobs yet" />
               ) : (
                 <div className="space-y-2">
                   {jobStatusSummary.map((row) => (
-                    <Link
+                    <ListRow
                       key={row.status}
-                      className="border-base hover:bg-accent flex items-center justify-between rounded-lg border p-3 transition"
                       href={`/jobs?status=${encodeURIComponent(row.status)}`}
+                      className="flex items-center justify-between"
                     >
-                      <div className="flex items-center gap-2">
-                        <Badge>{row.status}</Badge>
-                      </div>
+                      <StatusBadge kind="job" status={row.status} />
                       <div className="text-sm font-semibold">{row.count}</div>
-                    </Link>
+                    </ListRow>
                   ))}
                 </div>
               )}
             </CollapsibleSection>
 
-            <CollapsibleSection title={estimatesByStatusTitle} defaultOpen={true}>
+            <CollapsibleSection
+              title={estimatesByStatusTitle}
+              ready={!isInitialLoading}
+              empty={estimateStatusSummary.length === 0}
+            >
               {isInitialLoading ? (
                 <div className="space-y-2">
                   {Array.from({ length: 3 }).map((_, i) => (
-                    <div key={i} className="border-base rounded-lg border p-3">
+                    <ListRow key={i}>
                       <div className="flex items-center justify-between">
                         <Skeleton className="h-5 w-20 rounded-full" />
                         <Skeleton className="h-4 w-8" />
                       </div>
-                    </div>
+                    </ListRow>
                   ))}
                 </div>
               ) : estimateStatusSummary.length === 0 ? (
-                <div className="text-muted text-sm">No estimates yet</div>
+                <EmptyState title="No estimates yet" />
               ) : (
                 <div className="space-y-2">
                   {estimateStatusSummary.map((row) => (
-                    <div
+                    <ListRow
                       key={row.status}
-                      className="border-base flex items-center justify-between rounded-lg border p-3"
+                      className="flex items-center justify-between"
                     >
-                      <div className="flex items-center gap-2">
-                        <Badge>{row.status}</Badge>
-                      </div>
+                      <StatusBadge kind="estimate" status={row.status} />
                       <div className="text-sm font-semibold">{row.count}</div>
-                    </div>
+                    </ListRow>
                   ))}
                 </div>
               )}
             </CollapsibleSection>
 
-            <CollapsibleSection title={leadTitle} defaultOpen={true}>
+            <CollapsibleSection
+              title={leadTitle}
+              ready={!isInitialLoading}
+              empty={statusSummary.length === 0}
+            >
               {isInitialLoading ? (
                 <div className="space-y-2">
                   {Array.from({ length: 4 }).map((_, i) => (
-                    <div key={i} className="border-base rounded-lg border p-3">
+                    <ListRow key={i}>
                       <div className="flex items-center justify-between">
                         <Skeleton className="h-5 w-24 rounded-full" />
                         <Skeleton className="h-4 w-8" />
                       </div>
-                    </div>
+                    </ListRow>
                   ))}
                 </div>
               ) : statusSummary.length === 0 ? (
-                <div className="text-muted text-sm">No leads yet</div>
+                <EmptyState title="No leads yet" />
               ) : (
                 <div className="space-y-2">
                   {statusSummary.map((row) => (
-                    <Link
+                    <ListRow
                       key={row.status}
-                      className="border-base hover:bg-accent flex items-center justify-between rounded-lg border p-3 transition"
                       href={`/leads?status=${row.status}`}
+                      className="flex items-center justify-between"
                     >
-                      <div className="flex items-center gap-2">
-                        <Badge>{row.status}</Badge>
-                      </div>
+                      <StatusBadge kind="lead" status={row.status} />
                       <div className="text-sm font-semibold">{row.count}</div>
-                    </Link>
+                    </ListRow>
                   ))}
                 </div>
               )}

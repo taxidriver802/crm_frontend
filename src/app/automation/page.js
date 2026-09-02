@@ -7,6 +7,7 @@ import { CollapsibleSection } from "@/components/forms/collapsible-section";
 import { SectionSkeleton } from "@/components/loading/loadingSkeletons";
 import { PageError } from "@/components/error-boundary";
 import { formatDate } from "@/lib/helper";
+import { StatusBadge } from "@/components/ui/status-badge";
 
 const TRIGGER_LABELS = {
   ESTIMATE_APPROVED: "Estimate approved",
@@ -24,19 +25,13 @@ const ACTION_LABELS = {
 
 function RuleCard({ rule, onToggle, onDelete, busy }) {
   return (
-    <div className="hover:bg-accent flex items-start justify-between gap-3 rounded-lg border p-4 transition">
+    <div className="list-row list-row-interactive flex items-start justify-between gap-3">
       <div className="min-w-0 flex-1">
         <div className="flex items-center gap-2">
           <div className="font-medium">{rule.name}</div>
-          <span
-            className={`inline-flex rounded-full border px-2 py-0.5 text-xs ${
-              rule.enabled
-                ? "border-green-500/30 bg-green-500/10 text-green-700"
-                : "border-gray-500/30 bg-gray-500/10 text-gray-700"
-            }`}
-          >
+          <StatusBadge tone={rule.enabled ? "success" : "neutral"}>
             {rule.enabled ? "Active" : "Disabled"}
-          </span>
+          </StatusBadge>
         </div>
         {rule.description ? (
           <div className="text-muted mt-1 text-sm">{rule.description}</div>
@@ -58,7 +53,7 @@ function RuleCard({ rule, onToggle, onDelete, busy }) {
         </button>
         <button
           type="button"
-          className="btn px-3 py-2 text-xs text-red-600"
+          className="btn btn-danger px-3 py-2 text-xs"
           onClick={() => onDelete(rule)}
           disabled={busy}
         >
@@ -71,7 +66,7 @@ function RuleCard({ rule, onToggle, onDelete, busy }) {
 
 function TemplateCard({ template, onActivate, busy }) {
   return (
-    <div className="hover:bg-accent flex items-start justify-between gap-3 rounded-lg border p-4 transition">
+    <div className="list-row list-row-interactive flex items-start justify-between gap-3">
       <div className="min-w-0 flex-1">
         <div className="font-medium">{template.name}</div>
         {template.description ? (
@@ -198,7 +193,8 @@ export default function AutomationPage() {
         <CollapsibleSection
           title="Active Rules"
           description="Rules currently configured."
-          defaultOpen
+          ready={!loading}
+          empty={rules.length === 0}
         >
           {loading ? (
             <SectionSkeleton rows={3} />
@@ -224,7 +220,8 @@ export default function AutomationPage() {
         <CollapsibleSection
           title="Rule Templates"
           description="Pre-built workflow rules you can activate with one click."
-          defaultOpen
+          ready={!loading}
+          empty={availableTemplates.length === 0}
         >
           {loading ? (
             <SectionSkeleton rows={3} />

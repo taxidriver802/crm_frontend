@@ -4,72 +4,12 @@ import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { AppShell } from "@/components/app-shell";
 import { api } from "@/lib/api";
-import { Skeleton } from "@/components/loading/loadingSkeletons";
-
-function MetricCard({ label, value, sub }) {
-  return (
-    <div className="card rounded-lg p-4">
-      <div className="text-muted text-xs">{label}</div>
-      <div className="mt-1 text-2xl font-semibold">{value}</div>
-      {sub ? <div className="text-muted mt-1 text-xs">{sub}</div> : null}
-    </div>
-  );
-}
-
-function HorizontalBars({ rows }) {
-  const max = Math.max(1, ...rows.map((row) => Number(row.count || 0)));
-  return (
-    <div className="space-y-2">
-      {rows.map((row) => (
-        <div key={row.status} className="space-y-1">
-          <div className="flex items-center justify-between text-xs">
-            <span>{row.status}</span>
-            <span className="text-muted">{row.count}</span>
-          </div>
-          <div className="h-2 rounded bg-[var(--surface)]">
-            <div
-              className="h-2 rounded bg-[var(--accent)]"
-              style={{ width: `${(Number(row.count || 0) / max) * 100}%` }}
-            />
-          </div>
-        </div>
-      ))}
-    </div>
-  );
-}
-
-function VerticalBars({ labels, leadCounts, estimateCounts }) {
-  const max = Math.max(1, ...leadCounts, ...estimateCounts);
-
-  return (
-    <div className="space-y-2">
-      <div className="grid grid-cols-6 gap-2 text-[11px]">
-        {labels.slice(-6).map((label, idx) => {
-          const lead = leadCounts.slice(-6)[idx] || 0;
-          const estimate = estimateCounts.slice(-6)[idx] || 0;
-          return (
-            <div key={label} className="space-y-1">
-              <div className="flex h-28 items-end gap-1">
-                <div
-                  className="w-1/2 rounded-t bg-[var(--accent)]"
-                  style={{ height: `${(lead / max) * 100}%` }}
-                  title={`Leads: ${lead}`}
-                />
-                <div
-                  className="w-1/2 rounded-t bg-green-500/70"
-                  style={{ height: `${(estimate / max) * 100}%` }}
-                  title={`Estimates: ${estimate}`}
-                />
-              </div>
-              <div className="text-muted truncate text-center">{label}</div>
-            </div>
-          );
-        })}
-      </div>
-      <div className="text-muted text-xs">Blue: Leads, Green: Estimates</div>
-    </div>
-  );
-}
+import { PageError, EmptyState } from "@/components/error-boundary";
+import { Skeleton, StatCardSkeleton } from "@/components/loading/loadingSkeletons";
+import { StatCard } from "@/components/ui/stat-card";
+import { SectionCard } from "@/components/ui/section-card";
+import { GroupedVerticalBars, HorizontalBars } from "@/components/ui/chart";
+import { Icon } from "@/components/icons";
 
 export default function ReportsPage() {
   const [loading, setLoading] = useState(true);
@@ -152,28 +92,28 @@ export default function ReportsPage() {
       }
     >
       <div className="space-y-6">
-        {error ? <div className="text-sm text-red-500">{error}</div> : null}
+        {error ? <PageError message={error} /> : null}
 
         {loading ? (
           <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
             {Array.from({ length: 4 }).map((_, i) => (
-              <div key={i} className="card p-4">
-                <Skeleton className="h-3 w-24" />
-                <Skeleton className="mt-2 h-6 w-20" />
-              </div>
+              <StatCardSkeleton key={i} />
             ))}
           </div>
         ) : (
           <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-            <MetricCard
+            <StatCard
+              size="metric"
               label="Leads tracked"
               value={leadFunnel.reduce((sum, row) => sum + Number(row.count || 0), 0)}
             />
-            <MetricCard
+            <StatCard
+              size="metric"
               label="Estimate approval rate"
               value={`${Math.round((estimateOutcomes.approvedRate || 0) * 100)}%`}
             />
-            <MetricCard
+            <StatCard
+              size="metric"
               label="Approved revenue"
               value={`$${Number(estimateOutcomes.approvedRevenue || 0).toLocaleString(
                 undefined,
@@ -183,7 +123,8 @@ export default function ReportsPage() {
                 },
               )}`}
             />
-            <MetricCard
+            <StatCard
+              size="metric"
               label="Job stages"
               value={jobPipeline.length}
               sub="Distinct statuses"
@@ -192,17 +133,15 @@ export default function ReportsPage() {
         )}
 
         <div className="grid gap-4 xl:grid-cols-3">
-          <section className="card rounded-lg p-4">
-            <div className="mb-3 text-sm font-semibold">Lead funnel</div>
+          <SectionCard title="Lead funnel">
             {loading ? (
               <Skeleton className="h-28 w-full" />
             ) : (
-              <HorizontalBars rows={leadFunnel} />
+              <HorizontalBars rows={leadFunnel} emptyTitle="No lead data yet" />
             )}
-          </section>
+          </SectionCard>
 
-          <section className="card rounded-lg p-4">
-            <div className="mb-3 text-sm font-semibold">Estimate outcomes</div>
+          <SectionCard title="Estimate outcomes">
             {loading ? (
               <Skeleton className="h-28 w-full" />
             ) : (
@@ -211,34 +150,48 @@ export default function ReportsPage() {
                   status: row.status,
                   count: row.count,
                 }))}
+                emptyTitle="No estimate data yet"
               />
             )}
-          </section>
+          </SectionCard>
 
-          <section className="card rounded-lg p-4">
-            <div className="mb-3 text-sm font-semibold">Job pipeline</div>
+          <SectionCard title="Job pipeline">
             {loading ? (
               <Skeleton className="h-28 w-full" />
             ) : (
-              <HorizontalBars rows={jobPipeline} />
+              <HorizontalBars rows={jobPipeline} emptyTitle="No job data yet" />
             )}
-          </section>
+          </SectionCard>
         </div>
 
-        <section className="card rounded-lg p-4">
-          <div className="mb-3 text-sm font-semibold">Monthly trends</div>
+        <SectionCard title="Monthly trends">
           {loading ? (
             <Skeleton className="h-36 w-full" />
           ) : trendSeries.labels.length === 0 ? (
-            <div className="text-muted text-sm">No trend data yet.</div>
+            <EmptyState
+              icon={<Icon name="chart" className="h-5 w-5" />}
+              title="No trend data yet"
+            />
           ) : (
-            <VerticalBars
+            <GroupedVerticalBars
               labels={trendSeries.labels}
-              leadCounts={trendSeries.leadCounts}
-              estimateCounts={trendSeries.estimateCounts}
+              series={[
+                {
+                  key: "leads",
+                  label: "Leads",
+                  values: trendSeries.leadCounts,
+                  series: 1,
+                },
+                {
+                  key: "estimates",
+                  label: "Estimates",
+                  values: trendSeries.estimateCounts,
+                  series: 2,
+                },
+              ]}
             />
           )}
-        </section>
+        </SectionCard>
       </div>
     </AppShell>
   );

@@ -1,5 +1,6 @@
 "use client";
 
+import { Alert } from "@/components/ui/alert";
 import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
@@ -26,6 +27,12 @@ import {
   SectionSkeleton,
   Skeleton,
 } from "@/components/loading/loadingSkeletons";
+import { SectionCard } from "@/components/ui/section-card";
+import { PageError } from "@/components/error-boundary";
+import { StatusBadge } from "@/components/ui/status-badge";
+import { MetaList, MetaItem } from "@/components/ui/meta";
+import { Field, FormActions } from "@/components/ui/field";
+import { EmptyState } from "@/components/error-boundary";
 
 const JOB_STATUSES = [
   "New",
@@ -38,23 +45,8 @@ const JOB_STATUSES = [
 
 const DEFAULT_VISIBLE_TASKS = 6;
 
-function SectionCard({ title, description, right, children, className = "" }) {
-  return (
-    <section className={`card rounded-lg ${className}`}>
-      <div className="border-base flex items-center justify-between gap-3 border-b p-4">
-        <div className="min-w-0">
-          <h2 className="text-lg font-semibold">{title}</h2>
-          {description ? <p className="text-muted mt-1 text-sm">{description}</p> : null}
-        </div>
-        {right ? <div className="shrink-0">{right}</div> : null}
-      </div>
-      <div className="p-4">{children}</div>
-    </section>
-  );
-}
-
 function JobStatusBadge({ status }) {
-  return <span className="status-chip">{status || "—"}</span>;
+  return <StatusBadge kind="job" status={status || "—"} />;
 }
 
 export default function JobDetailPage() {
@@ -95,6 +87,7 @@ export default function JobDetailPage() {
   const [loadingMeasurements, setLoadingMeasurements] = useState(true);
   const [measurementsError, setMeasurementsError] = useState("");
   const [measurementOpen, setMeasurementOpen] = useState(false);
+  const [notesLoadState, setNotesLoadState] = useState({ ready: false, empty: true });
   const [measurementForm, setMeasurementForm] = useState({
     label: "",
     value: "",
@@ -642,17 +635,12 @@ export default function JobDetailPage() {
           </div>
         ) : null}
 
-        {error ? (
-          <div className="card rounded-lg p-4">
-            <div className="text-sm font-medium text-red-600">Couldn't load job</div>
-            <div className="text-muted mt-1 text-sm">{error}</div>
-          </div>
-        ) : null}
+        {error ? <PageError message={error} /> : null}
 
         {!isInitialLoading && job ? (
           <div className="grid gap-6 lg:grid-cols-3">
             <div className="space-y-6 lg:col-span-2">
-              <SectionCard title="Job Overview" description="Overview and current status">
+              <SectionCard size="lg" title="Job Overview" description="Overview and current status">
                 <div className="space-y-4">
                   <div className="flex items-start justify-between gap-3">
                     <div className="min-w-0">
@@ -702,12 +690,18 @@ export default function JobDetailPage() {
               <CollapsibleSection
                 title="Notes"
                 description="Capture conversations and decisions for this job."
-                defaultOpen={true}
+                syncKey={id}
+                ready={notesLoadState.ready}
+                empty={notesLoadState.empty}
               >
-                <NotesSection entityType="job" entityId={id} />
+                <NotesSection
+                  entityType="job"
+                  entityId={id}
+                  onLoadState={setNotesLoadState}
+                />
               </CollapsibleSection>
 
-              <SectionCard
+              <SectionCard size="lg"
                 title="Pipeline"
                 description="Track where this job is in the workflow"
               >
@@ -726,15 +720,9 @@ export default function JobDetailPage() {
                           onClick={() => updateJobStatus(status, index)}
                           disabled={isLocked}
                           className={[
-                            "rounded-full border px-3 py-1.5 text-xs font-medium transition",
-                            !isLocked && "cursor-pointer hover:opacity-80",
-                            isLocked && "cursor-not-allowed",
-                            isActive &&
-                              "bg-accent-solid border-base cursor-default text-white",
-                            isCompleted && "bg-accent border-base text-main",
-                            !isActive &&
-                              !isCompleted &&
-                              "bg-surface border-base text-muted",
+                            "choice-chip",
+                            isActive && "choice-chip-active",
+                            isCompleted && !isActive && "choice-chip-done",
                             isTooFarAhead && "opacity-50",
                             updatingStatus === status && "opacity-60",
                           ]
@@ -747,10 +735,8 @@ export default function JobDetailPage() {
                         {index < JOB_STATUSES.length - 1 && (
                           <div
                             className={[
-                              "mx-2 h-px w-8",
-                              index < currentIndex
-                                ? "bg-[var(--accent)]"
-                                : "bg-[var(--border)]",
+                              "pipeline-rail",
+                              index < currentIndex ? "pipeline-rail-done" : "",
                             ]
                               .filter(Boolean)
                               .join(" ")}
@@ -764,7 +750,9 @@ export default function JobDetailPage() {
               <CollapsibleSection
                 title="Estimates"
                 description="Pricing and scope tied to this job"
-                defaultOpen={true}
+                syncKey={id}
+                ready={!loadingEstimates}
+                empty={estimates.length === 0}
                 actions={
                   <Link
                     href={`/estimates/new?job_id=${id}`}
@@ -777,7 +765,7 @@ export default function JobDetailPage() {
                 {!isInitialLoading && loadingEstimates ? (
                   <SectionSkeleton rows={3} />
                 ) : estimatesError ? (
-                  <div className="text-sm text-red-500">{estimatesError}</div>
+                  <Alert variant="inline">{estimatesError}</Alert>
                 ) : estimates.length === 0 ? (
                   <div className="text-muted rounded-lg border border-dashed p-4 text-sm">
                     No estimates for this job yet.
@@ -814,7 +802,7 @@ export default function JobDetailPage() {
                         </div>
 
                         <div className="flex shrink-0 flex-col items-end gap-2">
-                          <span className="status-chip text-xs">{estimate.status}</span>
+                          <StatusBadge kind="estimate" status={estimate.status} />
                           <div className="text-sm font-semibold">
                             $
                             {formatCurrency(Number(estimate.grand_total || 0).toFixed(2))}
@@ -829,7 +817,9 @@ export default function JobDetailPage() {
               <CollapsibleSection
                 title="Invoices"
                 description="Billing tied to this job"
-                defaultOpen={true}
+                syncKey={id}
+                ready={!loadingInvoices}
+                empty={invoices.length === 0}
                 actions={
                   <Link
                     href={`/invoices/new?job_id=${id}`}
@@ -842,7 +832,7 @@ export default function JobDetailPage() {
                 {!isInitialLoading && loadingInvoices ? (
                   <SectionSkeleton rows={3} />
                 ) : invoicesError ? (
-                  <div className="text-sm text-red-500">{invoicesError}</div>
+                  <Alert variant="inline">{invoicesError}</Alert>
                 ) : invoices.length === 0 ? (
                   <div className="text-muted rounded-lg border border-dashed p-4 text-sm">
                     No invoices for this job yet.
@@ -874,7 +864,7 @@ export default function JobDetailPage() {
                             </div>
                           </div>
                           <div className="flex shrink-0 flex-col items-end gap-2">
-                            <span className="status-chip text-xs">{inv.status}</span>
+                            <StatusBadge kind="invoice" status={inv.status} />
                             <div className="text-sm font-semibold">
                               ${formatCurrency(Number(inv.grand_total || 0).toFixed(2))}
                             </div>
@@ -888,7 +878,9 @@ export default function JobDetailPage() {
               <CollapsibleSection
                 title="Measurements"
                 description="Manual job dimensions for pricing context (optional)"
-                defaultOpen={true}
+                syncKey={id}
+                ready={!loadingMeasurements}
+                empty={measurements.length === 0}
                 actions={
                   <button
                     type="button"
@@ -911,62 +903,59 @@ export default function JobDetailPage() {
                 }
               >
                 {measurementsError ? (
-                  <div className="text-sm text-red-500">{measurementsError}</div>
+                  <Alert variant="inline">{measurementsError}</Alert>
                 ) : null}
 
                 {!isInitialLoading && loadingMeasurements ? (
                   <SectionSkeleton rows={2} />
                 ) : measurements.length === 0 && !measurementOpen ? (
-                  <div className="text-muted rounded-lg border border-dashed p-4 text-sm">
-                    No measurements yet. Add roof areas, pitch, or other fields you use
-                    when quoting.
-                  </div>
+                  <EmptyState
+                    title="No measurements yet"
+                    description="Add roof areas, pitch, or other fields you use when quoting."
+                  />
                 ) : null}
 
                 {measurementOpen ? (
                   <form
                     onSubmit={handleSaveMeasurement}
-                    className="border-base bg-surface mb-4 space-y-3 rounded-lg border p-3"
+                    className="list-row list-row-muted mb-4 space-y-3"
                   >
                     <div className="grid gap-3 sm:grid-cols-3">
-                      <label className="block text-sm">
-                        <span className="text-muted text-xs">Label</span>
+                      <Field label="Label">
                         <input
-                          className="border-base mt-1 w-full rounded-md border px-2 py-1.5 text-sm"
+                          className="input"
                           value={measurementForm.label}
                           onChange={(e) =>
                             setMeasurementForm((f) => ({ ...f, label: e.target.value }))
                           }
                           placeholder="e.g. Main roof area"
                         />
-                      </label>
-                      <label className="block text-sm">
-                        <span className="text-muted text-xs">Value</span>
+                      </Field>
+                      <Field label="Value">
                         <input
-                          className="border-base mt-1 w-full rounded-md border px-2 py-1.5 text-sm"
+                          className="input"
                           value={measurementForm.value}
                           onChange={(e) =>
                             setMeasurementForm((f) => ({ ...f, value: e.target.value }))
                           }
                           placeholder="e.g. 2400"
                         />
-                      </label>
-                      <label className="block text-sm">
-                        <span className="text-muted text-xs">Unit</span>
+                      </Field>
+                      <Field label="Unit">
                         <input
-                          className="border-base mt-1 w-full rounded-md border px-2 py-1.5 text-sm"
+                          className="input"
                           value={measurementForm.unit}
                           onChange={(e) =>
                             setMeasurementForm((f) => ({ ...f, unit: e.target.value }))
                           }
                           placeholder="sq ft"
                         />
-                      </label>
+                      </Field>
                     </div>
-                    <div className="flex flex-wrap gap-2">
+                    <FormActions>
                       <button
                         type="submit"
-                        className="btn px-3 py-1.5 text-xs"
+                        className="btn btn-primary btn-sm"
                         disabled={savingMeasurement}
                       >
                         {editingMeasurement ? "Update" : "Save"}
@@ -974,7 +963,7 @@ export default function JobDetailPage() {
                       {editingMeasurement ? (
                         <button
                           type="button"
-                          className="btn btn-ghost px-3 py-1.5 text-xs"
+                          className="btn btn-ghost btn-sm"
                           onClick={() => {
                             setEditingMeasurement(null);
                             setMeasurementForm({ label: "", value: "", unit: "" });
@@ -983,7 +972,7 @@ export default function JobDetailPage() {
                           Cancel edit
                         </button>
                       ) : null}
-                    </div>
+                    </FormActions>
                   </form>
                 ) : null}
 
@@ -992,7 +981,7 @@ export default function JobDetailPage() {
                     {measurements.map((m) => (
                       <div
                         key={m.id}
-                        className="hover:bg-accent flex items-start justify-between gap-3 rounded-lg border p-3"
+                        className="list-row list-row-interactive flex items-start justify-between gap-3"
                       >
                         <button
                           type="button"
@@ -1020,7 +1009,9 @@ export default function JobDetailPage() {
               <CollapsibleSection
                 title="Tasks"
                 description="Create and manage tasks tied directly to this job"
-                defaultOpen={true}
+                syncKey={id}
+                ready={!loadingTasks}
+                empty={tasks.length === 0}
               >
                 <div className="space-y-4">
                   <ToggleFormSection
@@ -1030,6 +1021,7 @@ export default function JobDetailPage() {
                     onToggle={() => setIsTaskFormOpen((open) => !open)}
                     openLabel="+ New Task"
                     closeLabel="Hide Task Form"
+                    fullFormUrl={`/tasks/new?job_id=${id}`}
                   >
                     <TaskForm
                       form={taskForm}
@@ -1078,13 +1070,13 @@ export default function JobDetailPage() {
                   {!isInitialLoading && loadingTasks ? (
                     <SectionSkeleton rows={4} />
                   ) : tasks.length === 0 ? (
-                    <div className="text-muted text-sm">No tasks for this job yet.</div>
+                    <EmptyState title="No tasks for this job yet" />
                   ) : (
                     <div className="space-y-3">
                       {visibleTasks.map((task) => (
                         <div
                           key={task.id}
-                          className="border-base bg-surface flex items-start justify-between gap-3 rounded-lg border p-3"
+                          className="list-row list-row-muted flex items-start justify-between gap-3"
                         >
                           <div className="min-w-0">
                             <Link
@@ -1108,7 +1100,7 @@ export default function JobDetailPage() {
                           </div>
 
                           <div className="flex shrink-0 items-center gap-2">
-                            <span className="status-chip">{task.status}</span>
+                            <StatusBadge kind="task" status={task.status} />
 
                             <button
                               type="button"
@@ -1129,29 +1121,18 @@ export default function JobDetailPage() {
             </div>
 
             <div className="space-y-6">
-              <SectionCard title="Details">
-                <dl className="space-y-3 text-sm">
-                  <div>
-                    <dt className="text-muted text-xs">Address</dt>
-                    <dd className="text-main mt-1">{job.address || "—"}</dd>
-                  </div>
-
-                  <div>
-                    <dt className="text-muted text-xs">Current status</dt>
-                    <dd className="text-main mt-1">{job.status}</dd>
-                  </div>
-
-                  <div>
-                    <dt className="text-muted text-xs">Created</dt>
-                    <dd className="text-main mt-1">{formatDate(job.created_at)}</dd>
-                  </div>
-                </dl>
+              <SectionCard size="lg" title="Details">
+                <MetaList>
+                  <MetaItem label="Address">{job.address || "—"}</MetaItem>
+                  <MetaItem label="Current status">{job.status}</MetaItem>
+                  <MetaItem label="Created">{formatDate(job.created_at)}</MetaItem>
+                </MetaList>
               </SectionCard>
 
-              <section className="card hover:bg-accent rounded-lg transition">
+              <section className="card transition hover:bg-accent">
                 <Link href={`/leads/${job.lead_id}`} className="block p-4">
                   <div className="mb-3">
-                    <h2 className="text-lg font-semibold">Lead Snapshot</h2>
+                    <h2 className="section-heading">Lead Snapshot</h2>
                     <p className="text-muted mt-1 text-sm">
                       Quick context for the lead tied to this job.
                     </p>
@@ -1169,52 +1150,41 @@ export default function JobDetailPage() {
                       </div>
                     </div>
                   ) : leadError ? (
-                    <div className="text-sm text-red-500">{leadError}</div>
+                    <Alert variant="inline">{leadError}</Alert>
                   ) : !lead ? (
                     <div className="text-muted text-sm">Lead details unavailable.</div>
                   ) : (
                     <div className="space-y-3 text-sm">
-                      <div>
-                        <div className="text-muted text-xs">Name</div>
-                        <div className="mt-1 font-medium">
+                      <MetaItem label="Name">
+                        <span className="font-medium">
                           {lead.first_name} {lead.last_name}
-                        </div>
-                      </div>
+                        </span>
+                      </MetaItem>
 
-                      <div>
-                        <div className="text-muted text-xs">Contact</div>
-                        <div className="mt-1">
-                          {lead.email || "—"}
-                          {lead.phone ? ` • ${lead.phone}` : ""}
-                        </div>
-                      </div>
+                      <MetaItem label="Contact">
+                        {lead.email || "—"}
+                        {lead.phone ? ` • ${lead.phone}` : ""}
+                      </MetaItem>
 
                       <div className="flex flex-wrap gap-2 pt-1">
-                        <span className="inline-flex items-center rounded-full border px-2 py-0.5 text-xs">
-                          {lead.status ?? "—"}
-                        </span>
+                        <StatusBadge kind="lead" status={lead.status ?? "—"} />
 
                         {lead.source ? (
-                          <span className="inline-flex items-center rounded-full border px-2 py-0.5 text-xs">
-                            Source: {lead.source}
-                          </span>
+                          <StatusBadge>Source: {lead.source}</StatusBadge>
                         ) : null}
                       </div>
 
                       {lead.notes ? (
-                        <div>
-                          <div className="text-muted text-xs">Notes</div>
-                          <div className="mt-1 whitespace-pre-wrap text-sm">
-                            {lead.notes}
-                          </div>
-                        </div>
+                        <MetaItem label="Notes">
+                          <span className="whitespace-pre-wrap">{lead.notes}</span>
+                        </MetaItem>
                       ) : null}
                     </div>
                   )}
                 </Link>
               </section>
 
-              <SectionCard
+              <SectionCard size="lg"
                 title="Attached Files"
                 description="Files uploaded directly to this job."
                 right={
@@ -1232,7 +1202,7 @@ export default function JobDetailPage() {
                 }
               >
                 {filesError ? (
-                  <div className="mb-3 text-sm text-red-500">{filesError}</div>
+                  <Alert variant="inline" className="mb-3">{filesError}</Alert>
                 ) : null}
 
                 {!isInitialLoading && loadingFiles ? (
@@ -1246,7 +1216,7 @@ export default function JobDetailPage() {
                     {files.map((file) => (
                       <div
                         key={file.id}
-                        className="flex items-start justify-between gap-3 rounded-lg border p-3"
+                        className="list-row flex items-start justify-between gap-3"
                       >
                         <div className="min-w-0">
                           <div className="truncate font-medium">{file.original_name}</div>
@@ -1283,7 +1253,7 @@ export default function JobDetailPage() {
                             <button
                               onClick={() => handleDeleteFile(file.id)}
                               disabled={busyFileId === file.id}
-                              className="btn px-3 py-1.5 text-xs text-red-600"
+                              className="btn btn-danger px-3 py-1.5 text-xs"
                             >
                               {busyFileId === file.id ? "Deleting..." : "Delete"}
                             </button>
@@ -1294,7 +1264,7 @@ export default function JobDetailPage() {
                   </div>
                 )}
               </SectionCard>
-              <SectionCard
+              <SectionCard size="lg"
                 title="Photo Gallery"
                 description="Quick visual scan of photos attached to this job."
               >
@@ -1306,7 +1276,9 @@ export default function JobDetailPage() {
               <CollapsibleSection
                 title="Activity"
                 description="Recent changes and actions on this job"
-                defaultOpen={true}
+                syncKey={id}
+                ready={!loadingActivity}
+                empty={activity.length === 0}
               >
                 {!isInitialLoading && loadingActivity ? (
                   <div className="space-y-2">

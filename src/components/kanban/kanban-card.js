@@ -27,7 +27,7 @@ export function KanbanCard({ lead }) {
     <div
       ref={setNodeRef}
       style={style}
-      className={`kanban-card hover:bg-accent cursor-pointer ${isDragging ? "opacity-60" : ""}`}
+      className={`kanban-card ${isDragging ? "kanban-card-dragging" : ""}`}
       role="link"
       tabIndex={0}
       onClick={() => {
@@ -48,7 +48,7 @@ export function KanbanCard({ lead }) {
         </div>
         <button
           type="button"
-          className="text-muted cursor-grab rounded border px-1.5 py-0.5 text-[10px] active:cursor-grabbing"
+          className="kanban-drag-handle"
           aria-label={`Drag ${lead.first_name} ${lead.last_name}`}
           {...attributes}
           {...listeners}

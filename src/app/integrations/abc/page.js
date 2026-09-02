@@ -1,42 +1,14 @@
 "use client";
 
+import { Alert } from "@/components/ui/alert";
 import { useEffect, useMemo, useState } from "react";
 import { AppShell } from "@/components/app-shell";
 import { api } from "@/lib/api";
-
-function StatusBadge({ tone = "neutral", children }) {
-  const toneClass =
-    tone === "success"
-      ? "border-green-500/30 bg-green-500/10 text-green-700 dark:text-green-300"
-      : tone === "warning"
-        ? "border-yellow-500/30 bg-yellow-500/10 text-yellow-700 dark:text-yellow-300"
-        : tone === "danger"
-          ? "border-red-500/30 bg-red-500/10 text-red-700 dark:text-red-300"
-          : "border-base bg-surface text-main";
-
-  return (
-    <span
-      className={`inline-flex items-center rounded-full border px-2.5 py-1 text-xs font-medium ${toneClass}`}
-    >
-      {children}
-    </span>
-  );
-}
+import { StatusBadge } from "@/components/ui/status-badge";
+import { SectionCard } from "@/components/ui/section-card";
 
 function BoolBadge({ ok }) {
   return <StatusBadge tone={ok ? "success" : "danger"}>{ok ? "Yes" : "No"}</StatusBadge>;
-}
-
-function SectionCard({ title, children, right }) {
-  return (
-    <div className="card rounded-lg">
-      <div className="border-base flex items-center justify-between border-b p-4">
-        <div className="text-sm font-medium">{title}</div>
-        {right ? <div>{right}</div> : null}
-      </div>
-      <div className="p-4">{children}</div>
-    </div>
-  );
 }
 
 function Row({ label, value }) {
@@ -191,7 +163,7 @@ export default function AbcIntegrationPage() {
                 credentials are configured (Phase 9.5).
               </div>
               {pricingError ? (
-                <div className="mt-2 text-sm text-red-600">{pricingError}</div>
+                <Alert variant="inline" className="mt-2">{pricingError}</Alert>
               ) : null}
               {pricingSample?.data != null ? (
                 <div className="text-muted mt-3 max-h-40 overflow-auto rounded border border-dashed p-2 font-mono text-xs">

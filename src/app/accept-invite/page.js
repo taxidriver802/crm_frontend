@@ -2,6 +2,8 @@
 
 import { Suspense, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
+import { Alert } from "@/components/ui/alert";
+import { AuthFrame } from "@/components/auth/auth-frame";
 
 function AcceptInvitePageInner() {
   const router = useRouter();
@@ -69,69 +71,47 @@ function AcceptInvitePageInner() {
   }
 
   return (
-    <main className="bg-app text-main flex min-h-screen items-center justify-center px-4">
-      <div className="card w-full max-w-md overflow-hidden rounded-lg">
-        <div className="border-base border-b px-6 py-5">
-          <h1 className="text-2xl font-semibold">Accept Invite</h1>
-          <p className="text-muted mt-2 text-sm">
-            Set your password to activate your account.
-          </p>
-        </div>
+    <AuthFrame
+      title="Accept invite"
+      description="Set your password to activate your account."
+    >
+      {!token ? (
+        <Alert>This invite link is missing a token or is invalid.</Alert>
+      ) : (
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <label className="block">
+            <span className="text-sm font-medium">New password</span>
+            <input
+              type="password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              className="input mt-1"
+              placeholder="At least 8 characters"
+              required
+            />
+          </label>
 
-        <div className="px-6 py-5">
-          {!token ? (
-            <div className="rounded-lg border border-red-300 bg-red-50 px-3 py-2 text-sm text-red-700">
-              This invite link is missing a token or is invalid.
-            </div>
-          ) : (
-            <form onSubmit={handleSubmit} className="space-y-4">
-              <label className="block">
-                <span className="text-sm font-medium">New password</span>
-                <input
-                  type="password"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  className="input mt-1"
-                  placeholder="At least 8 characters"
-                  required
-                />
-              </label>
+          <label className="block">
+            <span className="text-sm font-medium">Confirm password</span>
+            <input
+              type="password"
+              value={confirmPassword}
+              onChange={(e) => setConfirmPassword(e.target.value)}
+              className="input mt-1"
+              required
+            />
+          </label>
 
-              <label className="block">
-                <span className="text-sm font-medium">Confirm password</span>
-                <input
-                  type="password"
-                  value={confirmPassword}
-                  onChange={(e) => setConfirmPassword(e.target.value)}
-                  className="input mt-1"
-                  required
-                />
-              </label>
+          {error ? <Alert>{error}</Alert> : null}
 
-              {error ? (
-                <div className="rounded-lg border border-red-300 bg-red-50 px-3 py-2 text-sm text-red-700">
-                  {error}
-                </div>
-              ) : null}
+          {success ? <Alert tone="success">{success}</Alert> : null}
 
-              {success ? (
-                <div className="rounded-lg border border-green-300 bg-green-50 px-3 py-2 text-sm text-green-700">
-                  {success}
-                </div>
-              ) : null}
-
-              <button
-                type="submit"
-                disabled={submitting}
-                className="btn btn-primary w-full"
-              >
-                {submitting ? "Activating..." : "Activate Account"}
-              </button>
-            </form>
-          )}
-        </div>
-      </div>
-    </main>
+          <button type="submit" disabled={submitting} className="btn btn-primary w-full">
+            {submitting ? "Activating..." : "Activate account"}
+          </button>
+        </form>
+      )}
+    </AuthFrame>
   );
 }
 

@@ -1,0 +1,12 @@
+---
+description: Keep the visual overhaul checklist in sync as phases are completed
+alwaysApply: true
+---
+
+# Visual overhaul checklist
+
+This project has a staged visual overhaul. The working checklist is [`VISUAL_OVERHAUL.md`](../../VISUAL_OVERHAUL.md). Token catalog: [`src/theme/tokens.md`](../../src/theme/tokens.md).
+
+When you complete work that matches a checklist item, mark it `[x]` in `VISUAL_OVERHAUL.md` in the same change. Do not restyle product pages until Phase 1–3 required items are done, unless the user explicitly asks to skip ahead.
+
+Appearance must go through CSS variables from the theme registry (`src/theme`) and Tailwind mappings in `tailwind.config.js`. Do not add new raw Tailwind palette colors (`red-500`, `green-50`, `blue-600`, …) for UI chrome, alerts, or status. Do not branch page UI on palette ids; use `data-palette` / CSS variables / `useThemeTokens()`.

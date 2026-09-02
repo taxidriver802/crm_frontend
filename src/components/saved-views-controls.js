@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { api } from "@/lib/api";
+import { Alert } from "@/components/ui/alert";
 
 export function SavedViewsControls({ entityType, currentFilters, onApplyFilters }) {
   const [views, setViews] = useState([]);
@@ -181,7 +182,11 @@ export function SavedViewsControls({ entityType, currentFilters, onApplyFilters 
         Delete
       </button>
 
-      {inlineError ? <div className="text-xs text-red-500">{inlineError}</div> : null}
+      {inlineError ? (
+        <Alert variant="inline" className="text-xs">
+          {inlineError}
+        </Alert>
+      ) : null}
     </div>
   );
 }

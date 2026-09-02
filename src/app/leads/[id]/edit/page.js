@@ -106,7 +106,7 @@ export default function EditLeadPage() {
       {loading ? (
         <div className="text-muted text-sm">Loading…</div>
       ) : (
-        <section className="card rounded-lg p-4">
+        <section className="card p-4">
           <LeadForm
             form={form}
             onChange={setForm}

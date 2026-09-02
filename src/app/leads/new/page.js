@@ -57,7 +57,7 @@ export default function NewLeadPage() {
 
   return (
     <AppShell title="New Lead">
-      <section className="card rounded-lg p-4">
+      <section className="card p-4">
         <LeadForm
           form={form}
           onChange={setForm}

@@ -1,5 +1,6 @@
 "use client";
 
+import { Alert } from "@/components/ui/alert";
 import {
   Suspense,
   useCallback,
@@ -20,6 +21,12 @@ import { Skeleton, TableRowSkeleton } from "@/components/loading/loadingSkeleton
 import { TaskCalendar } from "@/components/calendar/task-calendar";
 import { ListToolbar } from "@/components/list-toolbar";
 import { SavedViewsControls } from "@/components/saved-views-controls";
+import { StatCard } from "@/components/ui/stat-card";
+import { StatusBadge } from "@/components/ui/status-badge";
+import { Field } from "@/components/ui/field";
+import { FilterBar } from "@/components/ui/filter-bar";
+import { Segmented } from "@/components/ui/segmented";
+import { Icon } from "@/components/icons";
 
 /** 12rem — matches `min-w-[12rem]` menus */
 const TABLE_DROPDOWN_MENU_WIDTH_PX = 192;
@@ -40,16 +47,6 @@ function getTableDropdownMenuPosition(triggerEl) {
   };
 }
 
-function SummaryCard({ label, value, sub }) {
-  return (
-    <div className="card rounded-lg p-4">
-      <div className="text-muted text-sm">{label}</div>
-      <div className="mt-2 text-2xl font-semibold">{value}</div>
-      {sub ? <div className="text-muted mt-1 text-xs">{sub}</div> : null}
-    </div>
-  );
-}
-
 function parseDuePresetFromSearch(searchParams) {
   const dp = searchParams.get("duePreset");
   if (dp === "overdue" || dp === "due_today" || dp === "next_7_days") {
@@ -59,20 +56,6 @@ function parseDuePresetFromSearch(searchParams) {
   if (searchParams.get("due") === "overdue") return "overdue";
   if (searchParams.get("range") === "7") return "next_7_days";
   return "";
-}
-
-function TaskStatusBadge({ status }) {
-  const normalized = String(status || "").toLowerCase();
-
-  if (normalized === "completed") {
-    return (
-      <span className="inline-flex items-center rounded-full border border-green-500/30 bg-green-500/10 px-2 py-0.5 text-xs text-green-700 dark:text-green-300">
-        Completed
-      </span>
-    );
-  }
-
-  return <span className="status-chip">{status || "Pending"}</span>;
 }
 
 function TasksPageInner() {
@@ -572,7 +555,7 @@ function TasksPageInner() {
         </div>
       ) : (
         <div className="space-y-6">
-          {error ? <div className="text-sm text-red-500">{error}</div> : null}
+          {error ? <Alert variant="inline">{error}</Alert> : null}
 
           <ToggleFormSection
             title="Create Task"
@@ -581,6 +564,14 @@ function TasksPageInner() {
             onToggle={() => setIsCreateOpen((prev) => !prev)}
             openLabel="+ New Task"
             closeLabel="Hide Form"
+            fullFormUrl={
+              prefillJobId
+                ? `/tasks/new?job_id=${prefillJobId}`
+                : prefillLeadId
+                  ? `/tasks/new?lead_id=${prefillLeadId}`
+                  : "/tasks/new"
+            }
+            fullFormLabel="Full Form"
           >
             <TaskForm
               form={taskForm}
@@ -612,154 +603,113 @@ function TasksPageInner() {
           </ToggleFormSection>
 
           <section className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-            <Link
+            <StatCard
               href="/tasks?duePreset=overdue"
-              className="block rounded-lg transition hover:opacity-95"
-            >
-              <SummaryCard
-                label="Overdue"
-                value={loadingSummary ? "…" : String(overdueCount)}
-                sub="Needs attention"
-              />
-            </Link>
-            <Link
+              label="Overdue"
+              value={loadingSummary ? "…" : String(overdueCount)}
+              sub="Needs attention"
+            />
+            <StatCard
               href="/tasks?duePreset=due_today"
-              className="block rounded-lg transition hover:opacity-95"
-            >
-              <SummaryCard
-                label="Due Today"
-                value={loadingSummary ? "…" : String(dueTodayCount)}
-                sub="Due this day"
-              />
-            </Link>
-            <Link
+              label="Due Today"
+              value={loadingSummary ? "…" : String(dueTodayCount)}
+              sub="Due this day"
+            />
+            <StatCard
               href="/tasks?duePreset=next_7_days"
-              className="block rounded-lg transition hover:opacity-95"
-            >
-              <SummaryCard
-                label="Next Up"
-                value={loadingSummary ? "…" : String(nextUpCount)}
-                sub="Next 7 days"
+              label="Next Up"
+              value={loadingSummary ? "…" : String(nextUpCount)}
+              sub="Next 7 days"
+            />
+          </section>
+
+          <FilterBar>
+            <Field label="Due window" className="w-full lg:w-44">
+              <select
+                className="input"
+                value={duePreset}
+                onChange={(e) => replaceDuePresetInUrl(e.target.value)}
+              >
+                <option value="">All tasks</option>
+                <option value="overdue">Overdue</option>
+                <option value="due_today">Due today</option>
+                <option value="next_7_days">Next 7 days</option>
+              </select>
+            </Field>
+
+            <Field label="Status" className="w-full lg:w-44">
+              <select
+                className="input"
+                value={status}
+                onChange={(e) => setStatus(e.target.value)}
+              >
+                <option value="">All</option>
+                <option value="Pending">Pending</option>
+                <option value="Completed">Completed</option>
+              </select>
+            </Field>
+
+            <Field label="Linked To" className="w-full lg:w-44">
+              <select
+                className="input"
+                value={linkedFilter}
+                onChange={(e) => setLinkedFilter(e.target.value)}
+              >
+                <option value="">All</option>
+                <option value="job">Job</option>
+                <option value="lead">Lead</option>
+              </select>
+            </Field>
+
+            <Field label="Assigned To" className="w-full lg:w-44">
+              <select
+                className="input"
+                value={assignedFilter}
+                onChange={(e) => setAssignedFilter(e.target.value)}
+              >
+                <option value="">All</option>
+                <option value="unassigned">Unassigned</option>
+                {teamUsers.map((user) => (
+                  <option key={user.id} value={user.id}>
+                    {user.first_name} {user.last_name}
+                  </option>
+                ))}
+              </select>
+            </Field>
+
+            <Field label="Title" className="min-w-0 flex-1">
+              <input
+                className="input"
+                placeholder="Filter by title"
+                value={title}
+                onChange={(e) => setTitle(e.target.value)}
               />
-            </Link>
-          </section>
-
-          <section className="card rounded-lg p-4">
-            <div className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
-              <div className="w-full lg:w-44">
-                <label className="text-muted text-xs">Due window</label>
-                <select
-                  className="input mt-1"
-                  value={duePreset}
-                  onChange={(e) => replaceDuePresetInUrl(e.target.value)}
-                >
-                  <option value="">All tasks</option>
-                  <option value="overdue">Overdue</option>
-                  <option value="due_today">Due today</option>
-                  <option value="next_7_days">Next 7 days</option>
-                </select>
-              </div>
-
-              <div className="w-full lg:w-44">
-                <label className="text-muted text-xs">Status</label>
-                <select
-                  className="input mt-1"
-                  value={status}
-                  onChange={(e) => setStatus(e.target.value)}
-                >
-                  <option value="">All</option>
-                  <option value="Pending">Pending</option>
-                  <option value="Completed">Completed</option>
-                </select>
-              </div>
-
-              <div className="w-full lg:w-44">
-                <label className="text-muted text-xs">Linked To</label>
-                <select
-                  className="input mt-1"
-                  value={linkedFilter}
-                  onChange={(e) => setLinkedFilter(e.target.value)}
-                >
-                  <option value="">All</option>
-                  <option value="job">Job</option>
-                  <option value="lead">Lead</option>
-                </select>
-              </div>
-
-              <div className="w-full lg:w-44">
-                <label className="text-muted text-xs">Assigned To</label>
-                <select
-                  className="input mt-1"
-                  value={assignedFilter}
-                  onChange={(e) => setAssignedFilter(e.target.value)}
-                >
-                  <option value="">All</option>
-                  <option value="unassigned">Unassigned</option>
-                  {teamUsers.map((user) => (
-                    <option key={user.id} value={user.id}>
-                      {user.first_name} {user.last_name}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              <div className="min-w-0 flex-1">
-                <label className="text-muted text-xs">Title</label>
-                <input
-                  className="input mt-1"
-                  placeholder="Filter by title"
-                  value={title}
-                  onChange={(e) => setTitle(e.target.value)}
-                />
-              </div>
-            </div>
-          </section>
+            </Field>
+          </FilterBar>
           <ListToolbar
             left={
               <>
                 {canViewAll ? (
-                  <div className="border-base bg-surface flex items-center gap-1 rounded-md border p-1">
-                    <button
-                      type="button"
-                      className={`btn px-2 py-1 text-xs ${
-                        viewScope === "mine" ? "btn-primary" : "btn-ghost"
-                      }`}
-                      onClick={() => setViewScope("mine")}
-                    >
-                      My Tasks
-                    </button>
-                    <button
-                      type="button"
-                      className={`btn px-2 py-1 text-xs ${
-                        viewScope === "all" ? "btn-primary" : "btn-ghost"
-                      }`}
-                      onClick={() => setViewScope("all")}
-                    >
-                      Team
-                    </button>
-                  </div>
+                  <Segmented
+                    aria-label="Task scope"
+                    value={viewScope}
+                    onChange={setViewScope}
+                    options={[
+                      { value: "mine", label: "My Tasks" },
+                      { value: "all", label: "Team" },
+                    ]}
+                  />
                 ) : null}
 
-                <div className="border-base bg-surface flex items-center gap-1 rounded-md border p-1">
-                  <button
-                    type="button"
-                    className={`btn px-2 py-1 text-xs ${
-                      viewMode === "list" ? "btn-primary" : "btn-ghost"
-                    }`}
-                    onClick={() => setViewMode("list")}
-                  >
-                    List
-                  </button>
-                  <button
-                    type="button"
-                    className={`btn px-2 py-1 text-xs ${
-                      viewMode === "calendar" ? "btn-primary" : "btn-ghost"
-                    }`}
-                    onClick={() => setViewMode("calendar")}
-                  >
-                    Calendar
-                  </button>
-                </div>
+                <Segmented
+                  aria-label="Task layout"
+                  value={viewMode}
+                  onChange={setViewMode}
+                  options={[
+                    { value: "list", label: "List" },
+                    { value: "calendar", label: "Calendar" },
+                  ]}
+                />
               </>
             }
             right={
@@ -789,18 +739,16 @@ function TasksPageInner() {
             title={taskTitle}
             defaultOpen={true}
             actions={
-              <>
-                <Link href="/tasks/new" className="btn">
-                  Full Form
-                </Link>
-                <button
-                  className="btn disabled:opacity-60"
-                  onClick={refreshAll}
-                  disabled={loadingSummary || loadingTasks || loadingLeads || loadingJobs}
-                >
-                  Refresh
-                </button>
-              </>
+              <button
+                type="button"
+                className="icon-btn"
+                onClick={refreshAll}
+                disabled={loadingSummary || loadingTasks || loadingLeads || loadingJobs}
+                title="Refresh"
+                aria-label="Refresh"
+              >
+                <Icon name="refreshCcw" className="h-4 w-4" />
+              </button>
             }
           >
             {viewMode === "calendar" ? (
@@ -828,15 +776,15 @@ function TasksPageInner() {
               </div>
             ) : (
               <div className="scrollbar-theme overflow-x-auto">
-                <table className="w-full text-sm">
-                  <thead className="bg-accent">
-                    <tr className="text-left">
-                      <th className="px-4 py-3 font-medium">Title</th>
-                      <th className="px-4 py-3 font-medium">Linked To</th>
-                      <th className="px-4 py-3 font-medium">Due</th>
-                      <th className="px-4 py-3 font-medium">Status</th>
-                      <th className="px-4 py-3 font-medium">Assignee</th>
-                      <th className="px-4 py-3 text-right font-medium">Action</th>
+                <table className="data-table">
+                  <thead>
+                    <tr>
+                      <th>Title</th>
+                      <th>Linked To</th>
+                      <th>Due</th>
+                      <th>Status</th>
+                      <th>Assignee</th>
+                      <th className="text-right">Action</th>
                     </tr>
                   </thead>
 
@@ -846,8 +794,8 @@ function TasksPageInner() {
                         <TableRowSkeleton key={i} cols={6} />
                       ))
                     ) : tasks.length === 0 ? (
-                      <tr className="border-base border-t">
-                        <td className="text-muted px-4 py-6" colSpan={6}>
+                      <tr>
+                        <td className="text-muted" colSpan={6}>
                           No tasks found. Try adjusting filters or create a new task.
                         </td>
                       </tr>
@@ -859,7 +807,7 @@ function TasksPageInner() {
                         return (
                           <tr
                             key={task.id}
-                            className="border-base hover:bg-accent cursor-pointer border-t transition"
+                            className="cursor-pointer"
                             role="link"
                             tabIndex={0}
                             onClick={() => router.push(`/tasks/${task.id}`)}
@@ -870,7 +818,7 @@ function TasksPageInner() {
                               }
                             }}
                           >
-                            <td className="px-4 py-3">
+                            <td>
                               <div
                                 className="truncate font-medium"
                                 style={{ maxWidth: 240, display: "block" }}
@@ -890,21 +838,21 @@ function TasksPageInner() {
                             </td>
 
                             <td
-                              className="truncate px-4 py-3"
+                              className="truncate"
                               onClick={(e) => e.stopPropagation()}
                             >
                               <LinkedEntityCell task={task} />
                             </td>
 
-                            <td className="truncate px-4 py-3">
+                            <td className="truncate">
                               {formatDue(task.due_date)}
                             </td>
 
-                            <td className="truncate px-4 py-3">
-                              <TaskStatusBadge status={task.status} />
+                            <td className="truncate">
+                              <StatusBadge kind="task" status={task.status} />
                             </td>
 
-                            <td className="truncate px-4 py-3">
+                            <td className="truncate">
                               {canViewAll ? (
                                 <select
                                   className="input"
@@ -932,7 +880,7 @@ function TasksPageInner() {
                             </td>
 
                             <td
-                              className="truncate px-4 py-3 text-right"
+                              className="truncate text-right"
                               onClick={(e) => e.stopPropagation()}
                               onKeyDown={(e) => e.stopPropagation()}
                             >
@@ -973,7 +921,7 @@ function TasksPageInner() {
                                   <div
                                     role="menu"
                                     aria-label={`Actions for ${task.title}`}
-                                    className="dropdown-panel fixed z-[100] min-w-[12rem] overflow-hidden py-1 shadow-lg"
+                                    className="dropdown-panel fixed z-dialog min-w-[12rem] overflow-hidden py-1 shadow-lg"
                                     style={{
                                       top: actionsMenuPosition.top,
                                       left: actionsMenuPosition.left,

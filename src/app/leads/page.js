@@ -1,8 +1,8 @@
 "use client";
 
+import { Alert } from "@/components/ui/alert";
 import { Suspense, useEffect, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import Link from "next/link";
 import { AppShell } from "@/components/app-shell";
 import { ToggleFormSection } from "@/components/toggle-form-section";
 import { LeadForm, createEmptyLeadForm } from "@/components/forms/lead-form";
@@ -13,6 +13,12 @@ import { Skeleton } from "@/components/loading/loadingSkeletons";
 import { KanbanBoard } from "@/components/kanban/kanban-board";
 import { ListToolbar } from "@/components/list-toolbar";
 import { SavedViewsControls } from "@/components/saved-views-controls";
+import { StatusBadge } from "@/components/ui/status-badge";
+import { Field } from "@/components/ui/field";
+import { FilterBar } from "@/components/ui/filter-bar";
+import { Segmented } from "@/components/ui/segmented";
+import { EmptyState } from "@/components/error-boundary";
+import { Icon } from "@/components/icons";
 
 const LEAD_PIPELINE_COLUMNS = ["New", "Contacted", "Qualified", "Closed", "Inactive"];
 
@@ -300,7 +306,7 @@ function LeadsPageInner() {
   return (
     <AppShell title="Leads">
       <div className="space-y-6">
-        {error ? <div className="text-sm text-red-500">{error}</div> : null}
+        {error ? <Alert variant="inline">{error}</Alert> : null}
 
         <ToggleFormSection
           title="Create Lead"
@@ -309,6 +315,9 @@ function LeadsPageInner() {
           onToggle={() => setIsCreateOpen((prev) => !prev)}
           openLabel="+ New Lead"
           closeLabel="Hide Form"
+          fullFormUrl="/leads/new"
+          fullFormLabel="Full Form"
+          disabled={savingLead}
         >
           <LeadForm
             form={leadForm}
@@ -326,11 +335,11 @@ function LeadsPageInner() {
           />
         </ToggleFormSection>
 
-        <section className="card rounded-lg p-4">
+        <section className="card p-4">
           <div className="flex flex-row items-center justify-between gap-3">
             <div>
               <div className="text-muted text-sm">Total leads</div>
-              <div className="text-2xl font-semibold">
+              <div className="text-2xl font-semibold tracking-tight">
                 {loadingSummary ? (
                   <Skeleton className="h-8 w-6" />
                 ) : (
@@ -348,12 +357,9 @@ function LeadsPageInner() {
                 </div>
               ) : summary?.byStatus?.length ? (
                 summary.byStatus.map((x) => (
-                  <span
-                    key={x.status}
-                    className="border-base bg-surface rounded-md border px-2 py-1 text-sm"
-                  >
+                  <StatusBadge key={x.status} kind="lead" status={x.status}>
                     {x.status}: {x.count}
-                  </span>
+                  </StatusBadge>
                 ))
               ) : (
                 <span className="text-muted text-sm">No summary</span>
@@ -362,112 +368,84 @@ function LeadsPageInner() {
           </div>
         </section>
 
-        <section className="card rounded-lg p-4">
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
-            <div className="flex-1">
-              <label className="text-muted text-xs">Search</label>
-              <input
-                className="input mt-1"
-                placeholder="Search name, email, phone…"
-                value={q}
-                onChange={(e) => setQ(e.target.value)}
-              />
-            </div>
+        <FilterBar
+          actions={
+            <button
+              type="button"
+              className="icon-btn"
+              onClick={refreshAll}
+              disabled={loadingSummary || loadingLeads}
+              title="Refresh"
+              aria-label="Refresh"
+            >
+              <Icon name="refreshCcw" className="h-4 w-4" />
+            </button>
+          }
+        >
+          <Field label="Search" className="flex-1">
+            <input
+              className="input"
+              placeholder="Search name, email, phone…"
+              value={q}
+              onChange={(e) => setQ(e.target.value)}
+            />
+          </Field>
 
-            <div className="w-full sm:w-56">
-              <label className="text-muted text-xs">Status</label>
-              <select
-                className="input mt-1"
-                value={status}
-                onChange={(e) => setStatus(e.target.value)}
-              >
-                <option value="">All</option>
-                <option value="New">New</option>
-                <option value="Contacted">Contacted</option>
-                <option value="Qualified">Qualified</option>
-                <option value="Closed">Closed</option>
-                <option value="Inactive">Inactive</option>
-              </select>
-            </div>
+          <Field label="Status" className="w-full sm:w-56">
+            <select
+              className="input"
+              value={status}
+              onChange={(e) => setStatus(e.target.value)}
+            >
+              <option value="">All</option>
+              <option value="New">New</option>
+              <option value="Contacted">Contacted</option>
+              <option value="Qualified">Qualified</option>
+              <option value="Closed">Closed</option>
+              <option value="Inactive">Inactive</option>
+            </select>
+          </Field>
 
-            <div className="w-full sm:w-56">
-              <label className="text-muted text-xs">Assigned To</label>
-              <select
-                className="input mt-1"
-                value={assignedFilter}
-                onChange={(e) => setAssignedFilter(e.target.value)}
-              >
-                <option value="">All</option>
-                <option value="unassigned">Unassigned</option>
-                {teamUsers.map((user) => (
-                  <option key={user.id} value={user.id}>
-                    {user.first_name} {user.last_name}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            <div className="flex gap-2">
-              <Link href="/leads/new" className="btn">
-                Full Form
-              </Link>
-
-              <button
-                className="btn disabled:opacity-60"
-                onClick={refreshAll}
-                disabled={loadingSummary || loadingLeads}
-              >
-                Refresh
-              </button>
-            </div>
-          </div>
-        </section>
+          <Field label="Assigned To" className="w-full sm:w-56">
+            <select
+              className="input"
+              value={assignedFilter}
+              onChange={(e) => setAssignedFilter(e.target.value)}
+            >
+              <option value="">All</option>
+              <option value="unassigned">Unassigned</option>
+              {teamUsers.map((user) => (
+                <option key={user.id} value={user.id}>
+                  {user.first_name} {user.last_name}
+                </option>
+              ))}
+            </select>
+          </Field>
+        </FilterBar>
         <ListToolbar
           left={
             <>
               {canViewAll ? (
-                <div className="border-base bg-surface flex items-center gap-1 rounded-md border p-1">
-                  <button
-                    type="button"
-                    className={`btn px-2 py-1 text-xs ${
-                      viewScope === "mine" ? "btn-primary" : "btn-ghost"
-                    }`}
-                    onClick={() => setViewScope("mine")}
-                  >
-                    My Leads
-                  </button>
-                  <button
-                    type="button"
-                    className={`btn px-2 py-1 text-xs ${
-                      viewScope === "all" ? "btn-primary" : "btn-ghost"
-                    }`}
-                    onClick={() => setViewScope("all")}
-                  >
-                    Team
-                  </button>
-                </div>
+                <Segmented
+                  aria-label="Lead scope"
+                  value={viewScope}
+                  onChange={setViewScope}
+                  options={[
+                    { value: "mine", label: "My Leads" },
+                    { value: "all", label: "Team" },
+                  ]}
+                />
               ) : null}
 
-              <div className="border-base bg-surface flex items-center gap-1 rounded-md border p-1">
-                <button
-                  type="button"
-                  className={`btn px-2 py-1 text-xs ${
-                    viewMode === "list" ? "btn-primary" : "btn-ghost"
-                  }`}
-                  onClick={() => setViewMode("list")}
-                >
-                  List
-                </button>
-                <button
-                  type="button"
-                  className={`btn px-2 py-1 text-xs ${
-                    viewMode === "board" ? "btn-primary" : "btn-ghost"
-                  }`}
-                  onClick={() => setViewMode("board")}
-                >
-                  Board
-                </button>
-              </div>
+              <Segmented
+                aria-label="Lead layout"
+                value={viewMode}
+                onChange={setViewMode}
+                options={[
+                  { value: "list", label: "List" },
+                  { value: "board", label: "Board" },
+                ]}
+              />
             </>
           }
           right={
@@ -494,16 +472,14 @@ function LeadsPageInner() {
             loadingLeads ? (
               <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
                 {Array.from({ length: 6 }).map((_, i) => (
-                  <div key={i} className="rounded-lg border p-3">
+                  <div key={i} className="list-row">
                     <Skeleton className="mb-2 h-4 w-28" />
                     <Skeleton className="h-3 w-full" />
                   </div>
                 ))}
               </div>
             ) : leads.length === 0 ? (
-              <div className="text-muted rounded-lg border border-dashed p-4 text-sm">
-                No leads found.
-              </div>
+              <EmptyState title="No leads found" />
             ) : (
               <KanbanBoard
                 leads={leads}
@@ -513,42 +489,42 @@ function LeadsPageInner() {
             )
           ) : (
             <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead className="bg-accent">
-                  <tr className="text-left">
-                    <th className="px-4 py-3 font-medium">Name</th>
-                    <th className="px-4 py-3 font-medium">Status</th>
-                    <th className="px-4 py-3 font-medium">Source</th>
-                    <th className="px-4 py-3 font-medium">Assignee</th>
-                    <th className="px-4 py-3 font-medium">Created</th>
+              <table className="data-table">
+                <thead>
+                  <tr>
+                    <th>Name</th>
+                    <th>Status</th>
+                    <th>Source</th>
+                    <th>Assignee</th>
+                    <th>Created</th>
                   </tr>
                 </thead>
 
                 <tbody>
                   {loadingLeads ? (
                     Array.from({ length: 3 }).map((_, i) => (
-                      <tr key={i} className="border-base border-t">
-                        <td className="px-4 py-3">
+                      <tr key={i}>
+                        <td>
                           <Skeleton className="mb-2 h-4 w-32" />
                           <Skeleton className="h-3 w-48" />
                         </td>
-                        <td className="px-4 py-3">
+                        <td>
                           <Skeleton className="h-5 w-16 rounded-full" />
                         </td>
-                        <td className="px-4 py-3">
+                        <td>
                           <Skeleton className="h-4 w-20" />
                         </td>
-                        <td className="px-4 py-3">
+                        <td>
                           <Skeleton className="h-4 w-24" />
                         </td>
-                        <td className="px-4 py-3">
+                        <td>
                           <Skeleton className="h-4 w-24" />
                         </td>
                       </tr>
                     ))
                   ) : leads.length === 0 ? (
-                    <tr className="border-base border-t">
-                      <td className="text-muted px-4 py-6" colSpan={5}>
+                    <tr>
+                      <td className="text-muted" colSpan={5}>
                         No leads found.
                       </td>
                     </tr>
@@ -556,7 +532,7 @@ function LeadsPageInner() {
                     leads.map((lead) => (
                       <tr
                         key={lead.id}
-                        className="border-base hover:bg-accent cursor-pointer border-t transition"
+                        className="cursor-pointer"
                         role="link"
                         tabIndex={0}
                         onClick={() => router.push(`/leads/${lead.id}`)}
@@ -567,7 +543,7 @@ function LeadsPageInner() {
                           }
                         }}
                       >
-                        <td className="px-4 py-3">
+                        <td>
                           <div className="font-medium">
                             {lead.first_name} {lead.last_name}
                           </div>
@@ -576,12 +552,12 @@ function LeadsPageInner() {
                           </div>
                         </td>
 
-                        <td className="px-4 py-3">
-                          <span className="status-chip">{lead.status}</span>
+                        <td>
+                          <StatusBadge kind="lead" status={lead.status} />
                         </td>
 
-                        <td className="px-4 py-3">{lead.source ?? "—"}</td>
-                        <td className="px-4 py-3">
+                        <td>{lead.source ?? "—"}</td>
+                        <td>
                           {canViewAll ? (
                             <select
                               className="input"
@@ -607,7 +583,7 @@ function LeadsPageInner() {
                             <span className="text-muted">—</span>
                           )}
                         </td>
-                        <td className="px-4 py-3">{formatDate(lead.created_at)}</td>
+                        <td>{formatDate(lead.created_at)}</td>
                       </tr>
                     ))
                   )}

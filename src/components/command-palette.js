@@ -4,6 +4,8 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { api } from "@/lib/api";
+import { Overlay } from "@/components/ui/overlay";
+import { Icon } from "@/components/icons";
 
 function flattenResults(results) {
   const output = [];
@@ -113,8 +115,9 @@ export function CommandPalette({ open, onClose }) {
   }
 
   return (
-    <div
-      className="fixed inset-0 z-[80] bg-black/40 p-4"
+    <Overlay
+      layer="palette"
+      className="p-4"
       role="dialog"
       aria-modal="true"
       onClick={onClose}
@@ -123,15 +126,19 @@ export function CommandPalette({ open, onClose }) {
         className="dropdown-panel mx-auto mt-[10vh] w-full max-w-2xl"
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="border-base border-b p-3">
+        <div className="border-base flex items-center gap-2 border-b p-3">
+          <Icon name="search" className="text-muted h-4 w-4 shrink-0" />
           <input
             ref={inputRef}
-            className="input"
+            className="min-w-0 flex-1 border-0 bg-transparent text-sm outline-none"
             placeholder="Search leads, jobs, tasks..."
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             onKeyDown={handleKeyDown}
           />
+          <kbd className="text-soft hidden rounded-theme-sm border px-1.5 py-0.5 text-[10px] sm:inline">
+            ESC
+          </kbd>
         </div>
 
         <div className="scrollbar-theme max-h-[420px] overflow-y-auto p-2">
@@ -148,7 +155,7 @@ export function CommandPalette({ open, onClose }) {
                   key={item.key}
                   href={item.href}
                   onClick={onClose}
-                  className={`block rounded-md border px-3 py-2 transition ${
+                  className={`block rounded-theme-md border px-3 py-2 transition ${
                     index === activeIndex ? "bg-accent border-strong" : "hover:bg-accent"
                   }`}
                 >
@@ -163,6 +170,6 @@ export function CommandPalette({ open, onClose }) {
           )}
         </div>
       </div>
-    </div>
+    </Overlay>
   );
 }

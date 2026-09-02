@@ -8,29 +8,46 @@ import { useToast } from "./toast/toast-provider";
 import { InviteUserModal } from "@/components/modals/invite-user-modal";
 import { ThemeToggle } from "@/components/theme/theme-toggle";
 import { CommandPalette } from "@/components/command-palette";
+import { Overlay } from "@/components/ui/overlay";
+import { Icon } from "@/components/icons";
+import { cx } from "@/lib/cx";
 
 import MainLogo from "@/assets/mainlogo.svg";
 import { api } from "@/lib/api";
 
 const WORKFLOW_NAV = [
-  { href: "/dashboard", label: "Dashboard", priority: "primary" },
-  { href: "/leads", label: "Leads", priority: "primary" },
-  { href: "/jobs", label: "Jobs", priority: "primary" },
-  { href: "/tasks", label: "Tasks", priority: "primary" },
-  { href: "/invoices", label: "Invoices", priority: "primary" },
+  { href: "/dashboard", label: "Dashboard", icon: "home", priority: "primary" },
+  { href: "/leads", label: "Leads", icon: "users", priority: "primary" },
+  { href: "/jobs", label: "Jobs", icon: "briefcase", priority: "primary" },
+  { href: "/tasks", label: "Tasks", icon: "checklist", priority: "primary" },
+  { href: "/invoices", label: "Invoices", icon: "invoice", priority: "primary" },
 ];
 
 const SYSTEM_NAV = [
-  { href: "/files", label: "Files", priority: "secondary" },
-  { href: "/reports", label: "Reports", priority: "secondary" },
-  { href: "/automation", label: "Automation", priority: "secondary" },
-  { href: "/integrations", label: "Integrations", priority: "secondary" },
+  { href: "/files", label: "Files", icon: "folder", priority: "secondary" },
+  { href: "/reports", label: "Reports", icon: "chart", priority: "secondary" },
+  { href: "/automation", label: "Automation", icon: "spark", priority: "secondary" },
+  { href: "/integrations", label: "Integrations", icon: "plug", priority: "secondary" },
 ];
 
-const USERS_NAV = { href: "/users", label: "Users", priority: "secondary" };
+const USERS_NAV = { href: "/users", label: "Users", icon: "users", priority: "secondary" };
 
-function cx(...classes) {
-  return classes.filter(Boolean).join(" ");
+const DESKTOP_SIDEBAR_STORAGE_KEY = "crm-desktop-sidebar";
+
+function readDesktopSidebarOpen() {
+  try {
+    return localStorage.getItem(DESKTOP_SIDEBAR_STORAGE_KEY) !== "0";
+  } catch {
+    return true;
+  }
+}
+
+function writeDesktopSidebarOpen(open) {
+  try {
+    localStorage.setItem(DESKTOP_SIDEBAR_STORAGE_KEY, open ? "1" : "0");
+  } catch {
+    /* ignore quota / private mode */
+  }
 }
 
 function isActivePath(pathname, href) {
@@ -91,6 +108,7 @@ export function AppShell({ children, title, description, right }) {
   const { showToast } = useToast();
 
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [desktopSidebarOpen, setDesktopSidebarOpen] = useState(true);
 
   const [user, setUser] = useState(null);
   const [notificationsOpen, setNotificationsOpen] = useState(false);
@@ -107,6 +125,10 @@ export function AppShell({ children, title, description, right }) {
   useEffect(() => {
     notificationsOpenRef.current = notificationsOpen;
   }, [notificationsOpen]);
+
+  useEffect(() => {
+    setDesktopSidebarOpen(readDesktopSidebarOpen());
+  }, []);
 
   useEffect(() => {
     setMobileMenuOpen(false);
@@ -324,7 +346,7 @@ export function AppShell({ children, title, description, right }) {
 
   const hasReadNotifications = notifications.some((n) => n.read_at);
 
-  function renderNavLink(item, { onNavigate } = {}) {
+  function renderNavLink(item, { onNavigate, tone = "chrome" } = {}) {
     const active = isActivePath(pathname, item.href);
 
     return (
@@ -333,10 +355,17 @@ export function AppShell({ children, title, description, right }) {
         href={item.href}
         onClick={onNavigate}
         className={cx(
-          "flex items-center rounded-lg px-3 py-2 text-sm transition",
-          active ? "bg-accent text-main font-medium" : "text-muted hover:bg-accent",
+          tone === "chrome"
+            ? "nav-chrome"
+            : "flex items-center gap-2.5 rounded-theme-md px-2.5 py-2 text-sm transition",
+          tone === "chrome"
+            ? active && "nav-chrome-active"
+            : active
+              ? "bg-accent text-main font-medium"
+              : "text-muted hover:bg-accent",
         )}
       >
+        {item.icon ? <Icon name={item.icon} className="h-4 w-4" /> : null}
         {item.label}
       </Link>
     );
@@ -460,63 +489,107 @@ export function AppShell({ children, title, description, right }) {
 
   return (
     <div className="bg-app text-main flex h-screen overflow-hidden">
-      {/* SIDEBAR */}
-      <aside className="scrollbar-theme border-base bg-surface hidden h-full w-64 flex-col border-r lg:flex">
-        <Link href="/dashboard" className="flex items-center gap-3 px-6 py-5">
-          <MainLogo className="h-10 w-10" />
-          <span className="font-semibold">CRM</span>
-        </Link>
+      {/* SIDEBAR — large screens; toggled from the topbar */}
+      <aside
+        id="desktop-sidebar"
+        aria-hidden={!desktopSidebarOpen}
+        inert={!desktopSidebarOpen ? true : undefined}
+        className={cx(
+          "scrollbar-theme bg-chrome text-chrome hidden h-full shrink-0 flex-col overflow-hidden lg:flex",
+          desktopSidebarOpen ? "w-64 border-chrome border-r" : "w-0 border-0",
+        )}
+        style={{
+          transitionProperty: "width, border-width",
+          transitionDuration: "var(--duration-fast)",
+          transitionTimingFunction: "var(--ease-standard)",
+        }}
+      >
+        <div className="flex h-full w-64 min-w-64 flex-col">
+          <Link href="/dashboard" className="flex items-center gap-3 px-5 py-5">
+            <MainLogo className="h-8 w-8" />
+            <span className="text-sm font-semibold tracking-tight">CRM</span>
+          </Link>
 
-        <nav className="flex-1 space-y-4 overflow-y-auto px-3">
-          <div className="space-y-1">
-            {primaryNavItems.map((item) => renderNavLink(item))}
-          </div>
-
-          {secondaryNavItems.length > 0 && (
-            <div className="space-y-1">
-              <div className="text-muted px-3 pt-1 text-[11px] font-semibold uppercase tracking-wide">
-                Tools
-              </div>
-              {secondaryNavItems.map((item) => renderNavLink(item))}
+          <nav className="flex-1 space-y-5 overflow-y-auto px-3 pb-2">
+            <div className="space-y-0.5">
+              {primaryNavItems.map((item) => renderNavLink(item))}
             </div>
-          )}
-        </nav>
 
-        <div className="border-base space-y-2 border-t p-4">
-          {isAdminUser && (
+            {secondaryNavItems.length > 0 && (
+              <div className="space-y-0.5">
+                <div className="nav-section-label">Tools</div>
+                {secondaryNavItems.map((item) => renderNavLink(item))}
+              </div>
+            )}
+          </nav>
+
+          <div className="border-chrome space-y-2 border-t p-3">
+            {isAdminUser && (
+              <button
+                type="button"
+                onClick={() => setInviteModalOpen(true)}
+                className="btn btn-chrome w-full justify-start"
+              >
+                <Icon name="userPlus" className="h-4 w-4" />
+                Invite user
+              </button>
+            )}
+
+            <ThemeToggle className="btn-chrome w-full justify-start" />
+
             <button
               type="button"
-              onClick={() => setInviteModalOpen(true)}
-              className="btn w-full justify-start"
+              onClick={handleLogout}
+              className="btn btn-chrome w-full justify-start"
             >
-              Invite User
+              <Icon name="logOut" className="h-4 w-4" />
+              Log out
             </button>
-          )}
-
-          <ThemeToggle className="w-full justify-start" />
-
-          <button
-            type="button"
-            onClick={handleLogout}
-            className="btn btn-danger w-full justify-start"
-          >
-            Log out
-          </button>
+          </div>
         </div>
       </aside>
 
       {/* MAIN */}
       <div className="flex flex-1 flex-col overflow-hidden">
         {/* TOPBAR */}
-        <header className="border-base bg-surface-glass relative sticky top-0 z-10 flex items-center justify-between gap-4 border-b px-6 py-3 backdrop-blur-md">
-          <div className="min-w-0">
-            {title ? <h1 className="text-lg font-semibold">{title}</h1> : null}
-            {description ? (
-              <p className="text-muted mt-0.5 text-sm">{description}</p>
-            ) : null}
+        <header className="border-base bg-surface-elevated relative sticky top-0 z-10 flex items-center justify-between gap-4 border-b px-4 py-2.5 sm:px-6">
+          <div
+            className={cx(
+              "flex h-full min-w-0 flex-row gap-2",
+              !description ? "items-center" : "items-start",
+            )}
+          >
+            <button
+              type="button"
+              onClick={() => {
+                setDesktopSidebarOpen((open) => {
+                  const next = !open;
+                  writeDesktopSidebarOpen(next);
+                  return next;
+                });
+              }}
+              className="icon-btn hidden lg:inline-flex"
+              aria-label={desktopSidebarOpen ? "Collapse menu" : "Open menu"}
+              aria-expanded={desktopSidebarOpen}
+              aria-controls="desktop-sidebar"
+              title={desktopSidebarOpen ? "Collapse menu" : "Open menu"}
+            >
+              <Icon
+                name={desktopSidebarOpen ? "chevronLeft" : "menu"}
+                className="h-4 w-4"
+              />
+            </button>
+            <div className={cx("flex min-w-0 flex-col", !description && "justify-center")}>
+              {title ? (
+                <h1 className="truncate text-[15px] font-semibold tracking-tight">{title}</h1>
+              ) : null}
+              {description ? (
+                <p className="text-muted mt-0.5 truncate text-sm">{description}</p>
+              ) : null}
+            </div>
           </div>
 
-          <div className="flex shrink-0 items-center gap-2 sm:gap-3">
+          <div className="flex shrink-0 items-center gap-1.5 sm:gap-2">
             {right ? (
               <div className="hidden items-center gap-2 lg:flex">{right}</div>
             ) : null}
@@ -526,10 +599,10 @@ export function AppShell({ children, title, description, right }) {
                 type="button"
                 onClick={() => setSearchOpen(true)}
                 aria-label="Open search"
-                className="icon-btn mr-2"
+                className="icon-btn"
                 title="Search (Ctrl/Cmd + K)"
               >
-                <span className="leading-none">🔍</span>
+                <Icon name="search" className="h-4 w-4" />
               </button>
 
               <button
@@ -537,11 +610,11 @@ export function AppShell({ children, title, description, right }) {
                 onClick={handleToggleNotifications}
                 aria-label="Open notifications"
                 aria-expanded={notificationsOpen}
-                className="icon-btn relative"
+                className="icon-btn relative ml-1.5"
               >
-                <span className="leading-none">🔔</span>
+                <Icon name="bell" className="h-4 w-4" />
                 {unreadCount > 0 && (
-                  <span className="bg-accent-solid absolute -right-1 -top-1 inline-flex min-h-[1.1rem] min-w-[1.1rem] items-center justify-center rounded-full px-1 text-[10px] font-semibold">
+                  <span className="bg-accent-solid text-on-accent absolute -right-1 -top-1 inline-flex min-h-[1.1rem] min-w-[1.1rem] items-center justify-center rounded-full px-1 text-[10px] font-semibold">
                     {unreadCount > 9 ? "9+" : unreadCount}
                   </span>
                 )}
@@ -555,52 +628,56 @@ export function AppShell({ children, title, description, right }) {
               aria-label={mobileMenuOpen ? "Close menu" : "Open menu"}
               aria-expanded={mobileMenuOpen}
               onClick={() => setMobileMenuOpen((p) => !p)}
-              className="btn menu-trigger lg:hidden"
+              className="icon-btn menu-trigger lg:hidden"
             >
-              Menu
+              <Icon name={mobileMenuOpen ? "close" : "menu"} className="h-4 w-4" />
             </button>
           </div>
         </header>
 
         {mobileMenuOpen && (
           <>
-            <div
-              className="fixed bottom-0 left-0 right-0 z-40 bg-black/30 lg:hidden"
+            <Overlay
+              className="lg:hidden"
               aria-hidden
               onClick={() => setMobileMenuOpen(false)}
             />
-            <div className="mobile-menu dropdown-panel animate-in fade-in zoom-in-95 fixed right-3 top-[max(4.25rem,calc(env(safe-area-inset-top,0px)+3.75rem))] z-50 flex max-h-[min(70vh,calc(100dvh-5rem))] w-[min(20rem,calc(100vw-1.5rem))] flex-col overflow-hidden rounded-lg shadow-lg duration-150 lg:hidden">
+            <div className="mobile-menu dropdown-panel fixed right-3 top-[max(4.25rem,calc(env(safe-area-inset-top,0px)+3.75rem))] z-50 flex max-h-[min(70vh,calc(100dvh-5rem))] w-[min(20rem,calc(100vw-1.5rem))] flex-col overflow-hidden lg:hidden">
               <div className="border-base flex shrink-0 items-center justify-between border-b px-3 py-2">
-                <span className="text-sm font-semibold">Menu</span>
+                <span className="text-sm font-semibold tracking-tight">Menu</span>
                 <button
                   type="button"
-                  className="text-muted hover:text-main rounded-md p-1 text-lg leading-none"
+                  className="icon-btn"
                   aria-label="Close menu"
                   onClick={() => setMobileMenuOpen(false)}
                 >
-                  ×
+                  <Icon name="close" className="h-4 w-4" />
                 </button>
               </div>
-              <div className="scrollbar-theme min-h-0 flex-1 space-y-4 overflow-y-auto p-4">
-                <div className="space-y-1">
-                  <div className="text-muted px-3 pt-1 text-[11px] font-semibold uppercase tracking-wide">
+              <div className="scrollbar-theme min-h-0 flex-1 space-y-4 overflow-y-auto p-3">
+                <div className="space-y-0.5">
+                  <div className="text-muted px-2.5 pt-1 text-[10px] font-semibold uppercase tracking-[0.14em]">
                     Workflow
                   </div>
                   {primaryNavItems.map((item) =>
-                    renderNavLink(item, { onNavigate: () => setMobileMenuOpen(false) }),
+                    renderNavLink(item, {
+                      onNavigate: () => setMobileMenuOpen(false),
+                      tone: "panel",
+                    }),
                   )}
                 </div>
 
                 {secondaryNavItems.length > 0 && (
                   <>
                     <div className="border-base border-t pt-2" />
-                    <div className="space-y-1">
-                      <div className="text-muted px-3 pt-1 text-[11px] font-semibold uppercase tracking-wide">
+                    <div className="space-y-0.5">
+                      <div className="text-muted px-2.5 pt-1 text-[10px] font-semibold uppercase tracking-[0.14em]">
                         Tools
                       </div>
                       {secondaryNavItems.map((item) =>
                         renderNavLink(item, {
                           onNavigate: () => setMobileMenuOpen(false),
+                          tone: "panel",
                         }),
                       )}
                     </div>
@@ -608,7 +685,7 @@ export function AppShell({ children, title, description, right }) {
                 )}
 
                 <div className="border-base space-y-2 border-t pt-3">
-                  <div className="text-muted px-3 pt-1 text-[11px] font-semibold uppercase tracking-wide">
+                  <div className="text-muted px-2.5 pt-1 text-[10px] font-semibold uppercase tracking-[0.14em]">
                     Account
                   </div>
                   {isAdminUser && (
@@ -620,7 +697,8 @@ export function AppShell({ children, title, description, right }) {
                       }}
                       className="btn w-full justify-start"
                     >
-                      Invite User
+                      <Icon name="userPlus" className="h-4 w-4" />
+                      Invite user
                     </button>
                   )}
 
@@ -631,6 +709,7 @@ export function AppShell({ children, title, description, right }) {
                     onClick={handleLogout}
                     className="btn btn-danger w-full justify-start"
                   >
+                    <Icon name="logOut" className="h-4 w-4" />
                     Log out
                   </button>
                 </div>
@@ -640,18 +719,7 @@ export function AppShell({ children, title, description, right }) {
         )}
 
         {/* PAGE */}
-        <main
-          className="flex-1 overflow-y-auto"
-          style={{
-            scrollbarWidth: "none",
-            msOverflowStyle: "none",
-          }}
-        >
-          <style jsx>{`
-            main::-webkit-scrollbar {
-              display: none;
-            }
-          `}</style>
+        <main className="scrollbar-none flex-1 overflow-y-auto">
           <div className="page-wrap">
             <div className="page-stack">
               {right ? <div className="page-actions lg:hidden">{right}</div> : null}
@@ -663,15 +731,15 @@ export function AppShell({ children, title, description, right }) {
 
       {/* MOBILE BOTTOM NAV */}
       <nav
-        className="border-base bg-surface fixed inset-x-0 bottom-0 z-30 flex items-center justify-around border-t py-1.5 lg:hidden"
+        className="border-chrome bg-chrome text-chrome fixed inset-x-0 bottom-0 z-30 flex items-center justify-around border-t py-1.5 lg:hidden"
         style={{ paddingBottom: "max(0.375rem, env(safe-area-inset-bottom, 0px))" }}
       >
         {[
-          { href: "/dashboard", label: "Home", icon: "🏠" },
-          { href: "/leads", label: "Leads", icon: "👤" },
-          { href: "/jobs", label: "Jobs", icon: "🔨" },
-          { href: "/tasks", label: "Tasks", icon: "📋" },
-          { href: "/reports", label: "Reports", icon: "📊" },
+          { href: "/dashboard", label: "Home", icon: "home" },
+          { href: "/leads", label: "Leads", icon: "users" },
+          { href: "/jobs", label: "Jobs", icon: "briefcase" },
+          { href: "/tasks", label: "Tasks", icon: "checklist" },
+          { href: "/reports", label: "Reports", icon: "chart" },
         ].map((item) => {
           const active = isActivePath(pathname, item.href);
           return (
@@ -679,11 +747,11 @@ export function AppShell({ children, title, description, right }) {
               key={item.href}
               href={item.href}
               className={cx(
-                "flex flex-col items-center gap-0.5 px-2 py-1 text-[10px] transition",
-                active ? "text-main font-semibold" : "text-muted",
+                "flex min-w-[3.25rem] flex-col items-center gap-0.5 px-2 py-1 text-[10px] transition",
+                active ? "text-chrome font-semibold" : "text-chrome-muted",
               )}
             >
-              <span className="text-base leading-none">{item.icon}</span>
+              <Icon name={item.icon} className="h-4 w-4" />
               <span>{item.label}</span>
             </Link>
           );

@@ -2,6 +2,9 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { buildFileUrl } from "@/lib/helper";
+import { Alert } from "@/components/ui/alert";
+import { Overlay } from "@/components/ui/overlay";
+import { EmptyState } from "@/components/error-boundary";
 
 function isImageFile(file) {
   const mime = String(file?.mime_type || "").toLowerCase();
@@ -33,7 +36,7 @@ export function PhotoGallery({ files = [], loading = false, error = "" }) {
 
   return (
     <div className="space-y-3">
-      {error ? <div className="text-sm text-red-500">{error}</div> : null}
+      {error ? <Alert variant="inline">{error}</Alert> : null}
 
       {loading ? (
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
@@ -42,9 +45,10 @@ export function PhotoGallery({ files = [], loading = false, error = "" }) {
           ))}
         </div>
       ) : photos.length === 0 ? (
-        <div className="text-muted rounded-lg border border-dashed p-4 text-sm">
-          No photos on this job yet. Upload images in Attached Files.
-        </div>
+        <EmptyState
+          title="No photos on this job yet"
+          description="Upload images in Attached Files."
+        />
       ) : (
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
           {photos.map((file, index) => (
@@ -58,7 +62,7 @@ export function PhotoGallery({ files = [], loading = false, error = "" }) {
               <img
                 src={buildFileUrl(file)}
                 alt={file.original_name || `Photo ${index + 1}`}
-                className="h-32 w-full object-cover transition group-hover:scale-[1.03]"
+                className="h-32 w-full object-cover"
                 loading="lazy"
               />
             </button>
@@ -67,10 +71,14 @@ export function PhotoGallery({ files = [], loading = false, error = "" }) {
       )}
 
       {activeIndex >= 0 && photos[activeIndex] ? (
-        <div className="fixed inset-0 z-[120] flex items-center justify-center bg-black/80 p-4">
+        <Overlay
+          layer="lightbox"
+          strong
+          className="flex items-center justify-center p-4"
+        >
           <button
             type="button"
-            className="absolute right-4 top-4 rounded bg-black/40 px-3 py-2 text-sm text-white"
+            className="bg-overlay text-on-overlay absolute right-4 top-4 rounded px-3 py-2 text-sm"
             onClick={() => setActiveIndex(-1)}
           >
             Close
@@ -80,7 +88,7 @@ export function PhotoGallery({ files = [], loading = false, error = "" }) {
             <>
               <button
                 type="button"
-                className="absolute left-4 rounded bg-black/40 px-3 py-2 text-sm text-white"
+                className="bg-overlay text-on-overlay absolute left-4 rounded px-3 py-2 text-sm"
                 onClick={() =>
                   setActiveIndex((prev) => (prev - 1 + photos.length) % photos.length)
                 }
@@ -89,7 +97,7 @@ export function PhotoGallery({ files = [], loading = false, error = "" }) {
               </button>
               <button
                 type="button"
-                className="absolute right-4 rounded bg-black/40 px-3 py-2 text-sm text-white"
+                className="bg-overlay text-on-overlay absolute right-4 rounded px-3 py-2 text-sm"
                 onClick={() => setActiveIndex((prev) => (prev + 1) % photos.length)}
               >
                 Next
@@ -103,11 +111,11 @@ export function PhotoGallery({ files = [], loading = false, error = "" }) {
               alt={photos[activeIndex].original_name || "Photo"}
               className="max-h-[85vh] max-w-[90vw] object-contain"
             />
-            <div className="mt-2 text-center text-xs text-white/90">
+            <div className="text-on-overlay mt-2 text-center text-xs opacity-90">
               {photos[activeIndex].original_name}
             </div>
           </div>
-        </div>
+        </Overlay>
       ) : null}
     </div>
   );

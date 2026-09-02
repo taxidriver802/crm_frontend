@@ -4,25 +4,7 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import { AppShell } from "@/components/app-shell";
 import { api } from "@/lib/api";
-
-function StatusBadge({ tone = "neutral", children }) {
-  const toneClass =
-    tone === "success"
-      ? "border-green-500/30 bg-green-500/10 text-green-700 dark:text-green-300"
-      : tone === "warning"
-        ? "border-yellow-500/30 bg-yellow-500/10 text-yellow-700 dark:text-yellow-300"
-        : tone === "danger"
-          ? "border-red-500/30 bg-red-500/10 text-red-700 dark:text-red-300"
-          : "border-base bg-surface text-main";
-
-  return (
-    <span
-      className={`inline-flex items-center rounded-full border px-2.5 py-1 text-xs font-medium ${toneClass}`}
-    >
-      {children}
-    </span>
-  );
-}
+import { StatusBadge } from "@/components/ui/status-badge";
 
 function getIntegrationHealth(data) {
   if (!data) {

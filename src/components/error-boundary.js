@@ -19,7 +19,7 @@ export class ErrorBoundary extends Component {
   render() {
     if (this.state.hasError) {
       return (
-        <div className="card mx-auto my-12 max-w-lg rounded-lg p-6 text-center">
+        <div className="card mx-auto my-12 max-w-lg p-6 text-center">
           <div className="text-lg font-semibold">Something went wrong</div>
           <div className="text-muted mt-2 text-sm">
             {this.state.error?.message || "An unexpected error occurred."}
@@ -40,8 +40,8 @@ export class ErrorBoundary extends Component {
 
 export function PageError({ message, onRetry }) {
   return (
-    <div className="card rounded-lg p-4">
-      <div className="text-sm font-medium text-red-600">Something went wrong</div>
+    <div className="card p-4">
+      <div className="text-sm font-medium text-danger">Something went wrong</div>
       <div className="text-muted mt-1 text-sm">
         {message || "An unexpected error occurred."}
       </div>
@@ -56,9 +56,9 @@ export function PageError({ message, onRetry }) {
 
 export function EmptyState({ icon, title, description, action }) {
   return (
-    <div className="text-muted rounded-lg border border-dashed p-6 text-center">
-      {icon ? <div className="mb-2 text-2xl">{icon}</div> : null}
-      <div className="text-sm font-medium">{title || "Nothing here yet"}</div>
+    <div className="empty-state">
+      {icon ? <div className="mb-2 flex justify-center text-muted">{icon}</div> : null}
+      <div className="text-sm font-medium text-main">{title || "Nothing here yet"}</div>
       {description ? <div className="mt-1 text-xs">{description}</div> : null}
       {action ? <div className="mt-3">{action}</div> : null}
     </div>

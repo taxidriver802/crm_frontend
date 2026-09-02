@@ -2,6 +2,10 @@
 
 import { useEffect, useState } from "react";
 import { api } from "@/lib/api";
+import { Alert } from "@/components/ui/alert";
+import { Field, FormActions } from "@/components/ui/field";
+import { ListRow } from "@/components/ui/list-row";
+import { EmptyState } from "@/components/error-boundary";
 
 function formatRelativeTime(value) {
   if (!value) return "";
@@ -18,7 +22,7 @@ function formatRelativeTime(value) {
   return date.toLocaleDateString();
 }
 
-export function NotesSection({ entityType, entityId }) {
+export function NotesSection({ entityType, entityId, onLoadState }) {
   const [notes, setNotes] = useState([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -53,6 +57,10 @@ export function NotesSection({ entityType, entityId }) {
       alive = false;
     };
   }, [entityType, entityId]);
+
+  useEffect(() => {
+    onLoadState?.({ ready: !loading, empty: notes.length === 0 });
+  }, [loading, notes.length, onLoadState]);
 
   async function handleCreateNote(e) {
     e.preventDefault();
@@ -93,39 +101,38 @@ export function NotesSection({ entityType, entityId }) {
 
   return (
     <div className="space-y-4">
-      {error ? <div className="text-sm text-red-500">{error}</div> : null}
+      {error ? <Alert variant="inline">{error}</Alert> : null}
 
       <form onSubmit={handleCreateNote} className="space-y-2">
-        <label className="text-muted text-xs">Add note</label>
-        <textarea
-          className="input min-h-[90px] resize-y"
-          value={body}
-          onChange={(e) => setBody(e.target.value)}
-          placeholder="Log call notes, decisions, or follow-up context..."
-          maxLength={2000}
-        />
-        <div className="flex items-center justify-between gap-3">
+        <Field label="Add note">
+          <textarea
+            className="input min-h-[90px] resize-y"
+            value={body}
+            onChange={(e) => setBody(e.target.value)}
+            placeholder="Log call notes, decisions, or follow-up context..."
+            maxLength={2000}
+          />
+        </Field>
+        <FormActions className="justify-between">
           <span className="text-muted text-xs">{body.length}/2000</span>
           <button
             type="submit"
-            className="btn btn-primary px-3 py-1.5 text-xs"
+            className="btn btn-primary btn-sm"
             disabled={saving || !body.trim()}
           >
             {saving ? "Saving..." : "Save note"}
           </button>
-        </div>
+        </FormActions>
       </form>
 
       {loading ? (
         <div className="text-muted text-sm">Loading notes...</div>
       ) : notes.length === 0 ? (
-        <div className="text-muted rounded-lg border border-dashed p-4 text-sm">
-          No notes yet.
-        </div>
+        <EmptyState title="No notes yet" description="Add the first note above." />
       ) : (
         <div className="space-y-3">
           {notes.map((note) => (
-            <div key={note.id} className="rounded-lg border p-3">
+            <ListRow key={note.id}>
               <div className="flex items-center justify-between gap-2">
                 <div className="text-sm font-medium">{note.author_name || "User"}</div>
                 <div className="text-muted text-xs">
@@ -136,13 +143,13 @@ export function NotesSection({ entityType, entityId }) {
               <div className="mt-2 flex justify-end">
                 <button
                   type="button"
-                  className="text-muted text-xs underline hover:text-red-600"
+                  className="text-muted text-xs underline hover:text-danger"
                   onClick={() => handleDeleteNote(note.id)}
                 >
                   Delete
                 </button>
               </div>
-            </div>
+            </ListRow>
           ))}
         </div>
       )}

@@ -8,6 +8,7 @@ import {
   getFileTypeLabel,
   getPreviewKind,
 } from "@/lib/helper";
+import { ModalFrame } from "@/components/ui/overlay";
 
 function LoadingState() {
   return (
@@ -34,23 +35,6 @@ export function FilePreviewModal({ open, file, onClose }) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (!open) return;
-
-    function onKeyDown(e) {
-      if (e.key === "Escape") onClose();
-    }
-
-    document.addEventListener("keydown", onKeyDown);
-    const originalOverflow = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
-
-    return () => {
-      document.removeEventListener("keydown", onKeyDown);
-      document.body.style.overflow = originalOverflow;
-    };
-  }, [open, onClose]);
-
-  useEffect(() => {
     if (!open || !file) return;
     setLoading(true);
   }, [open, file]);
@@ -61,17 +45,13 @@ export function FilePreviewModal({ open, file, onClose }) {
   const fileUrl = buildFileUrl(file);
 
   return (
-    <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4"
-      onClick={onClose}
+    <ModalFrame
+      open={open}
+      onClose={onClose}
+      layer="modal"
+      label={file.original_name || "File preview"}
+      panelClassName="card flex max-h-[92vh] w-full max-w-6xl flex-col overflow-hidden rounded-2xl"
     >
-      <div
-        className="card flex max-h-[92vh] w-full max-w-6xl flex-col overflow-hidden rounded-2xl"
-        onClick={(e) => e.stopPropagation()}
-        role="dialog"
-        aria-modal="true"
-        aria-label={file.original_name || "File preview"}
-      >
         <div className="border-base flex flex-col gap-4 border-b p-4 sm:flex-row sm:items-start sm:justify-between">
           <div className="min-w-0">
             <div className="truncate text-base font-semibold">{file.original_name}</div>
@@ -144,7 +124,6 @@ export function FilePreviewModal({ open, file, onClose }) {
             )}
           </div>
         </div>
-      </div>
-    </div>
+    </ModalFrame>
   );
 }

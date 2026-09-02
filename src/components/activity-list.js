@@ -94,7 +94,7 @@ export function ActivityList({
         return (
           <div key={label} className="space-y-3">
             <div className="flex items-center justify-between gap-3">
-              <div className="text-muted text-xs font-semibold uppercase tracking-wide">
+              <div className="text-muted text-[11px] font-semibold uppercase tracking-wider">
                 {label}
               </div>
 
@@ -128,7 +128,7 @@ function ActivityItem({ item }) {
   const formatted = formatActivity(item);
 
   const content = (
-    <div className="border-base hover:bg-accent rounded-lg border p-3 transition">
+    <div className="list-row list-row-interactive">
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0 flex-1 space-y-1.5">
           <div className="flex items-center gap-2">

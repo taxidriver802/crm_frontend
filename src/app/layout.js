@@ -3,6 +3,12 @@ import "./globals.css";
 import { ThemeProvider } from "@/components/theme/theme-provider";
 import { ToastProvider } from "@/components/toast/toast-provider";
 import { ErrorBoundary } from "@/components/error-boundary";
+import { ServiceWorkerRegistrar } from "@/components/service-worker-registrar";
+import {
+  DEFAULT_PALETTE_ID,
+  buildAllPalettesCss,
+  getPaletteBootstrapScript,
+} from "@/theme/registry";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -34,33 +40,26 @@ export const viewport = {
   viewportFit: "cover",
 };
 
-function ServiceWorkerRegistrar() {
-  return (
-    <script
-      dangerouslySetInnerHTML={{
-        __html: `
-          if ('serviceWorker' in navigator) {
-            window.addEventListener('load', function() {
-              navigator.serviceWorker.register('/sw.js').catch(function() {});
-            });
-          }
-        `,
-      }}
-    />
-  );
-}
-
 export default function RootLayout({ children }) {
   return (
-    <html lang="en" suppressHydrationWarning>
+    <html lang="en" suppressHydrationWarning data-palette={DEFAULT_PALETTE_ID}>
       <head>
+        <style
+          id="crm-palette-vars"
+          dangerouslySetInnerHTML={{ __html: buildAllPalettesCss() }}
+        />
+        <script
+          dangerouslySetInnerHTML={{ __html: getPaletteBootstrapScript() }}
+        />
         <link rel="manifest" href="/manifest.json" />
         <meta name="theme-color" content="#6366f1" />
         <meta name="apple-mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
         <link rel="apple-touch-icon" href="/icons/icon-192.svg" />
       </head>
-      <body className={`${geistSans.variable} ${geistMono.variable} antialiased`}>
+      <body
+        className={`${geistSans.variable} ${geistMono.variable} font-sans antialiased`}
+      >
         <ThemeProvider>
           <ToastProvider>
             <ErrorBoundary>{children}</ErrorBoundary>

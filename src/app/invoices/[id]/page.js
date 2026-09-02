@@ -10,25 +10,13 @@ import { DetailSkeleton } from "@/components/loading/loadingSkeletons";
 import { PageError } from "@/components/error-boundary";
 import Link from "next/link";
 import { API_BASE, formatDate } from "@/lib/helper";
+import { StatusBadge } from "@/components/ui/status-badge";
+import { Field, FormActions } from "@/components/ui/field";
+import { DetailHeader } from "@/components/ui/detail-header";
+import { MetaItem } from "@/components/ui/meta";
+import { ListRow } from "@/components/ui/list-row";
 
 const INVOICE_STATUSES = ["Draft", "Sent", "Paid", "Overdue"];
-
-function StatusBadge({ status }) {
-  const map = {
-    Draft: "border-gray-500/30 bg-gray-500/10 text-gray-700",
-    Sent: "border-blue-500/30 bg-blue-500/10 text-blue-700",
-    Paid: "border-green-500/30 bg-green-500/10 text-green-700",
-    Overdue: "border-red-500/30 bg-red-500/10 text-red-700",
-  };
-
-  return (
-    <span
-      className={`inline-flex rounded-full border px-2 py-0.5 text-xs ${map[status] || ""}`}
-    >
-      {status}
-    </span>
-  );
-}
 
 function InvoiceLineItemForm({
   form,
@@ -43,72 +31,64 @@ function InvoiceLineItemForm({
   return (
     <form onSubmit={onSubmit} className="space-y-3">
       <div className="grid gap-3 sm:grid-cols-2">
-        <label className="block text-sm">
-          <span className="text-muted text-xs">Name</span>
+        <Field label="Name" required>
           <input
-            className="input mt-1 w-full"
+            className="input"
             value={form.name}
             onChange={(e) => onChange({ ...form, name: e.target.value })}
             placeholder="Line item name"
             required
           />
-        </label>
-        <label className="block text-sm">
-          <span className="text-muted text-xs">Description</span>
+        </Field>
+        <Field label="Description">
           <input
-            className="input mt-1 w-full"
+            className="input"
             value={form.description}
             onChange={(e) => onChange({ ...form, description: e.target.value })}
             placeholder="Optional description"
           />
-        </label>
+        </Field>
       </div>
       <div className="grid gap-3 sm:grid-cols-2">
-        <label className="block text-sm">
-          <span className="text-muted text-xs">Quantity</span>
+        <Field label="Quantity">
           <input
             type="number"
-            className="input mt-1 w-full"
+            className="input"
             value={form.quantity}
             onChange={(e) => onChange({ ...form, quantity: e.target.value })}
             min="0"
             step="any"
           />
-        </label>
-        <label className="block text-sm">
-          <span className="text-muted text-xs">Unit Price</span>
+        </Field>
+        <Field label="Unit Price">
           <input
             type="number"
-            className="input mt-1 w-full"
+            className="input"
             value={form.unit_price}
             onChange={(e) => onChange({ ...form, unit_price: e.target.value })}
             min="0"
             step="any"
           />
-        </label>
+        </Field>
       </div>
-      <div className="flex flex-wrap gap-2">
-        <button type="submit" className="btn px-3 py-2 text-xs" disabled={saving}>
+      <FormActions>
+        <button type="submit" className="btn btn-primary btn-sm" disabled={saving}>
           {saving ? "Saving…" : submitLabel}
         </button>
         {deleteButton ? (
           <button
             type="button"
-            className="btn px-3 py-2 text-xs text-red-600"
+            className="btn btn-danger btn-sm"
             onClick={onDelete}
             disabled={saving}
           >
             Delete
           </button>
         ) : null}
-        <button
-          type="button"
-          className="btn btn-ghost px-3 py-2 text-xs"
-          onClick={onCancel}
-        >
+        <button type="button" className="btn btn-ghost btn-sm" onClick={onCancel}>
           Cancel
         </button>
-      </div>
+      </FormActions>
     </form>
   );
 }
@@ -326,127 +306,106 @@ export default function InvoiceDetailPage() {
       <div className="space-y-6">
         {error ? <PageError message={error} onRetry={loadPage} /> : null}
 
-        <section className="card rounded-lg p-4">
-          {!invoice ? (
-            <div className="text-muted text-sm">Invoice not found.</div>
-          ) : (
-            <div className="space-y-4">
-              <div className="flex items-start justify-between gap-3">
-                <div>
-                  <div className="text-2xl font-semibold">{invoice.invoice_number}</div>
-                  <Link
-                    href={`/jobs/${invoice.job_id}`}
-                    className="text-muted mt-1 cursor-pointer text-sm underline"
-                  >
-                    {invoice.job?.title ?? `Job #${invoice.job_id}`}
-                  </Link>
-                  {invoice.estimate_id ? (
-                    <div className="text-muted mt-1 text-xs">
-                      From{" "}
-                      <Link
-                        href={`/estimates/${invoice.estimate_id}`}
-                        className="underline"
-                      >
-                        Estimate #{invoice.estimate_id}
-                      </Link>
-                    </div>
-                  ) : null}
-                </div>
-                <div className="flex flex-wrap items-center gap-2">
-                  <button
-                    type="button"
-                    className="btn btn-ghost btn-sm px-3 py-1.5"
-                    disabled={pdfBusy}
-                    onClick={downloadPdf}
-                  >
-                    {pdfBusy ? "PDF…" : "Download PDF"}
-                  </button>
-                  <button
-                    type="button"
-                    className="btn btn-ghost btn-sm px-3 py-1.5"
-                    disabled={shareBusy}
-                    onClick={createShareLink}
-                  >
-                    {shareBusy ? "Link…" : "Copy share link"}
-                  </button>
-                  <button
-                    type="button"
-                    className="btn btn-ghost btn-sm px-3 py-1.5"
-                    disabled={qbBusy}
-                    onClick={handleSyncToQB}
-                  >
-                    {qbBusy ? "Syncing…" : "Sync to QuickBooks"}
-                  </button>
-                  <button
-                    type="button"
-                    className="btn btn-ghost btn-sm px-3 py-1.5 text-red-600"
-                    onClick={handleDeleteInvoice}
-                  >
-                    Delete
-                  </button>
-                  <StatusBadge status={invoice.status} />
-                </div>
-              </div>
-
-              {shareHint ? <div className="text-muted text-sm">{shareHint}</div> : null}
-              {qbHint ? <div className="text-muted text-sm">{qbHint}</div> : null}
-
-              {invoice.share_expires_at ? (
-                <div className="text-muted text-xs">
-                  Share link active until{" "}
-                  {new Date(invoice.share_expires_at).toLocaleString()}
-                </div>
-              ) : null}
-
-              <div className="grid gap-4 text-sm sm:grid-cols-3">
-                <div>
-                  <div className="text-muted text-xs">Due date</div>
-                  <div className="mt-1">
-                    {invoice.due_date ? formatDate(invoice.due_date) : "—"}
+        {!invoice ? (
+          <DetailHeader title="Invoice not found" />
+        ) : (
+          <DetailHeader
+            title={invoice.invoice_number}
+            subtitle={
+              <>
+                <Link href={`/jobs/${invoice.job_id}`} className="underline">
+                  {invoice.job?.title ?? `Job #${invoice.job_id}`}
+                </Link>
+                {invoice.estimate_id ? (
+                  <div className="mt-1 text-xs">
+                    From{" "}
+                    <Link href={`/estimates/${invoice.estimate_id}`} className="underline">
+                      Estimate #{invoice.estimate_id}
+                    </Link>
                   </div>
-                </div>
-                <div>
-                  <div className="text-muted text-xs">Paid at</div>
-                  <div className="mt-1">
-                    {invoice.paid_at ? formatDate(invoice.paid_at) : "—"}
-                  </div>
-                </div>
-                <div>
-                  <div className="text-muted text-xs">Client</div>
-                  <div className="mt-1">{invoice.job?.lead_name || "—"}</div>
-                </div>
+                ) : null}
+              </>
+            }
+            badges={<StatusBadge kind="invoice" status={invoice.status} />}
+            actions={
+              <>
+                <button
+                  type="button"
+                  className="btn btn-ghost btn-sm"
+                  disabled={pdfBusy}
+                  onClick={downloadPdf}
+                >
+                  {pdfBusy ? "PDF…" : "Download PDF"}
+                </button>
+                <button
+                  type="button"
+                  className="btn btn-ghost btn-sm"
+                  disabled={shareBusy}
+                  onClick={createShareLink}
+                >
+                  {shareBusy ? "Link…" : "Copy share link"}
+                </button>
+                <button
+                  type="button"
+                  className="btn btn-ghost btn-sm"
+                  disabled={qbBusy}
+                  onClick={handleSyncToQB}
+                >
+                  {qbBusy ? "Syncing…" : "Sync to QuickBooks"}
+                </button>
+                <button
+                  type="button"
+                  className="btn btn-ghost btn-danger btn-sm"
+                  onClick={handleDeleteInvoice}
+                >
+                  Delete
+                </button>
+              </>
+            }
+          >
+            {shareHint ? <div className="text-muted text-sm">{shareHint}</div> : null}
+            {qbHint ? <div className="text-muted text-sm">{qbHint}</div> : null}
+
+            {invoice.share_expires_at ? (
+              <div className="text-muted text-xs">
+                Share link active until {new Date(invoice.share_expires_at).toLocaleString()}
               </div>
+            ) : null}
 
-              {invoice.notes ? (
-                <div>
-                  <div className="text-muted text-xs">Notes</div>
-                  <div className="mt-1 whitespace-pre-wrap text-sm">{invoice.notes}</div>
-                </div>
-              ) : null}
+            <div className="grid gap-4 sm:grid-cols-3">
+              <MetaItem label="Due date">
+                {invoice.due_date ? formatDate(invoice.due_date) : "—"}
+              </MetaItem>
+              <MetaItem label="Paid at">
+                {invoice.paid_at ? formatDate(invoice.paid_at) : "—"}
+              </MetaItem>
+              <MetaItem label="Client">{invoice.job?.lead_name || "—"}</MetaItem>
+            </div>
 
-              <div className="border-base border-t pt-4">
-                <div className="text-muted mb-2 text-xs font-medium">Update status</div>
-                <div className="flex flex-wrap gap-2">
-                  {INVOICE_STATUSES.map((s) => (
-                    <button
-                      key={s}
-                      type="button"
-                      disabled={statusBusy || s === invoice.status}
-                      onClick={() => handleStatusChange(s)}
-                      className={`rounded-full border px-3 py-1.5 text-xs font-medium transition ${
-                        s === invoice.status
-                          ? "bg-accent-solid border-base text-white"
-                          : "bg-surface border-base text-muted hover:opacity-80"
-                      } ${statusBusy ? "cursor-not-allowed opacity-60" : "cursor-pointer"}`}
-                    >
-                      {s}
-                    </button>
-                  ))}
-                </div>
+            {invoice.notes ? (
+              <MetaItem label="Notes">
+                <span className="whitespace-pre-wrap">{invoice.notes}</span>
+              </MetaItem>
+            ) : null}
+
+            <div className="border-base border-t pt-4">
+              <div className="kv-label mb-2 font-medium">Update status</div>
+              <div className="flex flex-wrap gap-2">
+                {INVOICE_STATUSES.map((s) => (
+                  <button
+                    key={s}
+                    type="button"
+                    disabled={statusBusy || s === invoice.status}
+                    onClick={() => handleStatusChange(s)}
+                    className={`choice-chip ${s === invoice.status ? "choice-chip-active" : ""}`}
+                  >
+                    {s}
+                  </button>
+                ))}
               </div>
             </div>
-          )}
-        </section>
+          </DetailHeader>
+        )}
 
         <ToggleFormSection
           title={editingLineItem ? "Edit Line Item" : "Add Line Item"}
@@ -477,20 +436,23 @@ export default function InvoiceDetailPage() {
         <CollapsibleSection
           title="Line Items"
           description="Breakdown of charges."
-          defaultOpen
+          syncKey={id}
+          ready={!loading}
+          empty={lineItems.length === 0}
         >
           {loading ? (
             <div className="text-muted text-sm">Loading items…</div>
           ) : lineItems.length === 0 ? (
-            <div className="text-muted rounded-lg border border-dashed p-4 text-sm">
-              No line items yet.
-            </div>
+            <div className="empty-state text-sm">No line items yet.</div>
           ) : (
-            <div className="space-y-3">
+            <div className="space-y-2">
               {lineItems.map((item) => (
-                <div
+                <ListRow
                   key={item.id}
-                  className="hover:bg-surface flex cursor-pointer items-start justify-between rounded-lg border p-3"
+                  as="button"
+                  type="button"
+                  interactive
+                  className="flex w-full items-start justify-between text-left"
                   onClick={() => handleEditLineItem(item)}
                 >
                   <div>
@@ -504,13 +466,13 @@ export default function InvoiceDetailPage() {
                     </div>
                   </div>
                   <div className="font-semibold">${formatCurrency(item.line_total)}</div>
-                </div>
+                </ListRow>
               ))}
             </div>
           )}
         </CollapsibleSection>
 
-        <section className="card rounded-lg p-4">
+        <section className="card p-4">
           <div className="space-y-2 text-sm">
             <div className="flex justify-between">
               <span className="text-muted">Subtotal</span>
@@ -532,7 +494,7 @@ export default function InvoiceDetailPage() {
         </section>
 
         {invoice ? (
-          <section className="card rounded-lg p-4">
+          <section className="card p-4">
             <div className="mb-3 font-medium">Invoice Timeline</div>
             <div className="relative space-y-0 pl-6">
               {[
@@ -560,9 +522,9 @@ export default function InvoiceDetailPage() {
                   <div
                     className={`absolute left-[-1.125rem] top-1 h-3 w-3 rounded-full border-2 ${
                       step.warn
-                        ? "border-red-500 bg-red-500"
+                        ? "border-danger bg-danger"
                         : step.done
-                          ? "border-green-500 bg-green-500"
+                          ? "border-success bg-success"
                           : "border-base bg-surface"
                     }`}
                   />
@@ -571,7 +533,7 @@ export default function InvoiceDetailPage() {
                   ) : null}
                   <div>
                     <div
-                      className={`text-sm font-medium ${step.warn ? "text-red-600" : ""}`}
+                      className={`text-sm font-medium ${step.warn ? "text-danger" : ""}`}
                     >
                       {step.label}
                       {step.warn ? " (overdue)" : ""}

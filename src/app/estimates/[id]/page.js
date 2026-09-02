@@ -1,5 +1,6 @@
 "use client";
 
+import { Alert } from "@/components/ui/alert";
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { AppShell } from "@/components/app-shell";
@@ -12,23 +13,9 @@ import {
 } from "@/components/forms/estimate-line-item-form";
 import Link from "next/link";
 import { API_BASE } from "@/lib/helper";
-
-function StatusBadge({ status }) {
-  const map = {
-    Draft: "border-gray-500/30 bg-gray-500/10 text-gray-700",
-    Sent: "border-blue-500/30 bg-blue-500/10 text-blue-700",
-    Approved: "border-green-500/30 bg-green-500/10 text-green-700",
-    Rejected: "border-red-500/30 bg-red-500/10 text-red-700",
-  };
-
-  return (
-    <span
-      className={`inline-flex rounded-full border px-2 py-0.5 text-xs ${map[status] || ""}`}
-    >
-      {status}
-    </span>
-  );
-}
+import { StatusBadge } from "@/components/ui/status-badge";
+import { DetailHeader } from "@/components/ui/detail-header";
+import { MetaItem } from "@/components/ui/meta";
 
 export default function EstimateDetailPage() {
   const { id } = useParams();
@@ -296,62 +283,61 @@ export default function EstimateDetailPage() {
   return (
     <AppShell title={estimate?.title || `Estimate #${id}`}>
       <div className="space-y-6">
-        {error ? <div className="text-sm text-red-500">{error}</div> : null}
+        {error ? <Alert variant="inline">{error}</Alert> : null}
 
-        {/* HEADER */}
-        <section className="card rounded-lg p-4">
-          {loading ? (
-            <div className="text-muted text-sm">Loading estimate…</div>
-          ) : !estimate ? (
-            <div className="text-muted text-sm">Estimate not found.</div>
-          ) : (
-            <div className="space-y-4">
-              <div className="flex items-start justify-between">
-                <div>
-                  <div className="text-2xl font-semibold">{estimate.title}</div>
-                  <Link
-                    href={`/jobs/${estimate.job?.id ?? estimate.job_id}`}
-                    className="text-muted mt-1 cursor-pointer text-sm underline"
-                  >
-                    Job #{estimate.job_id}
-                  </Link>
-                </div>
-                <div className="flex flex-wrap items-center gap-2">
+        {loading ? (
+          <DetailHeader title="Loading estimate…" />
+        ) : !estimate ? (
+          <DetailHeader title="Estimate not found" />
+        ) : (
+          <DetailHeader
+            title={estimate.title}
+            subtitle={
+              <Link
+                href={`/jobs/${estimate.job?.id ?? estimate.job_id}`}
+                className="underline"
+              >
+                Job #{estimate.job_id}
+              </Link>
+            }
+            badges={<StatusBadge kind="estimate" status={estimate.status} />}
+            actions={
+              <>
+                <button
+                  type="button"
+                  className="btn btn-ghost btn-sm"
+                  disabled={pdfBusy}
+                  onClick={downloadPdf}
+                >
+                  {pdfBusy ? "PDF…" : "Download PDF"}
+                </button>
+                <button
+                  type="button"
+                  className="btn btn-ghost btn-sm"
+                  disabled={shareBusy}
+                  onClick={createShareLink}
+                >
+                  {shareBusy ? "Link…" : "Copy share link"}
+                </button>
+                {estimate.status === "Approved" ? (
                   <button
                     type="button"
-                    className="btn btn-ghost btn-sm px-3 py-1.5"
-                    disabled={pdfBusy}
-                    onClick={downloadPdf}
+                    className="btn btn-sm"
+                    disabled={invoiceBusy}
+                    onClick={handleCreateInvoice}
                   >
-                    {pdfBusy ? "PDF…" : "Download PDF"}
+                    {invoiceBusy ? "Creating…" : "Create Invoice"}
                   </button>
-                  <button
-                    type="button"
-                    className="btn btn-ghost btn-sm px-3 py-1.5"
-                    disabled={shareBusy}
-                    onClick={createShareLink}
-                  >
-                    {shareBusy ? "Link…" : "Copy share link"}
-                  </button>
-                  {estimate.status === "Approved" ? (
-                    <button
-                      type="button"
-                      className="btn btn-sm px-3 py-1.5"
-                      disabled={invoiceBusy}
-                      onClick={handleCreateInvoice}
-                    >
-                      {invoiceBusy ? "Creating…" : "Create Invoice"}
-                    </button>
-                  ) : null}
-                  <Link
-                    className="btn text-muted btn-ghost btn-sm hover:bg-surface cursor-pointer"
-                    href={`/estimates/${estimate.id}/edit`}
-                  >
-                    Edit
-                  </Link>
-                  <StatusBadge status={estimate.status} />
-                </div>
-              </div>
+                ) : null}
+                <Link
+                  className="btn btn-ghost btn-sm"
+                  href={`/estimates/${estimate.id}/edit`}
+                >
+                  Edit
+                </Link>
+              </>
+            }
+          >
 
               {shareHint ? <div className="text-muted text-sm">{shareHint}</div> : null}
 
@@ -438,14 +424,12 @@ export default function EstimateDetailPage() {
               ) : null}
 
               {estimate.notes ? (
-                <div>
-                  <div className="text-muted text-xs">Notes</div>
-                  <div className="mt-1 whitespace-pre-wrap text-sm">{estimate.notes}</div>
-                </div>
+                <MetaItem label="Notes">
+                  <span className="whitespace-pre-wrap">{estimate.notes}</span>
+                </MetaItem>
               ) : null}
-            </div>
-          )}
-        </section>
+          </DetailHeader>
+        )}
 
         <ToggleFormSection
           title={editingLineItem ? "Edit Line Item" : "Create Line Item"}
@@ -477,7 +461,9 @@ export default function EstimateDetailPage() {
         <CollapsibleSection
           title="Line Items"
           description="Breakdown of materials and labor."
-          defaultOpen
+          syncKey={id}
+          ready={!loading}
+          empty={lineItems.length === 0}
           actions={
             <div className="flex items-center gap-2">
               <div className="text-main text-sm">Sort By:</div>
@@ -500,8 +486,8 @@ export default function EstimateDetailPage() {
                     }
                   }}
                   className={`btn btn-sm ${
-                    sortBy === key ? "btn-primary:hover" : "btn-ghost"
-                  } px-3 py-1 text-xs`}
+                    sortBy === key ? "btn-primary" : "btn-ghost"
+                  }`}
                 >
                   {label}
                   {sortBy === key && (sortDirection === "desc" ? " ↓" : " ↑")}
@@ -524,15 +510,13 @@ export default function EstimateDetailPage() {
           {loading ? (
             <div className="text-muted text-sm">Loading items…</div>
           ) : lineItems.length === 0 ? (
-            <div className="text-muted rounded-lg border border-dashed p-4 text-sm">
-              No line items yet.
-            </div>
+            <div className="empty-state text-sm">No line items yet.</div>
           ) : (
             <div className="space-y-3">
               {displayedLineItems.map((item) => (
                 <div
                   key={item.id}
-                  className="hover:bg-surface flex cursor-pointer items-start justify-between rounded-lg border p-3"
+                  className="list-row list-row-interactive flex w-full items-start justify-between text-left"
                   onClick={() => handleEditLineItem(item)}
                 >
                   <div>
@@ -568,7 +552,7 @@ export default function EstimateDetailPage() {
         </CollapsibleSection>
 
         {/* TOTAL */}
-        <section className="card rounded-lg p-4">
+        <section className="card p-4">
           <div className="flex justify-between text-lg font-semibold">
             <span>Total</span>
             <span>${formatCurrency(estimate?.grand_total)}</span>

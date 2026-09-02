@@ -26,9 +26,7 @@ export function KanbanColumn({ status, leads }) {
       <SortableContext items={itemIds} strategy={verticalListSortingStrategy}>
         <div className="space-y-2">
           {leads.length === 0 ? (
-            <div className="text-muted rounded-md border border-dashed p-3 text-xs">
-              Drop lead here
-            </div>
+            <div className="kanban-column-empty">Drop lead here</div>
           ) : (
             leads.map((lead) => <KanbanCard key={lead.id} lead={lead} />)
           )}

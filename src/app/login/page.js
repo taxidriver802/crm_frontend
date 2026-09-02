@@ -3,6 +3,8 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { api } from "@/lib/api";
+import { Alert } from "@/components/ui/alert";
+import { AuthFrame } from "@/components/auth/auth-frame";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -33,51 +35,38 @@ export default function LoginPage() {
   }
 
   return (
-    <main className="bg-app text-main flex min-h-screen items-center justify-center px-4">
-      <div className="card w-full max-w-sm rounded-lg p-8">
-        <div className="mb-6">
-          <h1 className="text-center text-2xl font-semibold">Sign In</h1>
-          <p className="text-muted mt-2 text-center text-sm">
-            Access your CRM workspace.
-          </p>
-        </div>
+    <AuthFrame title="Sign in" description="Access your CRM workspace.">
+      <form onSubmit={handleSubmit} className="space-y-4">
+        <label className="block">
+          <span className="text-sm font-medium">Email</span>
+          <input
+            type="email"
+            placeholder="you@example.com"
+            className="input mt-1"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            required
+          />
+        </label>
 
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <label className="block">
-            <span className="text-sm font-medium">Email</span>
-            <input
-              type="email"
-              placeholder="you@example.com"
-              className="input mt-1"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              required
-            />
-          </label>
+        <label className="block">
+          <span className="text-sm font-medium">Password</span>
+          <input
+            type="password"
+            placeholder="Enter your password"
+            className="input mt-1"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            required
+          />
+        </label>
 
-          <label className="block">
-            <span className="text-sm font-medium">Password</span>
-            <input
-              type="password"
-              placeholder="Enter your password"
-              className="input mt-1"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              required
-            />
-          </label>
+        {error ? <Alert>{error}</Alert> : null}
 
-          {error ? (
-            <div className="rounded-lg border border-red-300 bg-red-50 px-3 py-2 text-sm text-red-700">
-              {error}
-            </div>
-          ) : null}
-
-          <button type="submit" className="btn btn-primary w-full" disabled={submitting}>
-            {submitting ? "Signing In..." : "Sign In"}
-          </button>
-        </form>
-      </div>
-    </main>
+        <button type="submit" className="btn btn-primary w-full" disabled={submitting}>
+          {submitting ? "Signing in..." : "Sign in"}
+        </button>
+      </form>
+    </AuthFrame>
   );
 }

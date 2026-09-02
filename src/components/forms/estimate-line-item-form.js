@@ -1,5 +1,7 @@
 "use client";
 
+import { Field, FormActions } from "@/components/ui/field";
+
 export function createEmptyLineItem() {
   return {
     name: "",
@@ -50,25 +52,28 @@ export function EstimateLineItemForm({
 
   return (
     <form onSubmit={onSubmit} className="space-y-3">
-      <input
-        className="input"
-        placeholder="Item name"
-        value={form.name}
-        onChange={(e) => setField("name", e.target.value)}
-        required
-      />
-      <input
-        className="input"
-        placeholder="Description (optional)"
-        value={form.description || ""}
-        onChange={(e) => setField("description", e.target.value)}
-      />
+      <Field label="Item name" required>
+        <input
+          className="input"
+          placeholder="Item name"
+          value={form.name}
+          onChange={(e) => setField("name", e.target.value)}
+          required
+        />
+      </Field>
+      <Field label="Description">
+        <input
+          className="input"
+          placeholder="Description (optional)"
+          value={form.description || ""}
+          onChange={(e) => setField("description", e.target.value)}
+        />
+      </Field>
 
-      <div className="grid grid-cols-2 gap-2">
-        <label className="flex items-center gap-2">
-          <span className="text-sm text-slate-500">Quantity:</span>
+      <div className="grid grid-cols-2 gap-3">
+        <Field label="Quantity">
           <input
-            className="input flex-1"
+            className="input"
             placeholder="1"
             type="number"
             min="1"
@@ -76,35 +81,34 @@ export function EstimateLineItemForm({
             value={form.quantity}
             onChange={(e) => handleNumberChange("quantity", e.target.value, 1, 1)}
           />
-        </label>
+        </Field>
 
-        <label className="flex items-center gap-2">
-          <span className="text-sm text-slate-500">$</span>
+        <Field label="Unit price">
           <input
-            className="input flex-1"
+            className="input"
             type="number"
             min="0"
             step="0.01"
-            placeholder="Unit price"
+            placeholder="0.00"
             value={form.unit_price}
             onChange={(e) => handleNumberChange("unit_price", e.target.value, 0, 0)}
           />
-        </label>
+        </Field>
       </div>
       <div className="flex w-full flex-row items-center justify-between">
-        <div className="flex gap-2">
-          <button className="btn" disabled={saving}>
+        <FormActions>
+          <button className="btn btn-primary" disabled={saving}>
             {saving ? "Saving..." : submitLabel}
           </button>
 
           <button type="button" className="btn" onClick={onCancel}>
             Cancel
           </button>
-        </div>
+        </FormActions>
         {deleteButton && (
           <button
             type="button"
-            className="btn btn-ghost text-red-500"
+            className="btn btn-ghost btn-danger"
             onClick={onDelete}
             disabled={saving}
           >

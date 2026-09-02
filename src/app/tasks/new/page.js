@@ -150,7 +150,7 @@ function NewTaskPageInner() {
 
   return (
     <AppShell title={title}>
-      <section className="card rounded-lg p-4">
+      <section className="card p-4">
         <TaskForm
           form={form}
           onChange={setForm}
@@ -178,7 +178,7 @@ export default function NewTaskPage() {
     <Suspense
       fallback={
         <AppShell title="New Task">
-          <section className="card rounded-lg p-4">
+          <section className="card p-4">
             <div className="text-muted text-sm">Loading…</div>
           </section>
         </AppShell>

@@ -9,6 +9,8 @@ import { ListToolbar } from "@/components/list-toolbar";
 import { TableRowSkeleton } from "@/components/loading/loadingSkeletons";
 import { PageError } from "@/components/error-boundary";
 import { formatDate } from "@/lib/helper";
+import { StatusBadge } from "@/components/ui/status-badge";
+import { Segmented } from "@/components/ui/segmented";
 
 const STATUS_OPTIONS = ["All", "Draft", "Sent", "Paid", "Overdue"];
 const DUE_OPTIONS = [
@@ -22,22 +24,6 @@ function formatCurrency(num) {
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
   });
-}
-
-function StatusBadge({ status }) {
-  const map = {
-    Draft: "border-gray-500/30 bg-gray-500/10 text-gray-700",
-    Sent: "border-blue-500/30 bg-blue-500/10 text-blue-700",
-    Paid: "border-green-500/30 bg-green-500/10 text-green-700",
-    Overdue: "border-red-500/30 bg-red-500/10 text-red-700",
-  };
-  return (
-    <span
-      className={`inline-flex rounded-full border px-2 py-0.5 text-xs ${map[status] || ""}`}
-    >
-      {status}
-    </span>
-  );
 }
 
 export default function InvoicesListPage() {
@@ -77,18 +63,12 @@ export default function InvoicesListPage() {
         <ListToolbar
           left={
             <>
-              <div className="flex flex-wrap gap-1">
-                {STATUS_OPTIONS.map((s) => (
-                  <button
-                    key={s}
-                    type="button"
-                    className={`btn px-3 py-2 text-xs ${statusFilter === s ? "bg-accent text-main" : ""}`}
-                    onClick={() => setStatusFilter(s)}
-                  >
-                    {s}
-                  </button>
-                ))}
-              </div>
+              <Segmented
+                aria-label="Invoice status"
+                value={statusFilter}
+                onChange={setStatusFilter}
+                options={STATUS_OPTIONS.map((s) => ({ value: s, label: s }))}
+              />
               <select
                 className="input h-9 text-sm"
                 value={dueFilter}
@@ -109,16 +89,16 @@ export default function InvoicesListPage() {
           }
         />
 
-        <div className="card overflow-hidden rounded-lg">
-          <table className="w-full text-sm">
+        <div className="card overflow-hidden">
+          <table className="data-table">
             <thead>
-              <tr className="border-base border-b text-left">
-                <th className="px-4 py-3 font-medium">Invoice</th>
-                <th className="px-4 py-3 font-medium">Job</th>
-                <th className="px-4 py-3 font-medium">Client</th>
-                <th className="px-4 py-3 font-medium">Status</th>
-                <th className="px-4 py-3 text-right font-medium">Total</th>
-                <th className="px-4 py-3 font-medium">Due</th>
+              <tr>
+                <th>Invoice</th>
+                <th>Job</th>
+                <th>Client</th>
+                <th>Status</th>
+                <th className="text-right">Total</th>
+                <th>Due</th>
               </tr>
             </thead>
             <tbody>
@@ -128,7 +108,7 @@ export default function InvoicesListPage() {
                 ))
               ) : invoices.length === 0 ? (
                 <tr>
-                  <td colSpan={6} className="text-muted px-4 py-8 text-center">
+                  <td colSpan={6} className="text-muted text-center">
                     No invoices match the current filters.
                   </td>
                 </tr>
@@ -136,11 +116,11 @@ export default function InvoicesListPage() {
                 invoices.map((inv) => (
                   <tr
                     key={inv.id}
-                    className="border-base hover:bg-accent cursor-pointer border-t transition"
+                    className="cursor-pointer"
                     onClick={() => router.push(`/invoices/${inv.id}`)}
                   >
-                    <td className="px-4 py-3 font-medium">{inv.invoice_number}</td>
-                    <td className="px-4 py-3">
+                    <td className="font-medium">{inv.invoice_number}</td>
+                    <td>
                       <Link
                         href={`/jobs/${inv.job_id}`}
                         className="underline underline-offset-2"
@@ -149,14 +129,14 @@ export default function InvoicesListPage() {
                         {inv.job_title || `Job #${inv.job_id}`}
                       </Link>
                     </td>
-                    <td className="px-4 py-3">{inv.lead_name || "—"}</td>
-                    <td className="px-4 py-3">
-                      <StatusBadge status={inv.status} />
+                    <td>{inv.lead_name || "—"}</td>
+                    <td>
+                      <StatusBadge kind="invoice" status={inv.status} />
                     </td>
-                    <td className="px-4 py-3 text-right font-semibold">
+                    <td className="text-right font-semibold">
                       ${formatCurrency(inv.grand_total)}
                     </td>
-                    <td className="px-4 py-3">
+                    <td>
                       {inv.due_date ? formatDate(inv.due_date) : "—"}
                     </td>
                   </tr>

@@ -7,6 +7,9 @@ import {
   DAY_PICKER_CLASSNAMES,
   parseLocalDate,
 } from "@/components/calendar/calendar-shared";
+import { Alert } from "@/components/ui/alert";
+import { Field, FormActions } from "@/components/ui/field";
+import { Segmented } from "@/components/ui/segmented";
 
 const STATUS_OPTIONS = ["Pending", "Completed"];
 
@@ -64,39 +67,34 @@ export function TaskForm({
 
   return (
     <form onSubmit={onSubmit} className="space-y-4">
-      {error ? <div className="text-sm text-red-500">{error}</div> : null}
+      {error ? <Alert variant="inline">{error}</Alert> : null}
 
       {!isContextLocked ? (
-        <div className="flex gap-2">
-          <button
-            type="button"
-            onClick={() => onContextChange?.("lead")}
-            className={`rounded-md px-3 py-1.5 text-sm ${
-              contextType === "lead" ? "bg-accent border-base border" : "hover:bg-accent"
-            }`}
-          >
-            Lead
-          </button>
-
-          <button
-            type="button"
-            onClick={() => onContextChange?.("job")}
-            className={`rounded-md px-3 py-1.5 text-sm ${
-              contextType === "job" ? "bg-accent border-base border" : "hover:bg-accent"
-            }`}
-          >
-            Job
-          </button>
-        </div>
+        <Segmented
+          aria-label="Task context"
+          value={contextType}
+          onChange={(next) => onContextChange?.(next)}
+          options={[
+            { value: "lead", label: "Lead" },
+            { value: "job", label: "Job" },
+          ]}
+        />
       ) : null}
 
       <div className={`grid gap-4 ${isCompact ? "md:grid-cols-2" : "sm:grid-cols-2"}`}>
         <div className={isCompact ? "md:col-span-2" : "sm:col-span-2"}>
           {contextType === "lead" ? (
-            <>
-              <label className="text-muted text-xs">Lead *</label>
+            <Field
+              label="Lead"
+              required
+              help={
+                leads.length
+                  ? "Pick the lead this task belongs to."
+                  : "Create a lead first, then come back to create tasks."
+              }
+            >
               <select
-                className="input mt-1"
+                className="input"
                 value={form.lead_id}
                 onChange={(e) => setField("lead_id", e.target.value)}
                 disabled={loadingLeads || saving || isContextLocked}
@@ -115,18 +113,19 @@ export function TaskForm({
                   </option>
                 ))}
               </select>
-
-              <div className="text-muted mt-1 text-xs">
-                {leads.length
-                  ? "Pick the lead this task belongs to."
-                  : "Create a lead first, then come back to create tasks."}
-              </div>
-            </>
+            </Field>
           ) : (
-            <>
-              <label className="text-muted text-xs">Job *</label>
+            <Field
+              label="Job"
+              required
+              help={
+                jobs.length
+                  ? "Select the job this task belongs to."
+                  : "Create a job first, then come back to create tasks."
+              }
+            >
               <select
-                className="input mt-1"
+                className="input"
                 value={form.job_id}
                 onChange={(e) => setField("job_id", e.target.value)}
                 disabled={loadingJobs || saving || isContextLocked}
@@ -145,20 +144,13 @@ export function TaskForm({
                   </option>
                 ))}
               </select>
-
-              <div className="text-muted mt-1 text-xs">
-                {jobs.length
-                  ? "Select the job this task belongs to."
-                  : "Create a job first, then come back to create tasks."}
-              </div>
-            </>
+            </Field>
           )}
         </div>
 
-        <div>
-          <label className="text-muted text-xs">Status</label>
+        <Field label="Status">
           <select
-            className="input mt-1"
+            className="input"
             value={form.status}
             onChange={(e) => setField("status", e.target.value)}
           >
@@ -168,40 +160,44 @@ export function TaskForm({
               </option>
             ))}
           </select>
-        </div>
+        </Field>
 
-        <div>
-          <label className="text-muted text-xs">Due date</label>
+        <Field label="Due date">
           <CustomDateTimePicker
             value={form.due_date}
             onChange={(val) => setField("due_date", val)}
           />
-        </div>
+        </Field>
 
-        <div className={isCompact ? "md:col-span-2" : "sm:col-span-2"}>
-          <label className="text-muted text-xs">Title *</label>
+        <Field
+          label="Title"
+          required
+          className={isCompact ? "md:col-span-2" : "sm:col-span-2"}
+        >
           <input
-            className="input mt-1"
+            className="input"
             value={form.title}
             onChange={(e) => setField("title", e.target.value)}
             placeholder="e.g. Call about showing"
             required
           />
-        </div>
+        </Field>
 
-        <div className={isCompact ? "md:col-span-2" : "sm:col-span-2"}>
-          <label className="text-muted text-xs">Description</label>
+        <Field
+          label="Description"
+          className={isCompact ? "md:col-span-2" : "sm:col-span-2"}
+        >
           <textarea
-            className="input mt-1 min-h-[120px]"
+            className="input min-h-[120px]"
             value={form.description}
             onChange={(e) => setField("description", e.target.value)}
             placeholder="Extra context, talking points, etc."
           />
-        </div>
+        </Field>
       </div>
 
-      <div className="flex flex-wrap gap-2">
-        <button type="submit" className="btn" disabled={saving}>
+      <FormActions>
+        <button type="submit" className="btn btn-primary" disabled={saving}>
           {saving ? "Saving…" : submitLabel}
         </button>
 
@@ -210,7 +206,7 @@ export function TaskForm({
             {cancelLabel || "Cancel"}
           </button>
         ) : null}
-      </div>
+      </FormActions>
     </form>
   );
 }
@@ -274,7 +270,7 @@ function CustomTimePicker({ value, onChange, isOpen, onToggle, onClose }) {
 
   return (
     <div className="relative w-full">
-      <button type="button" onClick={onToggle} className="input mt-1 w-full text-left">
+      <button type="button" onClick={onToggle} className="input w-full text-left">
         {formatDisplayTime(value)}
       </button>
 
@@ -282,7 +278,7 @@ function CustomTimePicker({ value, onChange, isOpen, onToggle, onClose }) {
         <div className="dropdown-panel absolute right-0 z-50 mt-2 w-full min-w-[220px] p-3">
           <div className="grid grid-cols-3 gap-2">
             <div>
-              <label className="text-muted mb-1 block text-xs">Hour</label>
+              <label className="field-label mb-1">Hour</label>
               <select
                 className="input"
                 value={hour}
@@ -297,7 +293,7 @@ function CustomTimePicker({ value, onChange, isOpen, onToggle, onClose }) {
             </div>
 
             <div>
-              <label className="text-muted mb-1 block text-xs">Minute</label>
+              <label className="field-label mb-1">Minute</label>
               <select
                 className="input"
                 value={minute}
@@ -312,7 +308,7 @@ function CustomTimePicker({ value, onChange, isOpen, onToggle, onClose }) {
             </div>
 
             <div>
-              <label className="text-muted mb-1 block text-xs">AM / PM</label>
+              <label className="field-label mb-1">AM / PM</label>
               <select
                 className="input"
                 value={period}
@@ -339,7 +335,7 @@ function CustomTimePicker({ value, onChange, isOpen, onToggle, onClose }) {
               Clear
             </button>
 
-            <button type="button" className="btn" onClick={onClose}>
+            <button type="button" className="btn btn-primary" onClick={onClose}>
               Done
             </button>
           </div>
@@ -419,7 +415,7 @@ export function CustomDateTimePicker({ value, onChange }) {
         <button
           type="button"
           onClick={() => setOpenPanel((prev) => (prev === "date" ? null : "date"))}
-          className="input mt-1 w-full text-left"
+          className="input w-full text-left"
         >
           {formatDisplayDate(date)}
         </button>

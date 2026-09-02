@@ -1,10 +1,14 @@
 "use client";
 
+import Link from "next/link";
+
 export function ToggleFormSection({
   title,
   description,
   isOpen,
   onToggle,
+  fullFormUrl,
+  fullFormLabel = "Full Form",
   openLabel = "+ New",
   closeLabel = "Hide Form",
   children,
@@ -12,24 +16,33 @@ export function ToggleFormSection({
   disabled = false,
 }) {
   return (
-    <section className={`bg-surface border-base rounded-lg border p-4 ${className}`}>
+    <section className={`card p-4 ${className}`.trim()}>
       <div className="mb-4 flex items-center justify-between gap-3">
         <div>
-          <h3 className="font-medium">{title}</h3>
+          <h3 className="section-heading">{title}</h3>
           {description ? <p className="text-muted mt-1 text-xs">{description}</p> : null}
         </div>
 
-        <button
-          type="button"
-          onClick={onToggle}
-          disabled={disabled}
-          className="border-base bg-surface hover:bg-accent rounded-md border px-4 py-2 text-sm disabled:opacity-60"
-        >
-          {isOpen ? closeLabel : openLabel}
-        </button>
+        <div className="flex shrink-0 flex-wrap items-center justify-end gap-2">
+          {fullFormUrl ? (
+            <Link href={fullFormUrl} className="btn btn-sm">
+              {fullFormLabel}
+            </Link>
+          ) : null}
+
+          <button
+            type="button"
+            onClick={onToggle}
+            disabled={disabled}
+            className="btn btn-sm"
+            aria-expanded={isOpen}
+          >
+            {isOpen ? closeLabel : openLabel}
+          </button>
+        </div>
       </div>
 
-      {isOpen ? <div className="transition-all duration-200">{children}</div> : null}
+      {isOpen ? children : null}
     </section>
   );
 }
