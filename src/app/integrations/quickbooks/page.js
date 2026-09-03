@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { AppShell } from "@/components/app-shell";
+import { useConfirmModal } from "@/components/modals/confirm-modal";
 import { api } from "@/lib/api";
 import { DetailSkeleton } from "@/components/loading/loadingSkeletons";
 import { PageError } from "@/components/error-boundary";
@@ -9,6 +10,7 @@ import Link from "next/link";
 import { StatusBadge } from "@/components/ui/status-badge";
 
 export default function QuickBooksPage() {
+  const { askConfirm, confirmModal } = useConfirmModal();
   const [status, setStatus] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -46,19 +48,24 @@ export default function QuickBooksPage() {
     }
   }
 
-  async function handleDisconnect() {
-    const confirmed = window.confirm("Disconnect QuickBooks?");
-    if (!confirmed) return;
-    setBusy(true);
-    setError("");
-    try {
-      await api("/integrations/quickbooks/disconnect", { method: "POST" });
-      await loadStatus();
-    } catch (e) {
-      setError(e?.message || "Failed to disconnect");
-    } finally {
-      setBusy(false);
-    }
+  function handleDisconnect() {
+    askConfirm({
+      title: "Disconnect QuickBooks?",
+      description: "You can reconnect anytime. Existing synced data is not deleted.",
+      confirmLabel: "Disconnect",
+      onConfirm: async () => {
+        setBusy(true);
+        setError("");
+        try {
+          await api("/integrations/quickbooks/disconnect", { method: "POST" });
+          await loadStatus();
+        } catch (e) {
+          setError(e?.message || "Failed to disconnect");
+        } finally {
+          setBusy(false);
+        }
+      },
+    });
   }
 
   const isConnected = status?.connected;
@@ -182,6 +189,7 @@ export default function QuickBooksPage() {
           </div>
         </section>
       </div>
+      {confirmModal}
     </AppShell>
   );
 }

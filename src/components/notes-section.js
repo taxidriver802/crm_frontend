@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { api } from "@/lib/api";
+import { useConfirmModal } from "@/components/modals/confirm-modal";
 import { Alert } from "@/components/ui/alert";
 import { Field, FormActions } from "@/components/ui/field";
 import { ListRow } from "@/components/ui/list-row";
@@ -23,6 +24,7 @@ function formatRelativeTime(value) {
 }
 
 export function NotesSection({ entityType, entityId, onLoadState }) {
+  const { askConfirm, confirmModal } = useConfirmModal();
   const [notes, setNotes] = useState([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -87,16 +89,19 @@ export function NotesSection({ entityType, entityId, onLoadState }) {
     }
   }
 
-  async function handleDeleteNote(noteId) {
-    const ok = window.confirm("Delete this note?");
-    if (!ok) return;
-
-    try {
-      await api(`/notes/${noteId}`, { method: "DELETE" });
-      setNotes((prev) => prev.filter((note) => note.id !== noteId));
-    } catch (e) {
-      setError(e?.message || "Failed to delete note");
-    }
+  function handleDeleteNote(noteId) {
+    askConfirm({
+      title: "Delete this note?",
+      confirmLabel: "Delete",
+      onConfirm: async () => {
+        try {
+          await api(`/notes/${noteId}`, { method: "DELETE" });
+          setNotes((prev) => prev.filter((note) => note.id !== noteId));
+        } catch (e) {
+          setError(e?.message || "Failed to delete note");
+        }
+      },
+    });
   }
 
   return (
@@ -153,6 +158,7 @@ export function NotesSection({ entityType, entityId, onLoadState }) {
           ))}
         </div>
       )}
+      {confirmModal}
     </div>
   );
 }

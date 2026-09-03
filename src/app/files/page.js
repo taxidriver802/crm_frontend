@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 
 
 import { AppShell } from "@/components/app-shell";
+import { useConfirmModal } from "@/components/modals/confirm-modal";
 import { FilePreviewModal } from "@/components/modals/file-preview-modal";
 import { api } from "@/lib/api";
 import {
@@ -58,6 +59,7 @@ function ScopeBadge({ file, router }) {
 
 export default function FilesPage() {
   const router = useRouter();
+  const { askConfirm, confirmModal } = useConfirmModal();
 
   const [currentUser, setCurrentUser] = useState(null);
   const [files, setFiles] = useState([]);
@@ -230,27 +232,31 @@ export default function FilesPage() {
     }
   }
 
-  async function deleteFile(id) {
-    const confirmed = window.confirm("Delete this file?");
-    if (!confirmed) return;
+  function deleteFile(id) {
+    askConfirm({
+      title: "Delete this file?",
+      description: "This file will be permanently removed.",
+      confirmLabel: "Delete",
+      onConfirm: async () => {
+        setBusyId(id);
+        setError("");
+        setSuccess("");
 
-    setBusyId(id);
-    setError("");
-    setSuccess("");
+        try {
+          await api(`/files/${id}`, {
+            method: "DELETE",
+          });
 
-    try {
-      await api(`/files/${id}`, {
-        method: "DELETE",
-      });
-
-      setSuccess("File deleted successfully.");
-      await loadFiles();
-    } catch (err) {
-      console.error(err);
-      setError("Failed to delete file.");
-    } finally {
-      setBusyId(null);
-    }
+          setSuccess("File deleted successfully.");
+          await loadFiles();
+        } catch (err) {
+          console.error(err);
+          setError("Failed to delete file.");
+        } finally {
+          setBusyId(null);
+        }
+      },
+    });
   }
 
   if (loadingUser) {
@@ -491,6 +497,7 @@ export default function FilesPage() {
         file={previewFile}
         onClose={() => setPreviewFile(null)}
       />
+      {confirmModal}
     </AppShell>
   );
 }

@@ -3,11 +3,7 @@
 import { usePathname } from "next/navigation";
 import { ThemeProvider as NextThemesProvider } from "next-themes";
 import { ThemeController } from "@/components/theme/theme-controller";
-
-/** Customer links stay light; do not inherit salesperson or OS scheme. */
-export function isPublicCustomerPath(pathname) {
-  return typeof pathname === "string" && pathname.startsWith("/public/");
-}
+import { isPublicCustomerPath } from "@/theme/public-path";
 
 export function ThemeProvider({ children }) {
   const pathname = usePathname();

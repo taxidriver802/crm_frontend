@@ -16,6 +16,7 @@ import {
 } from "@/lib/helper";
 
 import { ToggleFormSection } from "@/components/toggle-form-section";
+import { useConfirmModal } from "@/components/modals/confirm-modal";
 import { FilePreviewModal } from "@/components/modals/file-preview-modal";
 import { TaskForm, createEmptyTaskForm } from "@/components/forms/task-form";
 import { CollapsibleSection } from "@/components/forms/collapsible-section";
@@ -51,6 +52,7 @@ function JobStatusBadge({ status }) {
 
 export default function JobDetailPage() {
   const { id } = useParams();
+  const { askConfirm, confirmModal } = useConfirmModal();
 
   const [job, setJob] = useState(null);
   const [tasks, setTasks] = useState([]);
@@ -336,20 +338,24 @@ export default function JobDetailPage() {
     setMeasurementsError("");
   }
 
-  async function handleDeleteMeasurement(m) {
-    const ok = window.confirm("Delete this measurement?");
-    if (!ok) return;
-    setMeasurementsError("");
-    try {
-      await api(`/jobs/${id}/measurements/${m.id}`, { method: "DELETE" });
-      await loadMeasurements();
-      if (editingMeasurement?.id === m.id) {
-        setEditingMeasurement(null);
-        setMeasurementForm({ label: "", value: "", unit: "" });
-      }
-    } catch (err) {
-      setMeasurementsError(err.message || "Could not delete");
-    }
+  function handleDeleteMeasurement(m) {
+    askConfirm({
+      title: "Delete this measurement?",
+      confirmLabel: "Delete",
+      onConfirm: async () => {
+        setMeasurementsError("");
+        try {
+          await api(`/jobs/${id}/measurements/${m.id}`, { method: "DELETE" });
+          await loadMeasurements();
+          if (editingMeasurement?.id === m.id) {
+            setEditingMeasurement(null);
+            setMeasurementForm({ label: "", value: "", unit: "" });
+          }
+        } catch (err) {
+          setMeasurementsError(err.message || "Could not delete");
+        }
+      },
+    });
   }
 
   async function handleCreateTask(e) {
@@ -443,26 +449,30 @@ export default function JobDetailPage() {
     }
   }
 
-  async function handleDeleteFile(fileId) {
-    const confirmed = window.confirm("Delete this file?");
-    if (!confirmed) return;
+  function handleDeleteFile(fileId) {
+    askConfirm({
+      title: "Delete this file?",
+      description: "This file will be permanently removed.",
+      confirmLabel: "Delete",
+      onConfirm: async () => {
+        setBusyFileId(fileId);
+        setFilesError("");
 
-    setBusyFileId(fileId);
-    setFilesError("");
+        try {
+          await api(`/files/${fileId}`, {
+            method: "DELETE",
+          });
 
-    try {
-      await api(`/files/${fileId}`, {
-        method: "DELETE",
-      });
-
-      setFiles((prev) => prev.filter((file) => file.id !== fileId));
-      await loadActivity();
-    } catch (e) {
-      console.error(e);
-      setFilesError(e?.message || "Failed to delete file");
-    } finally {
-      setBusyFileId(null);
-    }
+          setFiles((prev) => prev.filter((file) => file.id !== fileId));
+          await loadActivity();
+        } catch (e) {
+          console.error(e);
+          setFilesError(e?.message || "Failed to delete file");
+        } finally {
+          setBusyFileId(null);
+        }
+      },
+    });
   }
 
   async function handleGeneratePortalLink() {
@@ -1327,6 +1337,7 @@ export default function JobDetailPage() {
         file={previewFile}
         onClose={() => setPreviewFile(null)}
       />
+      {confirmModal}
     </AppShell>
   );
 }

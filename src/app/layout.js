@@ -8,6 +8,7 @@ import {
   DEFAULT_PALETTE_ID,
   buildAllPalettesCss,
   getPaletteBootstrapScript,
+  resolvePwaTheme,
 } from "@/theme/registry";
 
 const geistSans = Geist({
@@ -20,19 +21,23 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
+const pwa = resolvePwaTheme(DEFAULT_PALETTE_ID);
+
 export const metadata = {
   title: "Rooftop Realty CRM",
   description: "Roofing, Gutters, Siding, Windows, Buy & Sell",
-  manifest: "/manifest.json",
   appleWebApp: {
     capable: true,
     statusBarStyle: "black-translucent",
     title: "CRM",
   },
+  icons: {
+    apple: "/icons/icon-192.svg",
+  },
 };
 
 export const viewport = {
-  themeColor: "#6366f1",
+  themeColor: pwa.themeColor,
   width: "device-width",
   initialScale: 1,
   maximumScale: 1,
@@ -51,11 +56,8 @@ export default function RootLayout({ children }) {
         <script
           dangerouslySetInnerHTML={{ __html: getPaletteBootstrapScript() }}
         />
-        <link rel="manifest" href="/manifest.json" />
-        <meta name="theme-color" content="#6366f1" />
         <meta name="apple-mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-        <link rel="apple-touch-icon" href="/icons/icon-192.svg" />
       </head>
       <body
         className={`${geistSans.variable} ${geistMono.variable} font-sans antialiased`}

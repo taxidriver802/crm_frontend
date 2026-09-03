@@ -15,6 +15,7 @@ import {
   isPreviewableFile,
 } from "@/lib/helper";
 import { FilePreviewModal } from "@/components/modals/file-preview-modal";
+import { useConfirmModal } from "@/components/modals/confirm-modal";
 import { CollapsibleSection } from "@/components/forms/collapsible-section";
 import { DetailMoreMenu, DetailMoreMenuItem } from "@/components/detail-more-menu";
 import { Skeleton } from "@/components/loading/loadingSkeletons";
@@ -37,6 +38,7 @@ function isOverdueTask(task) {
 export default function LeadDetailPage() {
   const { id } = useParams();
   const router = useRouter();
+  const { askConfirm, confirmModal } = useConfirmModal();
 
   const [jobs, setJobs] = useState([]);
   const [loadingJobs, setLoadingJobs] = useState(true);
@@ -160,15 +162,20 @@ export default function LeadDetailPage() {
     };
   }, [id]);
 
-  const handleDeleteLead = async () => {
-    if (!window.confirm("Are you sure you want to delete this lead?")) return;
-
-    try {
-      await api(`/leads/${id}`, { method: "DELETE" });
-      router.push("/leads");
-    } catch (e) {
-      alert(e?.message || "Failed to delete lead");
-    }
+  const handleDeleteLead = () => {
+    askConfirm({
+      title: "Delete this lead?",
+      description: "This cannot be undone.",
+      confirmLabel: "Delete",
+      onConfirm: async () => {
+        try {
+          await api(`/leads/${id}`, { method: "DELETE" });
+          router.push("/leads");
+        } catch (e) {
+          alert(e?.message || "Failed to delete lead");
+        }
+      },
+    });
   };
 
   async function handleFileUpload(event) {
@@ -208,27 +215,31 @@ export default function LeadDetailPage() {
     }
   }
 
-  async function handleDeleteFile(fileId) {
-    const confirmed = window.confirm("Delete this file?");
-    if (!confirmed) return;
+  function handleDeleteFile(fileId) {
+    askConfirm({
+      title: "Delete this file?",
+      description: "This file will be permanently removed.",
+      confirmLabel: "Delete",
+      onConfirm: async () => {
+        setBusyFileId(fileId);
+        setFilesError("");
+        setSuccess("");
 
-    setBusyFileId(fileId);
-    setFilesError("");
-    setSuccess("");
+        try {
+          await api(`/files/${fileId}`, {
+            method: "DELETE",
+          });
 
-    try {
-      await api(`/files/${fileId}`, {
-        method: "DELETE",
-      });
-
-      setFiles((prev) => prev.filter((file) => file.id !== fileId));
-      setSuccess("File deleted successfully.");
-    } catch (e) {
-      console.error(e);
-      setFilesError(e?.message || "Failed to delete file");
-    } finally {
-      setBusyFileId(null);
-    }
+          setFiles((prev) => prev.filter((file) => file.id !== fileId));
+          setSuccess("File deleted successfully.");
+        } catch (e) {
+          console.error(e);
+          setFilesError(e?.message || "Failed to delete file");
+        } finally {
+          setBusyFileId(null);
+        }
+      },
+    });
   }
 
   const openTasks = useMemo(
@@ -609,6 +620,7 @@ export default function LeadDetailPage() {
         file={previewFile}
         onClose={() => setPreviewFile(null)}
       />
+      {confirmModal}
     </AppShell>
   );
 }

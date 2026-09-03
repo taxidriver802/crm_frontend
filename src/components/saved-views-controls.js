@@ -2,9 +2,11 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { api } from "@/lib/api";
+import { useConfirmModal } from "@/components/modals/confirm-modal";
 import { Alert } from "@/components/ui/alert";
 
 export function SavedViewsControls({ entityType, currentFilters, onApplyFilters }) {
+  const { askConfirm, confirmModal } = useConfirmModal();
   const [views, setViews] = useState([]);
   const [selectedId, setSelectedId] = useState("");
   const [loading, setLoading] = useState(true);
@@ -73,20 +75,24 @@ export function SavedViewsControls({ entityType, currentFilters, onApplyFilters 
     }
   }
 
-  async function handleDeleteSelected() {
+  function handleDeleteSelected() {
     if (!selectedView) return;
-    if (!window.confirm(`Delete "${selectedView.name}"?`)) return;
-
-    setBusy(true);
-    try {
-      await api(`/saved-views/${selectedView.id}`, { method: "DELETE" });
-      setSelectedId("");
-      await loadViews();
-    } catch (e) {
-      window.alert(e?.message || "Failed to delete view");
-    } finally {
-      setBusy(false);
-    }
+    askConfirm({
+      title: `Delete "${selectedView.name}"?`,
+      confirmLabel: "Delete",
+      onConfirm: async () => {
+        setBusy(true);
+        try {
+          await api(`/saved-views/${selectedView.id}`, { method: "DELETE" });
+          setSelectedId("");
+          await loadViews();
+        } catch (e) {
+          setInlineError(e?.message || "Failed to delete view");
+        } finally {
+          setBusy(false);
+        }
+      },
+    });
   }
 
   return (
@@ -187,6 +193,7 @@ export function SavedViewsControls({ entityType, currentFilters, onApplyFilters 
           {inlineError}
         </Alert>
       ) : null}
+      {confirmModal}
     </div>
   );
 }

@@ -1,11 +1,11 @@
-/** Rooftop Realty brand. Accent is rgb(249, 115, 22); buttons use dark ink on orange. */
-export const rooftop = {
-  id: "rooftop",
-  label: "Rooftop",
+/** Previous default blue. Same token keys as Rooftop; pages must not branch on this id. */
+export const azure = {
+  id: "azure",
+  label: "Azure",
   preview: {
     bg: "#f4f5f7",
     surface: "#eceef2",
-    accent: "#f97316",
+    accent: "#2563eb",
   },
   light: {
     "--bg": "#f4f5f7",
@@ -19,14 +19,14 @@ export const rooftop = {
     "--text": "#111318",
     "--text-muted": "#5c6370",
     "--text-soft": "#8b919c",
-    "--on-accent": "#111318",
+    "--on-accent": "#ffffff",
 
-    "--accent": "#f97316",
+    "--accent": "#2563eb",
     "--accent-hover": "color-mix(in srgb, var(--accent) 78%, #000000)",
     "--accent-soft": "color-mix(in srgb, var(--accent) 12%, transparent)",
 
     "--success": "#16a34a",
-    "--warning": "#ca8a04",
+    "--warning": "#f59e0b",
     "--danger": "#dc2626",
     "--success-soft": "color-mix(in srgb, var(--success) 12%, transparent)",
     "--warning-soft": "color-mix(in srgb, var(--warning) 12%, transparent)",
@@ -36,9 +36,9 @@ export const rooftop = {
     "--overlay-strong": "rgb(17 19 24 / 0.72)",
     "--on-overlay": "#ffffff",
 
-    "--chrome": "#000000",
-    "--chrome-elevated": "#141414",
-    "--chrome-border": "#2a1c12",
+    "--chrome": "#14161c",
+    "--chrome-elevated": "#1c1f26",
+    "--chrome-border": "#2a2e38",
     "--chrome-text": "#f4f4f5",
     "--chrome-muted": "#9aa0ab",
     "--chrome-hover": "color-mix(in srgb, #ffffff 8%, transparent)",
@@ -59,25 +59,25 @@ export const rooftop = {
     "--ease-standard": "cubic-bezier(0.4, 0, 0.2, 1)",
   },
   dark: {
-    "--bg": "#0a0a0a",
-    "--surface": "#141414",
-    "--surface-elevated": "#1a1a1a",
+    "--bg": "#101114",
+    "--surface": "#16171c",
+    "--surface-elevated": "#1c1d24",
 
-    "--border": "#2a2a2a",
-    "--border-strong": "#3d3d3d",
-    "--border-extra": "#6b6b6b",
+    "--border": "#2a2b32",
+    "--border-strong": "#3a3b44",
+    "--border-extra": "#6b6d78",
 
-    "--text": "#f4f4f5",
-    "--text-muted": "#a1a1aa",
-    "--text-soft": "#71717a",
-    "--on-accent": "#111318",
+    "--text": "#ececef",
+    "--text-muted": "#9b9ca6",
+    "--text-soft": "#6f707a",
+    "--on-accent": "#ffffff",
 
-    "--accent": "#f97316",
+    "--accent": "#2563eb",
     "--accent-hover": "color-mix(in srgb, var(--accent) 78%, #000000)",
     "--accent-soft": "color-mix(in srgb, var(--accent) 18%, transparent)",
 
     "--success": "#4ade80",
-    "--warning": "#eab308",
+    "--warning": "#fbbf24",
     "--danger": "#f87171",
     "--success-soft": "color-mix(in srgb, var(--success) 18%, transparent)",
     "--warning-soft": "color-mix(in srgb, var(--warning) 18%, transparent)",
@@ -86,10 +86,10 @@ export const rooftop = {
     "--overlay": "rgb(0 0 0 / 0.55)",
     "--overlay-strong": "rgb(0 0 0 / 0.78)",
 
-    "--chrome": "#000000",
-    "--chrome-elevated": "#111111",
-    "--chrome-border": "#2a1c12",
-    "--chrome-text": "#f4f4f5",
+    "--chrome": "#0c0d10",
+    "--chrome-elevated": "#14151a",
+    "--chrome-border": "#26272e",
+    "--chrome-text": "#ececef",
     "--chrome-muted": "#8b8d96",
     "--chrome-hover": "color-mix(in srgb, #ffffff 7%, transparent)",
 
@@ -97,18 +97,13 @@ export const rooftop = {
     "--shadow-md": "0 10px 28px rgb(0 0 0 / 0.4)",
   },
 
-  /**
-   * Light-only hex for PDFs and email (no CSS variables, no dark mode).
-   * Keep in sync with crm_backend/src/lib/print-theme.ts.
-   * accentSoft is 12% --accent on white (solid stand-in for color-mix).
-   */
   print: {
-    accent: "#f97316",
-    accentSoft: "#feeee3",
+    accent: "#2563eb",
+    accentSoft: "#e5ecfd",
     ink: "#111318",
     muted: "#5c6370",
     rule: "#e2e4ea",
-    onAccent: "#111318",
+    onAccent: "#ffffff",
     paper: "#f4f5f7",
     surface: "#ffffff",
   },

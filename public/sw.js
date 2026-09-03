@@ -1,4 +1,4 @@
-const CACHE_NAME = "crm-v2";
+const CACHE_NAME = "crm-v4";
 
 function canCache(request, response) {
   if (request.method !== "GET" || !response.ok) return false;

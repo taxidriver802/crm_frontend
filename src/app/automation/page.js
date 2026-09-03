@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { AppShell } from "@/components/app-shell";
+import { useConfirmModal } from "@/components/modals/confirm-modal";
 import { api } from "@/lib/api";
 import { CollapsibleSection } from "@/components/forms/collapsible-section";
 import { SectionSkeleton } from "@/components/loading/loadingSkeletons";
@@ -94,6 +95,7 @@ function TemplateCard({ template, onActivate, busy }) {
 }
 
 export default function AutomationPage() {
+  const { askConfirm, confirmModal } = useConfirmModal();
   const [rules, setRules] = useState([]);
   const [templates, setTemplates] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -138,18 +140,23 @@ export default function AutomationPage() {
     }
   }
 
-  async function handleDelete(rule) {
-    const confirmed = window.confirm(`Delete "${rule.name}"?`);
-    if (!confirmed) return;
-    setBusy(true);
-    try {
-      await api(`/automation/rules/${rule.id}`, { method: "DELETE" });
-      setRules((prev) => prev.filter((r) => r.id !== rule.id));
-    } catch (e) {
-      setError(e?.message || "Failed to delete rule");
-    } finally {
-      setBusy(false);
-    }
+  function handleDelete(rule) {
+    askConfirm({
+      title: `Delete "${rule.name}"?`,
+      description: "This automation rule will be permanently removed.",
+      confirmLabel: "Delete",
+      onConfirm: async () => {
+        setBusy(true);
+        try {
+          await api(`/automation/rules/${rule.id}`, { method: "DELETE" });
+          setRules((prev) => prev.filter((r) => r.id !== rule.id));
+        } catch (e) {
+          setError(e?.message || "Failed to delete rule");
+        } finally {
+          setBusy(false);
+        }
+      },
+    });
   }
 
   async function handleActivateTemplate(template) {
@@ -243,6 +250,7 @@ export default function AutomationPage() {
           )}
         </CollapsibleSection>
       </div>
+      {confirmModal}
     </AppShell>
   );
 }

@@ -4,6 +4,7 @@ import { useEffect, useLayoutEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 
 import { AppShell } from "@/components/app-shell";
+import { useConfirmModal } from "@/components/modals/confirm-modal";
 import { InviteUserModal } from "@/components/modals/invite-user-modal";
 import { api } from "@/lib/api";
 import { CollapsibleSection } from "@/components/forms/collapsible-section";
@@ -42,6 +43,7 @@ function getTableDropdownMenuPosition(triggerEl) {
 
 export default function UsersPage() {
   const router = useRouter();
+  const { askConfirm, confirmModal } = useConfirmModal();
 
   const [currentUser, setCurrentUser] = useState(null);
   const [users, setUsers] = useState([]);
@@ -239,27 +241,30 @@ export default function UsersPage() {
     }
   }
 
-  async function deleteUser(id) {
-    const confirmed = window.confirm(
-      "Delete this user? This is best reserved for test accounts or unused invited users.",
-    );
-    if (!confirmed) return;
+  function deleteUser(id) {
+    askConfirm({
+      title: "Delete this user?",
+      description:
+        "This is best reserved for test accounts or unused invited users.",
+      confirmLabel: "Delete",
+      onConfirm: async () => {
+        setBusyId(id);
+        setError("");
 
-    setBusyId(id);
-    setError("");
+        try {
+          await api(`/users/${id}`, {
+            method: "DELETE",
+          });
 
-    try {
-      await api(`/users/${id}`, {
-        method: "DELETE",
-      });
-
-      await loadUsers();
-    } catch (err) {
-      console.error(err);
-      setError(err.message || "Failed to delete user.");
-    } finally {
-      setBusyId(null);
-    }
+          await loadUsers();
+        } catch (err) {
+          console.error(err);
+          setError(err.message || "Failed to delete user.");
+        } finally {
+          setBusyId(null);
+        }
+      },
+    });
   }
 
   async function resendInvite(id) {
@@ -309,28 +314,31 @@ export default function UsersPage() {
     }
   }
 
-  async function revokeInvite(id) {
-    const confirmed = window.confirm(
-      "Revoke this invite? The link will stop working. You can send a new invite later.",
-    );
-    if (!confirmed) return;
+  function revokeInvite(id) {
+    askConfirm({
+      title: "Revoke this invite?",
+      description:
+        "The link will stop working. You can send a new invite later.",
+      confirmLabel: "Revoke",
+      onConfirm: async () => {
+        setBusyId(id);
+        setError("");
+        setSuccessMessage("");
 
-    setBusyId(id);
-    setError("");
-    setSuccessMessage("");
+        try {
+          await api(`/users/invite/${id}/revoke`, {
+            method: "POST",
+          });
 
-    try {
-      await api(`/users/invite/${id}/revoke`, {
-        method: "POST",
-      });
-
-      await loadUsers();
-    } catch (err) {
-      console.error(err);
-      setError(err.message || "Failed to revoke invite.");
-    } finally {
-      setBusyId(null);
-    }
+          await loadUsers();
+        } catch (err) {
+          console.error(err);
+          setError(err.message || "Failed to revoke invite.");
+        } finally {
+          setBusyId(null);
+        }
+      },
+    });
   }
 
   function getDisplayStatus(user) {
@@ -573,11 +581,6 @@ export default function UsersPage() {
                             <div className="text-muted text-xs sm:text-sm md:truncate">
                               {user.email}
                             </div>
-                            {isSelf ? (
-                              <div className="text-muted mt-1 text-xs">
-                                Current account
-                              </div>
-                            ) : null}
                           </div>
                         </Td>
 
@@ -910,6 +913,7 @@ export default function UsersPage() {
             loadUsers();
           }}
         />
+        {confirmModal}
       </div>
     </AppShell>
   );

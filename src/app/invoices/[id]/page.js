@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { AppShell } from "@/components/app-shell";
+import { useConfirmModal } from "@/components/modals/confirm-modal";
 import { api } from "@/lib/api";
 import { CollapsibleSection } from "@/components/forms/collapsible-section";
 import { ToggleFormSection } from "@/components/toggle-form-section";
@@ -100,6 +101,7 @@ function createEmptyLineItem() {
 export default function InvoiceDetailPage() {
   const { id } = useParams();
   const router = useRouter();
+  const { askConfirm, confirmModal } = useConfirmModal();
 
   const [invoice, setInvoice] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -217,15 +219,20 @@ export default function InvoiceDetailPage() {
     }
   }
 
-  async function handleDeleteInvoice() {
-    const confirmed = window.confirm("Delete this invoice?");
-    if (!confirmed) return;
-    try {
-      await api(`/invoices/${id}`, { method: "DELETE" });
-      router.push(`/jobs/${invoice?.job_id}`);
-    } catch (e) {
-      setError(e?.message || "Failed to delete invoice");
-    }
+  function handleDeleteInvoice() {
+    askConfirm({
+      title: "Delete this invoice?",
+      description: "This cannot be undone.",
+      confirmLabel: "Delete",
+      onConfirm: async () => {
+        try {
+          await api(`/invoices/${id}`, { method: "DELETE" });
+          router.push(`/jobs/${invoice?.job_id}`);
+        } catch (e) {
+          setError(e?.message || "Failed to delete invoice");
+        }
+      },
+    });
   }
 
   async function handleSubmitLineItem(e) {
@@ -251,22 +258,28 @@ export default function InvoiceDetailPage() {
     }
   }
 
-  async function handleDeleteLineItem() {
+  function handleDeleteLineItem() {
     if (!editingLineItem) return;
-    const confirmed = window.confirm("Delete this line item?");
-    if (!confirmed) return;
-    setSavingItem(true);
-    try {
-      await api(`/invoices/${id}/line-items/${editingLineItem.id}`, { method: "DELETE" });
-      await loadInvoice();
-      setLineItemForm(createEmptyLineItem());
-      setEditingLineItem(null);
-      setIsCreateOpen(false);
-    } catch (e) {
-      setError(e?.message || "Failed to delete line item");
-    } finally {
-      setSavingItem(false);
-    }
+    askConfirm({
+      title: "Delete this line item?",
+      confirmLabel: "Delete",
+      onConfirm: async () => {
+        setSavingItem(true);
+        try {
+          await api(`/invoices/${id}/line-items/${editingLineItem.id}`, {
+            method: "DELETE",
+          });
+          await loadInvoice();
+          setLineItemForm(createEmptyLineItem());
+          setEditingLineItem(null);
+          setIsCreateOpen(false);
+        } catch (e) {
+          setError(e?.message || "Failed to delete line item");
+        } finally {
+          setSavingItem(false);
+        }
+      },
+    });
   }
 
   function handleEditLineItem(item) {
@@ -548,6 +561,7 @@ export default function InvoiceDetailPage() {
           </section>
         ) : null}
       </div>
+      {confirmModal}
     </AppShell>
   );
 }

@@ -7,6 +7,7 @@ export {
   listPalettes,
   resolveTokens,
   resolvePrintTheme,
+  resolvePwaTheme,
   readStoredPaletteId,
   buildAllPalettesCss,
   getPaletteBootstrapScript,

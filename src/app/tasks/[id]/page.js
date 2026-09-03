@@ -15,6 +15,7 @@ import {
   getLinkedEntity,
 } from "@/lib/helper";
 import { FilePreviewModal } from "@/components/modals/file-preview-modal";
+import { useConfirmModal } from "@/components/modals/confirm-modal";
 import { CollapsibleSection } from "@/components/forms/collapsible-section";
 import { DetailMoreMenu, DetailMoreMenuItem } from "@/components/detail-more-menu";
 import { SectionSkeleton, Skeleton } from "@/components/loading/loadingSkeletons";
@@ -66,6 +67,7 @@ export default function TaskDetailPage() {
   const params = useParams();
   const id = params?.id;
   const router = useRouter();
+  const { askConfirm, confirmModal } = useConfirmModal();
 
   const [task, setTask] = useState(null);
   const [lead, setLead] = useState(null);
@@ -279,42 +281,51 @@ export default function TaskDetailPage() {
     }
   }
 
-  async function handleDelete() {
-    if (!confirm("Are you sure you want to delete this task?")) return;
-
-    try {
-      setBusy(true);
-      await api(`/tasks/${id}`, { method: "DELETE" });
-      router.push("/tasks");
-    } catch (e) {
-      console.error(e);
-      setError(e?.message || "Failed to delete task");
-    } finally {
-      setBusy(false);
-    }
+  function handleDelete() {
+    askConfirm({
+      title: "Delete this task?",
+      description: "This cannot be undone.",
+      confirmLabel: "Delete",
+      onConfirm: async () => {
+        try {
+          setBusy(true);
+          await api(`/tasks/${id}`, { method: "DELETE" });
+          router.push("/tasks");
+        } catch (e) {
+          console.error(e);
+          setError(e?.message || "Failed to delete task");
+        } finally {
+          setBusy(false);
+        }
+      },
+    });
   }
 
-  async function handleDeleteFile(fileId) {
-    const confirmed = window.confirm("Delete this file?");
-    if (!confirmed) return;
+  function handleDeleteFile(fileId) {
+    askConfirm({
+      title: "Delete this file?",
+      description: "This file will be permanently removed.",
+      confirmLabel: "Delete",
+      onConfirm: async () => {
+        setBusyFileId(fileId);
+        setFilesError("");
+        setSuccess("");
 
-    setBusyFileId(fileId);
-    setFilesError("");
-    setSuccess("");
+        try {
+          await api(`/files/${fileId}`, {
+            method: "DELETE",
+          });
 
-    try {
-      await api(`/files/${fileId}`, {
-        method: "DELETE",
-      });
-
-      setFiles((prev) => prev.filter((file) => file.id !== fileId));
-      setSuccess("File deleted successfully.");
-    } catch (e) {
-      console.error(e);
-      setFilesError(e?.message || "Failed to delete file");
-    } finally {
-      setBusyFileId(null);
-    }
+          setFiles((prev) => prev.filter((file) => file.id !== fileId));
+          setSuccess("File deleted successfully.");
+        } catch (e) {
+          console.error(e);
+          setFilesError(e?.message || "Failed to delete file");
+        } finally {
+          setBusyFileId(null);
+        }
+      },
+    });
   }
 
   const recentFiles = useMemo(() => files.slice(0, 5), [files]);
@@ -385,7 +396,7 @@ export default function TaskDetailPage() {
                 >
                   {isCompleted(task) ? "Reopen Task" : "Mark Complete"}
                 </button>
-                <DetailMoreMenu label="More">
+                <DetailMoreMenu label="More"> 
                   {task.lead_id ? (
                     <DetailMoreMenuItem
                       as={Link}
@@ -635,6 +646,7 @@ export default function TaskDetailPage() {
         file={previewFile}
         onClose={() => setPreviewFile(null)}
       />
+      {confirmModal}
     </AppShell>
   );
 }

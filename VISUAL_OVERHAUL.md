@@ -2,7 +2,7 @@
 
 Working roadmap for the Rooftop Realty CRM visual overhaul. Mark items `[x]` as they land. Do not start a later phase’s restyle work until that phase’s required foundation is done.
 
-Token catalog: [`src/theme/tokens.md`](src/theme/tokens.md)
+Token catalog: `[src/theme/tokens.md](src/theme/tokens.md)`
 
 ---
 
@@ -28,6 +28,8 @@ Goal: one token vocabulary used by CSS and Tailwind. No visual-language redesign
 
 ---
 
+
+
 ## Phase 2 — Shared visual primitives
 
 Goal: delete duplication so later restyle and theming touch few files. Still no new aesthetic.
@@ -44,6 +46,8 @@ Goal: delete duplication so later restyle and theming touch few files. Still no 
 
 ---
 
+
+
 ## Phase 3 — Centralized theme controller
 
 Goal: one place owns visual style. Still ship only the current Rooftop light/dark look.
@@ -58,6 +62,8 @@ Goal: one place owns visual style. Still ship only the current Rooftop light/dar
 
 ---
 
+
+
 ## Phase 4 — Visual language + app chrome
 
 Gate: agree direction (density, radii, type, brand) before editing pages.
@@ -71,6 +77,8 @@ Gate: agree direction (density, radii, type, brand) before editing pages.
 
 ---
 
+
+
 ## Phase 5 — Core product surfaces
 
 - [x] Dashboard
@@ -81,6 +89,8 @@ Gate: agree direction (density, radii, type, brand) before editing pages.
 
 ---
 
+
+
 ## Phase 6 — Reports and data viz
 
 - [x] Reports / product metrics bars use `--chart-*`
@@ -88,6 +98,8 @@ Gate: agree direction (density, radii, type, brand) before editing pages.
 - [x] Optional: chart library only if CSS bars cannot meet the look
 
 ---
+
+
 
 ## Phase 7 — Public customer surfaces
 
@@ -98,6 +110,8 @@ Gate: agree direction (density, radii, type, brand) before editing pages.
 
 ---
 
+
+
 ## Phase 8 — PDFs and email
 
 - [x] Print tokens (`accent`, `ink`, `muted`, `rule`, `accentSoft`) from the registry
@@ -106,24 +120,30 @@ Gate: agree direction (density, radii, type, brand) before editing pages.
 
 ---
 
+
+
 ## Phase 9 — PWA and brand assets
 
-- [ ] Manifest `theme_color` / `background_color` from tokens
-- [ ] Icons match accent (retire third indigo `#6366f1`)
-- [ ] Viewport `themeColor` in `layout.js` matches
+- [x] Manifest `theme_color` / `background_color` from tokens
+- [x] Icons match accent (retire third indigo `#6366f1`)
+- [x] Viewport `themeColor` in `layout.js` matches
 
 ---
+
+
 
 ## Phase 10 — User-selectable themes
 
 Depends on Phase 3.
 
-- [ ] Palette picker UI
-- [ ] Persist palette id in `localStorage`
-- [ ] At least two palettes (`rooftop` + one more)
+- [x] Palette picker UI
+- [x] Persist palette id in `localStorage`
+- [x] At least two palettes (`rooftop` + `azure` + `slate`)
 - [ ] Optional: persist on `users.theme_palette`
 
 ---
+
+
 
 ## Phase 11 — Optional polish
 

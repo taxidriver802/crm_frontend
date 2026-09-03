@@ -1,6 +1,8 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { Icon } from "@/components/icons";
+import { cx } from "@/lib/cx";
 
 /** Extra actions behind a compact "More" dropdown (used on task/lead detail toolbars). */
 export function DetailMoreMenu({ label = "More", children }) {
@@ -37,9 +39,13 @@ export function DetailMoreMenu({ label = "More", children }) {
         onClick={() => setOpen((o) => !o)}
       >
         {label}
-        <span className="text-muted" aria-hidden>
-          ▾
-        </span>
+        <Icon
+          name="chevronDown"
+          className={cx(
+            "text-muted h-3.5 w-3.5 transition-transform duration-fast",
+            open && "rotate-180",
+          )}
+        />
       </button>
 
       {open ? (

@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { AppShell } from "@/components/app-shell";
+import { useConfirmModal } from "@/components/modals/confirm-modal";
 import {
   EstimateForm,
   EstimateFormSkeleton,
@@ -13,6 +14,7 @@ import { api } from "@/lib/api";
 export default function EditEstimatePage() {
   const router = useRouter();
   const { id } = useParams();
+  const { askConfirm, confirmModal } = useConfirmModal();
 
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
@@ -135,30 +137,35 @@ export default function EditEstimatePage() {
     }
   }
 
-  async function handleDelete() {
+  function handleDelete() {
     if (saving) return;
-    const confirmed = window.confirm("Delete this estimate?");
-    if (!confirmed) return;
-    setSaving(true);
+    askConfirm({
+      title: "Delete this estimate?",
+      description: "This cannot be undone.",
+      confirmLabel: "Delete",
+      onConfirm: async () => {
+        setSaving(true);
 
-    try {
-      await api(`/estimates/${id}`, {
-        method: "DELETE",
-      });
+        try {
+          await api(`/estimates/${id}`, {
+            method: "DELETE",
+          });
 
-      const fallbackJobId = estimate?.job_id;
-      if (fallbackJobId) {
-        router.push(`/jobs/${fallbackJobId}`);
-      } else {
-        router.push("/jobs");
-      }
+          const fallbackJobId = estimate?.job_id;
+          if (fallbackJobId) {
+            router.push(`/jobs/${fallbackJobId}`);
+          } else {
+            router.push("/jobs");
+          }
 
-      router.refresh();
-    } catch (e) {
-      setError(e?.message || "Failed to delete estimate");
-    } finally {
-      setSaving(false);
-    }
+          router.refresh();
+        } catch (e) {
+          setError(e?.message || "Failed to delete estimate");
+        } finally {
+          setSaving(false);
+        }
+      },
+    });
   }
 
   const title = useMemo(() => {
@@ -189,6 +196,7 @@ export default function EditEstimatePage() {
           />
         )}
       </section>
+      {confirmModal}
     </AppShell>
   );
 }

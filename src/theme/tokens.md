@@ -1,6 +1,6 @@
 # Theme tokens
 
-**Source of truth:** [`src/theme/themes/rooftop.js`](themes/rooftop.js), registered in [`src/theme/registry.js`](registry.js).
+**Source of truth:** palettes in [`src/theme/themes/`](themes/), registered in [`src/theme/registry.js`](registry.js).
 
 Runtime CSS is emitted into `#crm-palette-vars` as:
 
@@ -8,6 +8,8 @@ Runtime CSS is emitted into `#crm-palette-vars` as:
 - `.dark[data-palette="<id>"]` — dark overrides
 
 `next-themes` still owns **color scheme** (`class="dark"` on `<html>`). The controller owns **palette** (`data-palette`). Pages must use CSS variables / token utilities only — never palette ids.
+
+Named palettes: **Rooftop** (default, brand orange `#f97316` / `rgb(249, 115, 22)`, dark `--on-accent`), **Azure** (previous blue `#2563eb`), and **Slate** (teal `#0f766e`). The picker writes `localStorage` key `crm-palette`. Public `/public/*` routes force Rooftop so a salesperson’s choice does not leak onto customer links. PDFs/email stay on the backend Rooftop print map.
 
 Tailwind mappings: [`tailwind.config.js`](../../tailwind.config.js).
 
@@ -17,9 +19,9 @@ PDFs and invite email consume **print hex** from each palette’s `print` map (l
 
 | Token | Light | Dark | Notes |
 | --- | --- | --- | --- |
-| `--bg` | `#f4f5f7` | `#101114` | App canvas |
-| `--surface` | `#eceef2` | `#16171c` | Inputs, recessed panels |
-| `--surface-elevated` | `#ffffff` | `#1c1d24` | Cards, topbar, dropdowns |
+| `--bg` | `#f4f5f7` | `#0a0a0a` | App canvas (Rooftop dark; Azure/Slate use cooler charcoal) |
+| `--surface` | `#eceef2` | `#141414` | Inputs, recessed panels |
+| `--surface-elevated` | `#ffffff` | `#1a1a1a` | Cards, topbar, dropdowns |
 | `--overlay` | `rgb(17 19 24 / 0.45)` | `rgb(0 0 0 / 0.55)` | Modal/command-palette scrim |
 | `--overlay-strong` | `rgb(17 19 24 / 0.72)` | `rgb(0 0 0 / 0.78)` | Lightbox |
 | `--on-overlay` | `#ffffff` | `#ffffff` | Text on dark scrims |
@@ -29,14 +31,14 @@ PDFs and invite email consume **print hex** from each palette’s `print` map (l
 
 ## Chrome (shell / auth rail)
 
-Used by the desktop sidebar and mobile bottom nav. Stays dark in both schemes (Jobber-style field rail).
+Used by the desktop sidebar and mobile bottom nav. Stays dark in both schemes (Jobber-style field rail). Rooftop chrome is site black; Azure/Slate keep cooler charcoal.
 
-| Token | Light | Dark |
+| Token | Light (Rooftop) | Dark (Rooftop) |
 | --- | --- | --- |
-| `--chrome` | `#14161c` | `#0c0d10` |
-| `--chrome-elevated` | `#1c1f26` | `#14151a` |
-| `--chrome-border` | `#2a2e38` | `#26272e` |
-| `--chrome-text` | `#f4f4f5` | `#ececef` |
+| `--chrome` | `#000000` | `#000000` |
+| `--chrome-elevated` | `#141414` | `#111111` |
+| `--chrome-border` | `#2a1c12` | `#2a1c12` |
+| `--chrome-text` | `#f4f4f5` | `#f4f4f5` |
 | `--chrome-muted` | `#9aa0ab` | `#8b8d96` |
 | `--chrome-hover` | 8% white mix | 7% white mix |
 
@@ -44,22 +46,22 @@ Used by the desktop sidebar and mobile bottom nav. Stays dark in both schemes (J
 
 | Token | Light | Dark |
 | --- | --- | --- |
-| `--text` | `#111318` | `#ececef` |
-| `--text-muted` | `#5c6370` | `#9b9ca6` |
-| `--text-soft` | `#8b919c` | `#6f707a` |
-| `--on-accent` | `#ffffff` | `#ffffff` |
+| `--text` | `#111318` | `#f4f4f5` |
+| `--text-muted` | `#5c6370` | `#a1a1aa` |
+| `--text-soft` | `#8b919c` | `#71717a` |
+| `--on-accent` | `#111318` (Rooftop) / `#ffffff` (Azure, Slate) | same |
 
 ## Accent and semantic
 
-`--accent` is **#2563eb in both schemes**. Hover is `color-mix` with black — do not add a second blue.
+`--accent` is **#f97316** on Rooftop, **#2563eb** on Azure, and **#0f766e** on Slate, same in light and dark. Hover is `color-mix` with black — do not add a second hue inside a palette. Rooftop `--warning` is shifted to gold so it does not collide with the orange accent.
 
 | Token | Light | Dark |
 | --- | --- | --- |
-| `--accent` | `#2563eb` | `#2563eb` |
+| `--accent` | `#f97316` (Rooftop) / `#2563eb` (Azure) / `#0f766e` (Slate) | same |
 | `--accent-hover` | mix 78% toward black | mix 78% toward black |
 | `--accent-soft` | 12% mix | 18% mix |
 | `--success` | `#16a34a` | `#4ade80` |
-| `--warning` | `#f59e0b` | `#fbbf24` |
+| `--warning` | `#ca8a04` (Rooftop) / `#f59e0b` (Azure, Slate) | `#eab308` (Rooftop) / `#fbbf24` (Azure, Slate) |
 | `--danger` | `#dc2626` | `#f87171` |
 | `--*-soft` | 12% mix | 18% mix |
 
@@ -93,18 +95,27 @@ Light-only hex from `resolvePrintTheme(paletteId)` / palette `print`. No dark mo
 
 | Token | Hex | Source |
 | --- | --- | --- |
-| `accent` | `#2563eb` | `--accent` |
-| `accentSoft` | `#e5ecfd` | 12% `--accent` on white |
+| `accent` | `#f97316` | `--accent` |
+| `accentSoft` | `#feeee3` | 12% `--accent` on white |
 | `ink` | `#111318` | `--text` |
 | `muted` | `#5c6370` | `--text-muted` |
 | `rule` | `#e2e4ea` | `--border` |
-| `onAccent` | `#ffffff` | `--on-accent` |
+| `onAccent` | `#111318` | `--on-accent` |
 | `paper` | `#f4f5f7` | `--bg` |
 | `surface` | `#ffffff` | `--surface-elevated` |
 
 Estimate and invoice PDFs share `PRINT_PDF` + `pdf-layout.ts`. Invite HTML interpolates the same hex.
 
-PWA/layout `theme-color` is synced at runtime from `--bg`. Static fallback in `layout.js` is still indigo `#6366f1` until Phase 9.
+## PWA (Phase 9)
+
+`resolvePwaTheme()` reads light `--bg` / `--accent` / `--on-accent`.
+
+| Use | Token | Hex |
+| --- | --- | --- |
+| Manifest `theme_color` / `background_color`, viewport fallback | `--bg` | `#f4f5f7` |
+| App icons | `--accent` / `--on-accent` | `#f97316` / `#111318` |
+
+Runtime `theme-color` still follows computed `--bg` (light or dark) via `syncThemeColorMeta()`.
 
 ## Public customer surfaces (Phase 7)
 

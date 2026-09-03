@@ -1,9 +1,13 @@
 import { DEFAULT_PALETTE_ID, PALETTE_STORAGE_KEY } from "./constants";
 import { rooftop } from "./themes/rooftop";
+import { azure } from "./themes/azure";
+import { slate } from "./themes/slate";
 
 /** Named palettes. Add entries here; do not branch on palette ids in pages. */
 export const palettes = {
   [rooftop.id]: rooftop,
+  [azure.id]: azure,
+  [slate.id]: slate,
 };
 
 export function isPaletteId(id) {
@@ -34,6 +38,17 @@ export function resolveTokens(paletteId, scheme) {
 export function resolvePrintTheme(paletteId) {
   const palette = getPalette(paletteId);
   return palette.print || getPalette(DEFAULT_PALETTE_ID).print;
+}
+
+/** Static PWA/manifest hex from the light scheme (runtime theme-color still follows `--bg`). */
+export function resolvePwaTheme(paletteId = DEFAULT_PALETTE_ID) {
+  const light = resolveTokens(paletteId, "light");
+  return {
+    themeColor: light["--bg"],
+    backgroundColor: light["--bg"],
+    accent: light["--accent"],
+    onAccent: light["--on-accent"],
+  };
 }
 
 export function readStoredPaletteId() {

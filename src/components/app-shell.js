@@ -1,10 +1,11 @@
 "use client";
 
-import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 
 import { useToast } from "./toast/toast-provider";
+import { ConfirmModal } from "@/components/modals/confirm-modal";
 import { InviteUserModal } from "@/components/modals/invite-user-modal";
 import { ThemeToggle } from "@/components/theme/theme-toggle";
 import { CommandPalette } from "@/components/command-palette";
@@ -72,6 +73,69 @@ function formatNotificationTime(value) {
   return date.toLocaleDateString();
 }
 
+function AccountSettings({ tone = "default", isAdminUser, onInvite, onLogout }) {
+  const [open, setOpen] = useState(false);
+  const panelId = useId();
+  const chrome = tone === "chrome";
+
+  return (
+    <div>
+      <button
+        type="button"
+        className={cx("btn w-full justify-start", chrome && "btn-chrome")}
+        aria-expanded={open}
+        aria-controls={panelId}
+        onClick={() => setOpen((value) => !value)}
+      >
+        <Icon name="settings" className="h-4 w-4" />
+        Settings
+        <Icon
+          name="chevronDown"
+          className={cx(
+            "ml-auto h-3.5 w-3.5 transition-transform duration-fast",
+            open && "rotate-180",
+          )}
+        />
+      </button>
+
+      {open ? (
+        <div
+          id={panelId}
+          className={cx(
+            "mt-1 space-y-1 rounded-theme-md border p-1",
+            chrome ? "border-chrome" : "border-base",
+          )}
+        >
+          {isAdminUser ? (
+            <button
+              type="button"
+              onClick={onInvite}
+              className={cx("btn w-full justify-start", chrome && "btn-chrome")}
+            >
+              <Icon name="userPlus" className="h-4 w-4" />
+              Invite user
+            </button>
+          ) : null}
+
+          <ThemeToggle tone={tone} />
+
+          <button
+            type="button"
+            onClick={onLogout}
+            className={cx(
+              "btn w-full justify-start",
+              chrome ? "btn-chrome" : "btn-danger",
+            )}
+          >
+            <Icon name="logOut" className="h-4 w-4" />
+            Log out
+          </button>
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
 function getNotificationHref(notification) {
   if (!notification) return null;
 
@@ -117,6 +181,7 @@ export function AppShell({ children, title, description, right }) {
   const [notificationsLoading, setNotificationsLoading] = useState(false);
   const [markingAllRead, setMarkingAllRead] = useState(false);
   const [inviteModalOpen, setInviteModalOpen] = useState(false);
+  const [logoutConfirmOpen, setLogoutConfirmOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
 
   const notificationsOpenRef = useRef(false);
@@ -617,27 +682,12 @@ export function AppShell({ children, title, description, right }) {
           </nav>
 
           <div className="border-chrome space-y-2 border-t p-3">
-            {isAdminUser && (
-              <button
-                type="button"
-                onClick={() => setInviteModalOpen(true)}
-                className="btn btn-chrome w-full justify-start"
-              >
-                <Icon name="userPlus" className="h-4 w-4" />
-                Invite user
-              </button>
-            )}
-
-            <ThemeToggle className="btn-chrome w-full justify-start" />
-
-            <button
-              type="button"
-              onClick={handleLogout}
-              className="btn btn-chrome w-full justify-start"
-            >
-              <Icon name="logOut" className="h-4 w-4" />
-              Log out
-            </button>
+            <AccountSettings
+              tone="chrome"
+              isAdminUser={isAdminUser}
+              onInvite={() => setInviteModalOpen(true)}
+              onLogout={() => setLogoutConfirmOpen(true)}
+            />
           </div>
         </div>
       </aside>
@@ -777,34 +827,18 @@ export function AppShell({ children, title, description, right }) {
                   </>
                 )}
 
-                <div className="border-base space-y-2 border-t pt-3">
-                  <div className="text-muted px-2.5 pt-1 text-[10px] font-semibold uppercase tracking-[0.14em]">
-                    Account
-                  </div>
-                  {isAdminUser && (
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setMobileMenuOpen(false);
-                        setInviteModalOpen(true);
-                      }}
-                      className="btn w-full justify-start"
-                    >
-                      <Icon name="userPlus" className="h-4 w-4" />
-                      Invite user
-                    </button>
-                  )}
-
-                  <ThemeToggle className="w-full justify-start" />
-
-                  <button
-                    type="button"
-                    onClick={handleLogout}
-                    className="btn btn-danger w-full justify-start"
-                  >
-                    <Icon name="logOut" className="h-4 w-4" />
-                    Log out
-                  </button>
+                <div className="border-base border-t pt-3">
+                  <AccountSettings
+                    isAdminUser={isAdminUser}
+                    onInvite={() => {
+                      setMobileMenuOpen(false);
+                      setInviteModalOpen(true);
+                    }}
+                    onLogout={() => {
+                      setMobileMenuOpen(false);
+                      setLogoutConfirmOpen(true);
+                    }}
+                  />
                 </div>
               </div>
             </div>
@@ -852,6 +886,16 @@ export function AppShell({ children, title, description, right }) {
       </div>
 
       <InviteUserModal open={inviteModalOpen} onClose={() => setInviteModalOpen(false)} />
+      <ConfirmModal
+        open={logoutConfirmOpen}
+        onClose={() => setLogoutConfirmOpen(false)}
+        onConfirm={handleLogout}
+        title="Log out?"
+        description="Are you sure you want to log out? You can sign back in anytime."
+        confirmLabel="Log out"
+        cancelLabel="Cancel"
+        tone="danger"
+      />
       <CommandPalette open={searchOpen} onClose={() => setSearchOpen(false)} />
     </div>
   );

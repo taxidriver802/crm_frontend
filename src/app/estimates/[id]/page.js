@@ -4,6 +4,7 @@ import { Alert } from "@/components/ui/alert";
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { AppShell } from "@/components/app-shell";
+import { useConfirmModal } from "@/components/modals/confirm-modal";
 import { api } from "@/lib/api";
 import { CollapsibleSection } from "@/components/forms/collapsible-section";
 import { ToggleFormSection } from "@/components/toggle-form-section";
@@ -20,6 +21,7 @@ import { MetaItem } from "@/components/ui/meta";
 export default function EstimateDetailPage() {
   const { id } = useParams();
   const router = useRouter();
+  const { askConfirm, confirmModal } = useConfirmModal();
 
   const [estimate, setEstimate] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -187,29 +189,32 @@ export default function EstimateDetailPage() {
     }
   }
 
-  async function handleDeleteLineItem() {
+  function handleDeleteLineItem() {
     if (!editingLineItem) return;
 
-    const confirmed = window.confirm("Delete this line item?");
-    if (!confirmed) return;
+    askConfirm({
+      title: "Delete this line item?",
+      confirmLabel: "Delete",
+      onConfirm: async () => {
+        setSavingItem(true);
+        setError("");
 
-    setSavingItem(true);
-    setError("");
+        try {
+          await api(`/estimates/${id}/line-items/${editingLineItem.id}`, {
+            method: "DELETE",
+          });
 
-    try {
-      const res = await api(`/estimates/${id}/line-items/${editingLineItem.id}`, {
-        method: "DELETE",
-      });
-
-      await loadEstimate();
-      setLineItemForm(createEmptyLineItem());
-      setEditingLineItem(null);
-      setIsCreateOpen(false);
-    } catch (e) {
-      setError(e?.message || "Failed to delete line item");
-    } finally {
-      setSavingItem(false);
-    }
+          await loadEstimate();
+          setLineItemForm(createEmptyLineItem());
+          setEditingLineItem(null);
+          setIsCreateOpen(false);
+        } catch (e) {
+          setError(e?.message || "Failed to delete line item");
+        } finally {
+          setSavingItem(false);
+        }
+      },
+    });
   }
 
   function handleEditLineItem(item) {
@@ -567,6 +572,7 @@ export default function EstimateDetailPage() {
           </div>
         </section>
       </div>
+      {confirmModal}
     </AppShell>
   );
 }
