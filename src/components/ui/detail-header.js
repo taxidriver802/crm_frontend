@@ -16,7 +16,7 @@ export function DetailHeader({
           {subtitle ? <div className="page-subtitle">{subtitle}</div> : null}
           {badges ? <div className="mt-3 flex flex-wrap gap-2">{badges}</div> : null}
         </div>
-        {actions ? <div className="page-actions shrink-0">{actions}</div> : null}
+        {actions ? <div className="page-actions detail-actions">{actions}</div> : null}
       </div>
       {children ? <div className="mt-4 space-y-4">{children}</div> : null}
     </section>

@@ -5,9 +5,11 @@ import {
   addDays,
   endOfDay,
   endOfMonth,
+  formatAgendaDay,
   formatDayKey,
   formatMonthLabel,
   formatShortDay,
+  formatWeekdayLetter,
   startOfDay,
   startOfMonth,
   startOfWeekMonday,
@@ -28,6 +30,8 @@ function taskEventClass(task) {
 export function TaskCalendar({ tasks, onTaskClick, onRangeChange, onDayCreate }) {
   const [viewMode, setViewMode] = useState("month");
   const [anchorDate, setAnchorDate] = useState(() => startOfDay(new Date()));
+  const todayKey = formatDayKey(new Date());
+  const [selectedKey, setSelectedKey] = useState(todayKey);
 
   const gridDays = useMemo(() => {
     if (viewMode === "week") {
@@ -58,6 +62,16 @@ export function TaskCalendar({ tasks, onTaskClick, onRangeChange, onDayCreate })
     }
     return map;
   }, [tasks]);
+
+  useEffect(() => {
+    const keys = new Set(gridDays.map((day) => formatDayKey(day)));
+    if (keys.has(selectedKey)) return;
+    if (keys.has(todayKey)) {
+      setSelectedKey(todayKey);
+      return;
+    }
+    if (gridDays[0]) setSelectedKey(formatDayKey(gridDays[0]));
+  }, [gridDays, selectedKey, todayKey]);
 
   useEffect(() => {
     let from;
@@ -94,12 +108,17 @@ export function TaskCalendar({ tasks, onTaskClick, onRangeChange, onDayCreate })
   const weekHeaderDays = Array.from({ length: 7 }).map((_, i) =>
     addDays(weekHeaderStart, i),
   );
-  const todayKey = formatDayKey(new Date());
+
+  const selectedDay =
+    gridDays.find((day) => formatDayKey(day) === selectedKey) || gridDays[0];
+  const selectedTasks = selectedDay
+    ? tasksByDay.get(formatDayKey(selectedDay)) || []
+    : [];
 
   return (
     <div className="space-y-4">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div className="flex items-center gap-2">
+      <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
+        <div className="flex flex-wrap items-center gap-2">
           <button
             type="button"
             className="btn btn-sm"
@@ -117,7 +136,7 @@ export function TaskCalendar({ tasks, onTaskClick, onRangeChange, onDayCreate })
           <button type="button" className="btn btn-sm" onClick={() => shiftRange(1)}>
             Next
           </button>
-          <div className="ml-1 text-sm font-medium">{title}</div>
+          <div className="w-full text-sm font-medium sm:ml-1 sm:w-auto">{title}</div>
         </div>
 
         <Segmented
@@ -132,7 +151,7 @@ export function TaskCalendar({ tasks, onTaskClick, onRangeChange, onDayCreate })
       </div>
 
       <div
-        className="bg-surface grid gap-2 rounded-theme-lg p-2"
+        className="bg-surface hidden gap-2 rounded-theme-lg p-2 md:grid"
         style={{ gridTemplateColumns: `repeat(${columnCount}, minmax(0, 1fr))` }}
       >
         {weekHeaderDays.map((day) => (
@@ -195,6 +214,79 @@ export function TaskCalendar({ tasks, onTaskClick, onRangeChange, onDayCreate })
             </div>
           );
         })}
+      </div>
+
+      <div className="space-y-3 md:hidden">
+        <div className="cal-compact">
+          {weekHeaderDays.map((day) => (
+            <div key={`mh-${formatDayKey(day)}`} className="cal-compact-head">
+              {formatWeekdayLetter(day)}
+            </div>
+          ))}
+
+          {gridDays.map((day) => {
+            const key = formatDayKey(day);
+            const dayTasks = tasksByDay.get(key) || [];
+            const isCurrentMonth = day.getMonth() === anchorDate.getMonth();
+            const isToday = key === todayKey;
+            const isSelected = key === selectedKey;
+
+            return (
+              <button
+                key={`m-${key}`}
+                type="button"
+                onClick={() => setSelectedKey(key)}
+                className={cx(
+                  "cal-compact-day",
+                  isMonth && !isCurrentMonth && "cal-compact-day-outside",
+                  isToday && "cal-compact-day-today",
+                  isSelected && "cal-compact-day-selected",
+                )}
+                aria-pressed={isSelected}
+                aria-label={formatAgendaDay(day)}
+              >
+                <span>{day.getDate()}</span>
+                <span
+                  className={cx("cal-compact-dot", dayTasks.length === 0 && "invisible")}
+                  aria-hidden
+                />
+              </button>
+            );
+          })}
+        </div>
+
+        {selectedDay ? (
+          <div className="cal-agenda space-y-3">
+            <div className="flex items-center justify-between gap-3">
+              <div className="min-w-0 text-sm font-medium">{formatAgendaDay(selectedDay)}</div>
+              <button
+                type="button"
+                className="btn btn-sm shrink-0"
+                onClick={() => onDayCreate?.(selectedDay)}
+              >
+                + task
+              </button>
+            </div>
+
+            {selectedTasks.length === 0 ? (
+              <div className="text-muted text-sm">No tasks</div>
+            ) : (
+              <div className="space-y-2">
+                {selectedTasks.map((task) => (
+                  <button
+                    key={task.id}
+                    type="button"
+                    className={cx(taskEventClass(task), "whitespace-normal px-3 py-2 text-left text-sm")}
+                    onClick={() => onTaskClick?.(task)}
+                    title={task.title}
+                  >
+                    {task.title}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+        ) : null}
       </div>
     </div>
   );

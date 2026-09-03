@@ -90,11 +90,11 @@ export function SavedViewsControls({ entityType, currentFilters, onApplyFilters 
   }
 
   return (
-    <div className="flex flex-wrap items-center gap-2">
+    <div className="flex w-full min-w-0 flex-wrap items-center gap-2">
       {isNaming ? (
         <input
           ref={nameInputRef}
-          className="input min-w-[180px]"
+          className="input min-w-0 w-full sm:w-auto sm:min-w-[180px]"
           placeholder="Saved view name"
           value={draftName}
           onChange={(e) => setDraftName(e.target.value)}
@@ -114,7 +114,7 @@ export function SavedViewsControls({ entityType, currentFilters, onApplyFilters 
         />
       ) : (
         <select
-          className="input min-w-[180px]"
+          className="input min-w-0 w-full sm:w-auto sm:min-w-[180px]"
           value={selectedId}
           disabled={loading || busy}
           onChange={(e) => {

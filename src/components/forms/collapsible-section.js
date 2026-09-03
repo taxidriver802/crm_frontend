@@ -33,10 +33,10 @@ export function CollapsibleSection({
   }
 
   return (
-    <section className="card">
+    <section className="card min-w-0">
       <div
         className={cx(
-          "flex items-start justify-between gap-3 p-4",
+          "flex min-w-0 flex-wrap items-start justify-between gap-3 p-4",
           open && "border-base border-b",
         )}
       >
@@ -45,10 +45,10 @@ export function CollapsibleSection({
           {description ? <p className="text-muted mt-1 text-sm">{description}</p> : null}
         </div>
 
-        <div className="flex shrink-0 flex-wrap items-center justify-end gap-2">
+        <div className="flex min-w-0 max-w-full flex-wrap items-center justify-end gap-2">
           {actions ? (
             <div
-              className="flex flex-wrap items-center gap-2"
+              className="flex min-w-0 max-w-full flex-wrap items-center justify-end gap-2"
               onClickCapture={() => {
                 if (!open) {
                   userToggledRef.current = true;
@@ -63,7 +63,7 @@ export function CollapsibleSection({
           <button
             type="button"
             onClick={toggleOpen}
-            className="btn px-3 py-2 text-xs"
+            className="btn shrink-0 px-3 py-2 text-xs"
             aria-expanded={open}
           >
             {open ? "Hide" : "Show"}

@@ -69,6 +69,18 @@ export function formatShortDay(date) {
   return date.toLocaleDateString(undefined, { weekday: "short" });
 }
 
+export function formatWeekdayLetter(date) {
+  return date.toLocaleDateString(undefined, { weekday: "narrow" });
+}
+
+export function formatAgendaDay(date) {
+  return date.toLocaleDateString(undefined, {
+    weekday: "long",
+    month: "long",
+    day: "numeric",
+  });
+}
+
 export function parseLocalDate(dateString) {
   if (!dateString) return null;
   const [year, month, day] = dateString.split("-").map(Number);

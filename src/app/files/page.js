@@ -27,6 +27,7 @@ import { StatCard } from "@/components/ui/stat-card";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { Field } from "@/components/ui/field";
 import { FilterBar } from "@/components/ui/filter-bar";
+import { DataTable, Td } from "@/components/ui/data-table";
 import { EmptyState } from "@/components/error-boundary";
 
 function ScopeBadge({ file, router }) {
@@ -369,8 +370,7 @@ export default function FilesPage() {
 
         <CollapsibleSection title={fileTitle} defaultOpen={true}>
           {loadingFiles ? (
-            <div className="overflow-x-auto">
-              <table className="data-table">
+            <DataTable>
                 <thead>
                   <tr>
                     <th>File</th>
@@ -387,15 +387,13 @@ export default function FilesPage() {
                     <TableRowSkeleton key={i} cols={7} />
                   ))}
                 </tbody>
-              </table>
-            </div>
+            </DataTable>
           ) : files.length === 0 ? (
             <EmptyState title="No files uploaded yet" />
           ) : filteredFiles.length === 0 ? (
             <EmptyState title="No files match the current filters" />
           ) : (
-            <div className="overflow-x-auto">
-              <table className="data-table">
+            <DataTable>
                 <thead>
                   <tr>
                     <th>File</th>
@@ -416,36 +414,38 @@ export default function FilesPage() {
 
                     return (
                       <tr key={file.id}>
-                        <td>
+                        <Td primary label="File">
                           <div className="min-w-0">
-                            <div className="truncate font-medium">
+                            <div className="font-medium md:truncate">
                               {file.original_name}
                             </div>
-                            <div className="text-muted truncate text-xs">
+                            <div className="text-muted text-xs md:truncate">
                               {file.storage_key}
                             </div>
                           </div>
-                        </td>
+                        </Td>
 
-                        <td className="align-top">
+                        <Td label="Type" className="align-top">
                           <StatusBadge>{getFileTypeLabel(file)}</StatusBadge>
-                        </td>
+                        </Td>
 
-                        <td className="text-muted align-top">
+                        <Td label="Size" className="text-muted align-top">
                           {formatBytes(file.size_bytes)}
-                        </td>
+                        </Td>
 
-                        <td className="text-muted align-top">{uploaderName}</td>
+                        <Td label="Uploaded By" className="text-muted align-top">
+                          {uploaderName}
+                        </Td>
 
-                        <td className="align-top">
+                        <Td label="Attached To" className="align-top">
                           <ScopeBadge file={file} router={router} />
-                        </td>
+                        </Td>
 
-                        <td className="text-muted align-top">
+                        <Td label="Uploaded" className="text-muted align-top">
                           {formatDate(file.created_at)}
-                        </td>
+                        </Td>
 
-                        <td className="align-top">
+                        <Td actions label="Actions" className="align-top">
                           <div className="flex flex-wrap items-center gap-2">
                             {isPreviewableFile(file) ? (
                               <button
@@ -476,13 +476,12 @@ export default function FilesPage() {
                               </button>
                             ) : null}
                           </div>
-                        </td>
+                        </Td>
                       </tr>
                     );
                   })}
                 </tbody>
-              </table>
-            </div>
+            </DataTable>
           )}
         </CollapsibleSection>
       </div>

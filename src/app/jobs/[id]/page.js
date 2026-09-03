@@ -642,8 +642,8 @@ export default function JobDetailPage() {
             <div className="space-y-6 lg:col-span-2">
               <SectionCard size="lg" title="Job Overview" description="Overview and current status">
                 <div className="space-y-4">
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="min-w-0">
+                  <div className="detail-toolbar">
+                    <div className="detail-meta space-y-2">
                       {job.lead_id ? (
                         <div className="text-sm">
                           <span className="text-muted">Lead: </span>
@@ -657,10 +657,12 @@ export default function JobDetailPage() {
                           </Link>
                         </div>
                       ) : null}
+                      <div>
+                        <JobStatusBadge status={job.status} />
+                      </div>
                     </div>
 
-                    <div className="flex flex-wrap items-center gap-2">
-                      <JobStatusBadge status={job.status} />
+                    <div className="detail-actions">
                       <button
                         type="button"
                         className="btn px-3 py-2 text-xs"
@@ -705,7 +707,7 @@ export default function JobDetailPage() {
                 title="Pipeline"
                 description="Track where this job is in the workflow"
               >
-                <div className="flex flex-wrap items-center gap-y-3">
+                <div className="pipeline">
                   {JOB_STATUSES.map((status, index) => {
                     const currentIndex = JOB_STATUSES.indexOf(job.status ?? "New");
                     const isActive = status === job.status;
@@ -714,7 +716,7 @@ export default function JobDetailPage() {
                     const isLocked = updatingStatus !== null || isTooFarAhead || isActive;
 
                     return (
-                      <div key={status} className="flex items-center">
+                      <div key={status} className="pipeline-step">
                         <button
                           type="button"
                           onClick={() => updateJobStatus(status, index)}
@@ -771,37 +773,39 @@ export default function JobDetailPage() {
                     No estimates for this job yet.
                   </div>
                 ) : (
-                  <div className="space-y-3">
+                  <div className="min-w-0 space-y-3">
                     {sortedEstimates.map((estimate) => (
                       <Link
                         key={estimate.id}
                         href={`/estimates/${estimate.id}`}
-                        className="hover:bg-accent flex items-start justify-between gap-3 rounded-lg border p-4 transition"
+                        className="list-row list-row-interactive list-row-split"
                       >
                         <div className="min-w-0 flex-1">
-                          <div className="font-medium">{estimate.title}</div>
+                          <div className="break-words font-medium">{estimate.title}</div>
 
-                          <div className="text-muted mt-1 flex flex-wrap items-center gap-2 text-xs">
-                            <span>
+                          <div className="text-muted mt-1 flex min-w-0 items-center gap-2 text-xs">
+                            <span className="shrink-0">
                               {formatDate(estimate.updated_at || estimate.created_at)}
                             </span>
 
                             {estimate.job?.address ? (
                               <>
-                                <span>•</span>
-                                <span className="truncate">{estimate.job.address}</span>
+                                <span className="shrink-0">•</span>
+                                <span className="min-w-0 truncate">
+                                  {estimate.job.address}
+                                </span>
                               </>
                             ) : null}
                           </div>
 
                           {estimate.notes ? (
-                            <div className="text-muted mt-2 line-clamp-2 text-sm">
+                            <div className="text-muted mt-2 line-clamp-2 break-words text-sm">
                               {estimate.notes}
                             </div>
                           ) : null}
                         </div>
 
-                        <div className="flex shrink-0 flex-col items-end gap-2">
+                        <div className="flex flex-wrap items-center gap-2 sm:shrink-0 sm:flex-col sm:items-end">
                           <StatusBadge kind="estimate" status={estimate.status} />
                           <div className="text-sm font-semibold">
                             $
@@ -849,7 +853,7 @@ export default function JobDetailPage() {
                         <Link
                           key={inv.id}
                           href={`/invoices/${inv.id}`}
-                          className="hover:bg-accent flex items-start justify-between gap-3 rounded-lg border p-4 transition"
+                          className="hover:bg-accent flex min-w-0 items-start justify-between gap-3 rounded-lg border p-4 transition"
                         >
                           <div className="min-w-0 flex-1">
                             <div className="font-medium">{inv.invoice_number}</div>
@@ -1216,7 +1220,7 @@ export default function JobDetailPage() {
                     {files.map((file) => (
                       <div
                         key={file.id}
-                        className="list-row flex items-start justify-between gap-3"
+                        className="list-row list-row-split"
                       >
                         <div className="min-w-0">
                           <div className="truncate font-medium">{file.original_name}</div>
@@ -1229,7 +1233,7 @@ export default function JobDetailPage() {
                           </div>
                         </div>
 
-                        <div className="flex flex-wrap items-center gap-2">
+                        <div className="flex shrink-0 flex-wrap items-center gap-2">
                           {isPreviewableFile(file) ? (
                             <button
                               type="button"

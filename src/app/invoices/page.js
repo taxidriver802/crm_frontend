@@ -11,6 +11,7 @@ import { PageError } from "@/components/error-boundary";
 import { formatDate } from "@/lib/helper";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { Segmented } from "@/components/ui/segmented";
+import { DataTable, Td } from "@/components/ui/data-table";
 
 const STATUS_OPTIONS = ["All", "Draft", "Sent", "Paid", "Overdue"];
 const DUE_OPTIONS = [
@@ -89,8 +90,8 @@ export default function InvoicesListPage() {
           }
         />
 
-        <div className="card overflow-hidden">
-          <table className="data-table">
+        <div className="card overflow-hidden max-md:p-3">
+          <DataTable>
             <thead>
               <tr>
                 <th>Invoice</th>
@@ -108,9 +109,9 @@ export default function InvoicesListPage() {
                 ))
               ) : invoices.length === 0 ? (
                 <tr>
-                  <td colSpan={6} className="text-muted text-center">
+                  <Td empty colSpan={6} className="text-muted md:text-center">
                     No invoices match the current filters.
-                  </td>
+                  </Td>
                 </tr>
               ) : (
                 invoices.map((inv) => (
@@ -119,8 +120,10 @@ export default function InvoicesListPage() {
                     className="cursor-pointer"
                     onClick={() => router.push(`/invoices/${inv.id}`)}
                   >
-                    <td className="font-medium">{inv.invoice_number}</td>
-                    <td>
+                    <Td primary label="Invoice" className="font-medium">
+                      {inv.invoice_number}
+                    </Td>
+                    <Td label="Job">
                       <Link
                         href={`/jobs/${inv.job_id}`}
                         className="underline underline-offset-2"
@@ -128,22 +131,22 @@ export default function InvoicesListPage() {
                       >
                         {inv.job_title || `Job #${inv.job_id}`}
                       </Link>
-                    </td>
-                    <td>{inv.lead_name || "—"}</td>
-                    <td>
+                    </Td>
+                    <Td label="Client">{inv.lead_name || "—"}</Td>
+                    <Td label="Status">
                       <StatusBadge kind="invoice" status={inv.status} />
-                    </td>
-                    <td className="text-right font-semibold">
+                    </Td>
+                    <Td label="Total" className="font-semibold md:text-right">
                       ${formatCurrency(inv.grand_total)}
-                    </td>
-                    <td>
+                    </Td>
+                    <Td label="Due">
                       {inv.due_date ? formatDate(inv.due_date) : "—"}
-                    </td>
+                    </Td>
                   </tr>
                 ))
               )}
             </tbody>
-          </table>
+          </DataTable>
         </div>
       </div>
     </AppShell>

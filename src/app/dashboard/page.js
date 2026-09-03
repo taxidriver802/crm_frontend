@@ -372,7 +372,7 @@ export default function DashboardPage() {
               ready={!isInitialLoading}
               empty={dashboardTasksEmpty}
             >
-              <div className="mb-4 flex items-center justify-between gap-3">
+              <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
                 <Segmented
                   aria-label="Task window"
                   value={tab}

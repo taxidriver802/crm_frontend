@@ -17,8 +17,8 @@ export function ToggleFormSection({
 }) {
   return (
     <section className={`card p-4 ${className}`.trim()}>
-      <div className="mb-4 flex items-center justify-between gap-3">
-        <div>
+      <div className="mb-4 flex min-w-0 flex-wrap items-start justify-between gap-3">
+        <div className="min-w-0">
           <h3 className="section-heading">{title}</h3>
           {description ? <p className="text-muted mt-1 text-xs">{description}</p> : null}
         </div>

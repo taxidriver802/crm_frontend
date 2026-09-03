@@ -67,7 +67,7 @@ export function TableRowSkeleton({ cols = 5 }) {
   return (
     <tr>
       {Array.from({ length: cols }).map((_, i) => (
-        <td key={i}>
+        <td key={i} {...(i === 0 ? { "data-primary": "" } : {})}>
           <div className="flex flex-col space-y-2">
             <Skeleton className={`${i === 0 ? "w-full" : "w-34"} h-4`} />
             {i === 0 && <Skeleton className="h-3 w-40" />}

@@ -3,7 +3,7 @@
 import { Alert } from "@/components/ui/alert";
 import { Suspense, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { useSearchParams } from "next/navigation";
+import { useSearchParams, useRouter } from "next/navigation";
 import { AppShell } from "@/components/app-shell";
 import { ToggleFormSection } from "@/components/toggle-form-section";
 import { JobForm, createEmptyJobForm } from "@/components/forms/job-form";
@@ -19,8 +19,10 @@ import { Field } from "@/components/ui/field";
 import { FilterBar } from "@/components/ui/filter-bar";
 import { Segmented } from "@/components/ui/segmented";
 import { Icon } from "@/components/icons";
+import { DataTable, Td } from "@/components/ui/data-table";
 
 function JobsPageInner() {
+  const router = useRouter();
   const [q, setQ] = useState("");
   const [status, setStatus] = useState("");
 
@@ -320,7 +322,7 @@ function JobsPageInner() {
             />
           </Field>
 
-          <Field label="Status" className="w-full sm:w-56">
+          <Field label="Status" className="w-full md:w-56">
             <select
               className="input"
               value={status}
@@ -336,7 +338,7 @@ function JobsPageInner() {
             </select>
           </Field>
 
-          <Field label="Assigned To" className="w-full sm:w-56">
+          <Field label="Assigned To" className="w-full md:w-56">
             <select
               className="input"
               value={assignedFilter}
@@ -381,8 +383,7 @@ function JobsPageInner() {
         />
 
         <CollapsibleSection title={jobTitle} defaultOpen={true}>
-          <div className="scrollbar-theme overflow-x-auto">
-            <table className="data-table">
+          <DataTable>
               <thead>
                 <tr>
                   <th>Title</th>
@@ -391,32 +392,46 @@ function JobsPageInner() {
                   <th>Address</th>
                   <th>Assignee</th>
                   <th>Created</th>
-                  <th className="text-right">Action</th>
                 </tr>
               </thead>
 
               <tbody>
                 {loadingJobs ? (
                   Array.from({ length: 3 }).map((_, i) => (
-                    <TableRowSkeleton key={i} cols={7} />
+                    <TableRowSkeleton key={i} cols={6} />
                   ))
                 ) : jobs.length === 0 ? (
                   <tr>
-                    <td className="text-muted" colSpan={7}>
+                    <Td empty className="text-muted" colSpan={6}>
                       No jobs found.
-                    </td>
+                    </Td>
                   </tr>
                 ) : (
                   jobs.map((job) => (
-                    <tr key={job.id}>
-                      <td>
+                    <tr
+                      key={job.id}
+                      className="cursor-pointer"
+                      role="link"
+                      tabIndex={0}
+                      onClick={() => router.push(`/jobs/${job.id}`)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter" || e.key === " ") {
+                          e.preventDefault();
+                          router.push(`/jobs/${job.id}`);
+                        }
+                      }}
+                    >
+                      <Td primary label="Title">
                         <div className="font-medium">{job.title}</div>
-                        <div className="text-muted mt-1 max-w-[12.5rem] truncate text-xs">
+                        <div className="text-muted mt-1 text-xs md:max-w-[12.5rem] md:truncate">
                           {job.description || "—"}
                         </div>
-                      </td>
+                      </Td>
 
-                      <td>
+                      <Td
+                        label="Lead"
+                        onClick={(e) => e.stopPropagation()}
+                      >
                         {job.lead ? (
                           <Link
                             className="underline underline-offset-4 hover:opacity-80"
@@ -427,32 +442,40 @@ function JobsPageInner() {
                         ) : (
                           <span className="text-muted">—</span>
                         )}
-                      </td>
+                      </Td>
 
-                      <td>
+                      <Td label="Status">
                         <StatusBadge kind="job" status={job.status} />
-                      </td>
+                      </Td>
 
-                      <td>
+                      <Td label="Address">
                         {job.address ? (
                           <button
                             type="button"
-                            className="text-main hover:bg-accent -mx-1 block min-w-0 max-w-[min(16rem,45vw)] rounded px-1 py-0.5 text-left transition sm:max-w-[18rem]"
+                            className="text-main hover:bg-accent -mx-1 block min-w-0 w-full max-w-none rounded px-1 py-0.5 text-left transition md:max-w-[min(16rem,45vw)]"
                             title="Show full address"
-                            onClick={() => setAddressPreview(job.address)}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setAddressPreview(job.address);
+                            }}
                           >
-                            <span className="block truncate">{job.address}</span>
+                            <span className="block md:truncate">{job.address}</span>
                           </button>
                         ) : (
                           <span className="text-muted">—</span>
                         )}
-                      </td>
-                      <td>
+                      </Td>
+                      <Td label="Assignee">
                         {canViewAll ? (
                           <select
                             className="input"
                             value={job.assigned_to || ""}
-                            onChange={(e) => handleAssignJob(job.id, e.target.value)}
+                            onClick={(e) => e.stopPropagation()}
+                            onKeyDown={(e) => e.stopPropagation()}
+                            onChange={(e) => {
+                              e.stopPropagation();
+                              handleAssignJob(job.id, e.target.value);
+                            }}
                           >
                             <option value="">Unassigned</option>
                             {teamUsers.map((user) => (
@@ -467,23 +490,13 @@ function JobsPageInner() {
                         ) : (
                           <span className="text-muted">—</span>
                         )}
-                      </td>
-                      <td>{formatDate(job.created_at)}</td>
-
-                      <td className="text-right">
-                        <Link
-                          className="underline underline-offset-4 hover:opacity-80"
-                          href={`/jobs/${job.id}`}
-                        >
-                          View
-                        </Link>
-                      </td>
+                      </Td>
+                      <Td label="Created">{formatDate(job.created_at)}</Td>
                     </tr>
                   ))
                 )}
               </tbody>
-            </table>
-          </div>
+          </DataTable>
         </CollapsibleSection>
 
         {addressPreview ? (

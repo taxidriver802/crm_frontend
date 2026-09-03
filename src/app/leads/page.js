@@ -19,6 +19,7 @@ import { FilterBar } from "@/components/ui/filter-bar";
 import { Segmented } from "@/components/ui/segmented";
 import { EmptyState } from "@/components/error-boundary";
 import { Icon } from "@/components/icons";
+import { DataTable, Td } from "@/components/ui/data-table";
 
 const LEAD_PIPELINE_COLUMNS = ["New", "Contacted", "Qualified", "Closed", "Inactive"];
 
@@ -391,7 +392,7 @@ function LeadsPageInner() {
             />
           </Field>
 
-          <Field label="Status" className="w-full sm:w-56">
+          <Field label="Status" className="w-full md:w-56">
             <select
               className="input"
               value={status}
@@ -406,7 +407,7 @@ function LeadsPageInner() {
             </select>
           </Field>
 
-          <Field label="Assigned To" className="w-full sm:w-56">
+          <Field label="Assigned To" className="w-full md:w-56">
             <select
               className="input"
               value={assignedFilter}
@@ -488,108 +489,106 @@ function LeadsPageInner() {
               />
             )
           ) : (
-            <div className="overflow-x-auto">
-              <table className="data-table">
-                <thead>
-                  <tr>
-                    <th>Name</th>
-                    <th>Status</th>
-                    <th>Source</th>
-                    <th>Assignee</th>
-                    <th>Created</th>
-                  </tr>
-                </thead>
+            <DataTable>
+              <thead>
+                <tr>
+                  <th>Name</th>
+                  <th>Status</th>
+                  <th>Source</th>
+                  <th>Assignee</th>
+                  <th>Created</th>
+                </tr>
+              </thead>
 
-                <tbody>
-                  {loadingLeads ? (
-                    Array.from({ length: 3 }).map((_, i) => (
-                      <tr key={i}>
-                        <td>
-                          <Skeleton className="mb-2 h-4 w-32" />
-                          <Skeleton className="h-3 w-48" />
-                        </td>
-                        <td>
-                          <Skeleton className="h-5 w-16 rounded-full" />
-                        </td>
-                        <td>
-                          <Skeleton className="h-4 w-20" />
-                        </td>
-                        <td>
-                          <Skeleton className="h-4 w-24" />
-                        </td>
-                        <td>
-                          <Skeleton className="h-4 w-24" />
-                        </td>
-                      </tr>
-                    ))
-                  ) : leads.length === 0 ? (
-                    <tr>
-                      <td className="text-muted" colSpan={5}>
-                        No leads found.
-                      </td>
+              <tbody>
+                {loadingLeads ? (
+                  Array.from({ length: 3 }).map((_, i) => (
+                    <tr key={i}>
+                      <Td primary>
+                        <Skeleton className="mb-2 h-4 w-32" />
+                        <Skeleton className="h-3 w-48" />
+                      </Td>
+                      <Td label="Status">
+                        <Skeleton className="h-5 w-16 rounded-full" />
+                      </Td>
+                      <Td label="Source">
+                        <Skeleton className="h-4 w-20" />
+                      </Td>
+                      <Td label="Assignee">
+                        <Skeleton className="h-4 w-24" />
+                      </Td>
+                      <Td label="Created">
+                        <Skeleton className="h-4 w-24" />
+                      </Td>
                     </tr>
-                  ) : (
-                    leads.map((lead) => (
-                      <tr
-                        key={lead.id}
-                        className="cursor-pointer"
-                        role="link"
-                        tabIndex={0}
-                        onClick={() => router.push(`/leads/${lead.id}`)}
-                        onKeyDown={(e) => {
-                          if (e.key === "Enter" || e.key === " ") {
-                            e.preventDefault();
-                            router.push(`/leads/${lead.id}`);
-                          }
-                        }}
-                      >
-                        <td>
-                          <div className="font-medium">
-                            {lead.first_name} {lead.last_name}
-                          </div>
-                          <div className="text-muted mt-1 text-xs">
-                            {(lead.email ?? "—") + (lead.phone ? ` • ${lead.phone}` : "")}
-                          </div>
-                        </td>
+                  ))
+                ) : leads.length === 0 ? (
+                  <tr>
+                    <Td empty className="text-muted" colSpan={5}>
+                      No leads found.
+                    </Td>
+                  </tr>
+                ) : (
+                  leads.map((lead) => (
+                    <tr
+                      key={lead.id}
+                      className="cursor-pointer"
+                      role="link"
+                      tabIndex={0}
+                      onClick={() => router.push(`/leads/${lead.id}`)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter" || e.key === " ") {
+                          e.preventDefault();
+                          router.push(`/leads/${lead.id}`);
+                        }
+                      }}
+                    >
+                      <Td primary label="Name">
+                        <div className="font-medium">
+                          {lead.first_name} {lead.last_name}
+                        </div>
+                        <div className="text-muted mt-1 text-xs">
+                          {(lead.email ?? "—") + (lead.phone ? ` • ${lead.phone}` : "")}
+                        </div>
+                      </Td>
 
-                        <td>
-                          <StatusBadge kind="lead" status={lead.status} />
-                        </td>
+                      <Td label="Status">
+                        <StatusBadge kind="lead" status={lead.status} />
+                      </Td>
 
-                        <td>{lead.source ?? "—"}</td>
-                        <td>
-                          {canViewAll ? (
-                            <select
-                              className="input"
-                              value={lead.assigned_to || ""}
-                              onClick={(e) => e.stopPropagation()}
-                              onKeyDown={(e) => e.stopPropagation()}
-                              onChange={(e) => {
-                                e.stopPropagation();
-                                handleAssignLead(lead.id, e.target.value);
-                              }}
-                            >
-                              <option value="">Unassigned</option>
-                              {teamUsers.map((user) => (
-                                <option key={user.id} value={user.id}>
-                                  {user.first_name} {user.last_name}
-                                </option>
-                              ))}
-                            </select>
-                          ) : lead.assigned_user ? (
-                            `${lead.assigned_user.first_name || ""} ${lead.assigned_user.last_name || ""}`.trim() ||
-                            lead.assigned_user.email
-                          ) : (
-                            <span className="text-muted">—</span>
-                          )}
-                        </td>
-                        <td>{formatDate(lead.created_at)}</td>
-                      </tr>
-                    ))
-                  )}
-                </tbody>
-              </table>
-            </div>
+                      <Td label="Source">{lead.source ?? "—"}</Td>
+                      <Td label="Assignee">
+                        {canViewAll ? (
+                          <select
+                            className="input"
+                            value={lead.assigned_to || ""}
+                            onClick={(e) => e.stopPropagation()}
+                            onKeyDown={(e) => e.stopPropagation()}
+                            onChange={(e) => {
+                              e.stopPropagation();
+                              handleAssignLead(lead.id, e.target.value);
+                            }}
+                          >
+                            <option value="">Unassigned</option>
+                            {teamUsers.map((user) => (
+                              <option key={user.id} value={user.id}>
+                                {user.first_name} {user.last_name}
+                              </option>
+                            ))}
+                          </select>
+                        ) : lead.assigned_user ? (
+                          `${lead.assigned_user.first_name || ""} ${lead.assigned_user.last_name || ""}`.trim() ||
+                          lead.assigned_user.email
+                        ) : (
+                          <span className="text-muted">—</span>
+                        )}
+                      </Td>
+                      <Td label="Created">{formatDate(lead.created_at)}</Td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </DataTable>
           )}
         </CollapsibleSection>
       </div>

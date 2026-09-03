@@ -553,7 +553,7 @@ export default function LeadDetailPage() {
                 {files.map((file) => (
                   <div
                     key={file.id}
-                    className="list-row flex items-start justify-between gap-3"
+                    className="list-row list-row-split"
                   >
                     <div className="min-w-0">
                       <div className="truncate font-medium">{file.original_name}</div>
@@ -566,7 +566,7 @@ export default function LeadDetailPage() {
                       </div>
                     </div>
 
-                    <div className="flex flex-wrap items-center gap-2">
+                    <div className="flex shrink-0 flex-wrap items-center gap-2">
                       {isPreviewableFile(file) ? (
                         <button
                           type="button"

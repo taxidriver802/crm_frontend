@@ -465,34 +465,42 @@ export default function EstimateDetailPage() {
           ready={!loading}
           empty={lineItems.length === 0}
           actions={
-            <div className="flex items-center gap-2">
-              <div className="text-main text-sm">Sort By:</div>
-              {[
-                { key: "updated_at", label: "Last updated" },
-                { key: "created_at", label: "Created at" },
-                { key: "unit_price", label: "Unit price" },
-                { key: "quantity", label: "Quantity" },
-                { key: "line_total", label: "Total price" },
-              ].map(({ key, label }) => (
-                <button
-                  key={key}
-                  type="button"
-                  onClick={() => {
-                    if (sortBy === key) {
-                      setSortDirection((prev) => (prev === "asc" ? "desc" : "asc"));
-                    } else {
-                      setSortBy(key);
-                      setSortDirection("desc");
-                    }
-                  }}
-                  className={`btn btn-sm ${
-                    sortBy === key ? "btn-primary" : "btn-ghost"
-                  }`}
-                >
-                  {label}
-                  {sortBy === key && (sortDirection === "desc" ? " ↓" : " ↑")}
-                </button>
-              ))}
+            <div className="flex min-w-0 max-w-full flex-1 items-center gap-2">
+              <div className="text-main shrink-0 text-sm">Sort By:</div>
+              <div className="relative min-w-0 flex-1">
+                <div className="scrollbar-theme bg-surface border-base flex min-w-0 touch-pan-x items-center gap-2 overflow-x-auto overscroll-x-contain rounded-theme-md border py-1 pl-1.5 pr-6">
+                  {[
+                    { key: "updated_at", label: "Last updated" },
+                    { key: "created_at", label: "Created at" },
+                    { key: "unit_price", label: "Unit price" },
+                    { key: "quantity", label: "Quantity" },
+                    { key: "line_total", label: "Total price" },
+                  ].map(({ key, label }) => (
+                    <button
+                      key={key}
+                      type="button"
+                      onClick={() => {
+                        if (sortBy === key) {
+                          setSortDirection((prev) => (prev === "asc" ? "desc" : "asc"));
+                        } else {
+                          setSortBy(key);
+                          setSortDirection("desc");
+                        }
+                      }}
+                      className={`btn btn-sm shrink-0 whitespace-nowrap ${
+                        sortBy === key ? "btn-primary" : "btn-ghost"
+                      }`}
+                    >
+                      {label}
+                      {sortBy === key && (sortDirection === "desc" ? " ↓" : " ↑")}
+                    </button>
+                  ))}
+                </div>
+                <div
+                  aria-hidden="true"
+                  className="from-surface pointer-events-none absolute inset-y-px right-px w-8 rounded-r-[calc(var(--radius-md)-1px)] bg-gradient-to-l to-transparent"
+                />
+              </div>
             </div>
           }
           secondaryActions={

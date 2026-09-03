@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 
@@ -194,6 +194,99 @@ export function AppShell({ children, title, description, right }) {
   useEffect(() => {
     loadUser();
     loadUnreadCount();
+  }, []);
+
+  useLayoutEffect(() => {
+    const root = document.documentElement;
+    let lastTouchY = 0;
+
+    function syncViewport() {
+      const height = window.visualViewport?.height ?? window.innerHeight;
+      root.style.setProperty("--app-height", `${Math.round(height)}px`);
+    }
+
+    function pinDocumentScroll() {
+      if (window.scrollX || window.scrollY) {
+        window.scrollTo(0, 0);
+      }
+    }
+
+    function findScrollable(target, axis) {
+      let node = target instanceof Element ? target : target?.parentElement;
+      while (node && node !== document.documentElement) {
+        const style = window.getComputedStyle(node);
+        if (axis === "y") {
+          const overflowY = style.overflowY;
+          if (
+            (overflowY === "auto" || overflowY === "scroll") &&
+            node.scrollHeight > node.clientHeight + 1
+          ) {
+            return node;
+          }
+        } else {
+          const overflowX = style.overflowX;
+          if (
+            (overflowX === "auto" || overflowX === "scroll") &&
+            node.scrollWidth > node.clientWidth + 1
+          ) {
+            return node;
+          }
+        }
+        node = node.parentElement;
+      }
+      return null;
+    }
+
+    function onTouchStart(event) {
+      lastTouchY = event.touches[0]?.clientY ?? 0;
+    }
+
+    function onTouchMove(event) {
+      if (event.touches.length > 1) return;
+
+      const y = event.touches[0]?.clientY ?? lastTouchY;
+      const deltaY = y - lastTouchY;
+      lastTouchY = y;
+
+      const horizontal = findScrollable(event.target, "x");
+      const vertical = findScrollable(event.target, "y");
+
+      if (horizontal && !vertical) return;
+      if (!vertical) {
+        event.preventDefault();
+        return;
+      }
+
+      const atTop = vertical.scrollTop <= 0;
+      const atBottom =
+        vertical.scrollTop + vertical.clientHeight >= vertical.scrollHeight - 1;
+
+      if ((atTop && deltaY > 0) || (atBottom && deltaY < 0)) {
+        event.preventDefault();
+      }
+    }
+
+    root.classList.add("app-shell-active");
+    syncViewport();
+
+    const visualViewport = window.visualViewport;
+    visualViewport?.addEventListener("resize", syncViewport);
+    window.addEventListener("resize", syncViewport);
+    window.addEventListener("orientationchange", syncViewport);
+    window.addEventListener("scroll", pinDocumentScroll, { passive: true });
+    document.addEventListener("touchstart", onTouchStart, { passive: true });
+    document.addEventListener("touchmove", onTouchMove, { passive: false });
+
+    return () => {
+      visualViewport?.removeEventListener("resize", syncViewport);
+      window.removeEventListener("resize", syncViewport);
+      window.removeEventListener("orientationchange", syncViewport);
+      window.removeEventListener("scroll", pinDocumentScroll);
+      document.removeEventListener("touchstart", onTouchStart);
+      document.removeEventListener("touchmove", onTouchMove);
+      root.classList.remove("app-shell-active");
+      root.style.removeProperty("--app-height");
+    };
   }, []);
 
   async function loadUser() {
@@ -488,7 +581,7 @@ export function AppShell({ children, title, description, right }) {
   }
 
   return (
-    <div className="bg-app text-main flex h-screen overflow-hidden">
+    <div className="app-shell bg-app text-main flex overflow-hidden">
       {/* SIDEBAR — large screens; toggled from the topbar */}
       <aside
         id="desktop-sidebar"
@@ -550,9 +643,9 @@ export function AppShell({ children, title, description, right }) {
       </aside>
 
       {/* MAIN */}
-      <div className="flex flex-1 flex-col overflow-hidden">
+      <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
         {/* TOPBAR */}
-        <header className="border-base bg-surface-elevated relative sticky top-0 z-10 flex items-center justify-between gap-4 border-b px-4 py-2.5 sm:px-6">
+        <header className="border-base bg-surface-elevated relative sticky top-0 z-10 flex shrink-0 items-center justify-between gap-4 border-b px-4 py-2.5 sm:px-6">
           <div
             className={cx(
               "flex h-full min-w-0 flex-row gap-2",
@@ -719,7 +812,7 @@ export function AppShell({ children, title, description, right }) {
         )}
 
         {/* PAGE */}
-        <main className="scrollbar-none flex-1 overflow-y-auto">
+        <main className="scrollbar-none min-h-0 min-w-0 flex-1 overflow-y-auto overscroll-y-none">
           <div className="page-wrap">
             <div className="page-stack">
               {right ? <div className="page-actions lg:hidden">{right}</div> : null}
@@ -727,36 +820,36 @@ export function AppShell({ children, title, description, right }) {
             </div>
           </div>
         </main>
-      </div>
 
-      {/* MOBILE BOTTOM NAV */}
-      <nav
-        className="border-chrome bg-chrome text-chrome fixed inset-x-0 bottom-0 z-30 flex items-center justify-around border-t py-1.5 lg:hidden"
-        style={{ paddingBottom: "max(0.375rem, env(safe-area-inset-bottom, 0px))" }}
-      >
-        {[
-          { href: "/dashboard", label: "Home", icon: "home" },
-          { href: "/leads", label: "Leads", icon: "users" },
-          { href: "/jobs", label: "Jobs", icon: "briefcase" },
-          { href: "/tasks", label: "Tasks", icon: "checklist" },
-          { href: "/reports", label: "Reports", icon: "chart" },
-        ].map((item) => {
-          const active = isActivePath(pathname, item.href);
-          return (
-            <Link
-              key={item.href}
-              href={item.href}
-              className={cx(
-                "flex min-w-[3.25rem] flex-col items-center gap-0.5 px-2 py-1 text-[10px] transition",
-                active ? "text-chrome font-semibold" : "text-chrome-muted",
-              )}
-            >
-              <Icon name={item.icon} className="h-4 w-4" />
-              <span>{item.label}</span>
-            </Link>
-          );
-        })}
-      </nav>
+        {/* MOBILE BOTTOM NAV — in-flow so iOS overscroll cannot drag it off-screen */}
+        <nav
+          className="border-chrome bg-chrome text-chrome flex shrink-0 items-center justify-around border-t py-1.5 lg:hidden"
+          style={{ paddingBottom: "max(0.375rem, env(safe-area-inset-bottom, 0px))" }}
+        >
+          {[
+            { href: "/dashboard", label: "Home", icon: "home" },
+            { href: "/leads", label: "Leads", icon: "users" },
+            { href: "/jobs", label: "Jobs", icon: "briefcase" },
+            { href: "/tasks", label: "Tasks", icon: "checklist" },
+            { href: "/reports", label: "Reports", icon: "chart" },
+          ].map((item) => {
+            const active = isActivePath(pathname, item.href);
+            return (
+              <Link
+                key={item.href}
+                href={item.href}
+                className={cx(
+                  "flex min-w-[3.25rem] flex-col items-center gap-0.5 px-2 py-1 text-[10px] transition",
+                  active ? "text-chrome font-semibold" : "text-chrome-muted",
+                )}
+              >
+                <Icon name={item.icon} className="h-4 w-4" />
+                <span>{item.label}</span>
+              </Link>
+            );
+          })}
+        </nav>
+      </div>
 
       <InviteUserModal open={inviteModalOpen} onClose={() => setInviteModalOpen(false)} />
       <CommandPalette open={searchOpen} onClose={() => setSearchOpen(false)} />

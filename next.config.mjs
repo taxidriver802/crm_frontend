@@ -22,6 +22,7 @@ const nextConfig = {
     "unusuriously-interlocutory-dann.ngrok-free.dev",
     "192.168.137.1",
     "192.168.0.15",
+    "192.168.0.6",
   ],
 
   async rewrites() {

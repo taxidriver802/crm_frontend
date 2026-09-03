@@ -55,9 +55,9 @@ function TaskStatusBadge({ task }) {
 
 function InfoCard({ title, children, className = "" }) {
   return (
-    <section className={`card p-4 ${className}`}>
+    <section className={`card min-w-0 p-4 ${className}`}>
       <h2 className="section-heading">{title}</h2>
-      <div className="mt-3">{children}</div>
+      <div className="mt-3 min-w-0">{children}</div>
     </section>
   );
 }
@@ -453,8 +453,8 @@ export default function TaskDetailPage() {
           </DetailHeader>
         )}
         {loadingTask ? (
-          <div className="flex flex-row gap-5">
-            <section className="card h-[15rem] w-[40rem] p-4">
+          <div className="grid gap-4 xl:grid-cols-[0.95fr_1.05fr]">
+            <section className="card p-4">
               <div className="space-y-3">
                 <Skeleton className="h-4 w-40" />
                 <Skeleton className="h-4 w-52" />
@@ -462,7 +462,7 @@ export default function TaskDetailPage() {
               </div>
             </section>
 
-            <section className="card w-[45rem] p-4">
+            <section className="card p-4">
               <div className="space-y-3">
                 <Skeleton className="h-4 w-40" />
                 <Skeleton className="h-4 w-52" />
@@ -472,7 +472,7 @@ export default function TaskDetailPage() {
           </div>
         ) : null}
         {task ? (
-          <section className="grid gap-4 xl:grid-cols-[0.95fr_1.05fr]">
+          <section className="grid min-w-0 gap-4 xl:grid-cols-[0.95fr_1.05fr]">
             {task?.lead ? (
               <InfoCard title="Lead Snapshot">
                 {!task?.lead_id ? (
@@ -579,9 +579,8 @@ export default function TaskDetailPage() {
                   {recentFiles.map((file) => (
                     <div
                       key={file.id}
-                      className="list-row flex items-start justify-between gap-3"
+                      className="list-row list-row-split"
                     >
-                      {" "}
                       <div className="min-w-0">
                         <div className="truncate font-medium">{file.original_name}</div>
                         <div className="text-muted mt-1 text-xs">
@@ -592,7 +591,7 @@ export default function TaskDetailPage() {
                           Uploaded: {formatDate(file.created_at)}
                         </div>
                       </div>
-                      <div className="flex flex-wrap items-center gap-2">
+                      <div className="flex shrink-0 flex-wrap items-center gap-2">
                         {isPreviewableFile(file) ? (
                           <button
                             type="button"

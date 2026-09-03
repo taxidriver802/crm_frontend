@@ -19,6 +19,7 @@ import { StatusBadge } from "@/components/ui/status-badge";
 import { Field } from "@/components/ui/field";
 import { FilterBar } from "@/components/ui/filter-bar";
 import { EmptyState } from "@/components/error-boundary";
+import { DataTable, Td } from "@/components/ui/data-table";
 
 /** 12rem — matches `min-w-[12rem]` menus */
 const TABLE_DROPDOWN_MENU_WIDTH_PX = 192;
@@ -504,8 +505,7 @@ export default function UsersPage() {
           }
         >
           {loadingUsers ? (
-            <div className="scrollbar-theme overflow-x-auto">
-              <table className="data-table">
+            <DataTable>
                 <thead>
                   <tr>
                     <th>User</th>
@@ -522,15 +522,13 @@ export default function UsersPage() {
                     <TableRowSkeleton key={i} cols={7} />
                   ))}
                 </tbody>
-              </table>
-            </div>
+            </DataTable>
           ) : users.length === 0 ? (
             <EmptyState title="No users found yet" />
           ) : filteredUsers.length === 0 ? (
             <EmptyState title="No users match the selected filters" />
           ) : (
-            <div className="scrollbar-theme overflow-x-auto">
-              <table className="data-table">
+            <DataTable>
                 <thead>
                   <tr>
                     <th>User</th>
@@ -565,14 +563,14 @@ export default function UsersPage() {
 
                     return (
                       <tr key={user.id}>
-                        <td className="align-top">
+                        <Td primary label="User" className="align-top">
                           <div className="min-w-0">
-                            <div className="truncate font-medium">
+                            <div className="font-medium md:truncate">
                               {[user.first_name, user.last_name]
                                 .filter(Boolean)
                                 .join(" ") || "Unnamed User"}
                             </div>
-                            <div className="text-muted truncate text-xs sm:text-sm">
+                            <div className="text-muted text-xs sm:text-sm md:truncate">
                               {user.email}
                             </div>
                             {isSelf ? (
@@ -581,9 +579,9 @@ export default function UsersPage() {
                               </div>
                             ) : null}
                           </div>
-                        </td>
+                        </Td>
 
-                        <td className="align-top">
+                        <Td label="Role" className="align-top">
                           {(() => {
                             const roleLocked =
                               busyId === user.id || isSelf || adminLockedOwnerRow;
@@ -597,7 +595,7 @@ export default function UsersPage() {
                             if (roleLocked) {
                               return (
                                 <span
-                                  className="text-muted inline-block max-w-[160px] truncate text-sm capitalize"
+                                  className="text-muted inline-block max-w-none text-sm capitalize md:max-w-[160px] md:truncate"
                                   title={
                                     isSelf
                                       ? "You can't change your own role"
@@ -686,9 +684,9 @@ export default function UsersPage() {
                               </div>
                             );
                           })()}
-                        </td>
+                        </Td>
 
-                        <td className="align-top">
+                        <Td label="Status" className="align-top">
                           <div className="flex flex-col gap-1">
                             <StatusBadge kind="user" status={displayStatus} size="md" />
 
@@ -708,29 +706,29 @@ export default function UsersPage() {
                               </span>
                             ) : null}
                           </div>
-                        </td>
+                        </Td>
 
-                        <td className="text-muted align-top">
+                        <Td label="Invited" className="text-muted align-top">
                           {user.invited_at
                             ? new Date(user.invited_at).toLocaleDateString()
                             : "—"}
-                        </td>
+                        </Td>
 
-                        <td className="text-muted align-top">
+                        <Td label="Accepted" className="text-muted align-top">
                           {user.password_set_at
                             ? new Date(user.password_set_at).toLocaleDateString()
                             : "—"}
-                        </td>
+                        </Td>
 
-                        <td className="text-muted align-top">
+                        <Td label="Last Login" className="text-muted align-top">
                           {user.last_login_at
                             ? new Date(user.last_login_at).toLocaleDateString()
                             : user.status === "invited"
                               ? "Pending"
                               : "—"}
-                        </td>
+                        </Td>
 
-                        <td className="align-top">
+                        <Td actions label="Actions" className="align-top">
                           {(() => {
                             const canDisable =
                               user.status === "active" && !isSelf && !adminLockedOwnerRow;
@@ -896,13 +894,12 @@ export default function UsersPage() {
                               </div>
                             );
                           })()}
-                        </td>
+                        </Td>
                       </tr>
                     );
                   })}
                 </tbody>
-              </table>
-            </div>
+            </DataTable>
           )}
         </CollapsibleSection>
 

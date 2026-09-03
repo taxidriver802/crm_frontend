@@ -26,6 +26,7 @@ import { StatusBadge } from "@/components/ui/status-badge";
 import { Field } from "@/components/ui/field";
 import { FilterBar } from "@/components/ui/filter-bar";
 import { Segmented } from "@/components/ui/segmented";
+import { DataTable, Td } from "@/components/ui/data-table";
 import { Icon } from "@/components/icons";
 
 /** 12rem — matches `min-w-[12rem]` menus */
@@ -775,8 +776,7 @@ function TasksPageInner() {
                 />
               </div>
             ) : (
-              <div className="scrollbar-theme overflow-x-auto">
-                <table className="data-table">
+              <DataTable>
                   <thead>
                     <tr>
                       <th>Title</th>
@@ -795,9 +795,9 @@ function TasksPageInner() {
                       ))
                     ) : tasks.length === 0 ? (
                       <tr>
-                        <td className="text-muted" colSpan={6}>
+                        <Td empty className="text-muted" colSpan={6}>
                           No tasks found. Try adjusting filters or create a new task.
-                        </td>
+                        </Td>
                       </tr>
                     ) : (
                       tasks.map((task) => {
@@ -818,41 +818,40 @@ function TasksPageInner() {
                               }
                             }}
                           >
-                            <td>
+                            <Td primary label="Title">
                               <div
-                                className="truncate font-medium"
-                                style={{ maxWidth: 240, display: "block" }}
+                                className="font-medium md:max-w-[240px] md:truncate"
                                 title={task.title}
                               >
                                 {task.title}
                               </div>
                               {task.description ? (
                                 <div
-                                  className="text-muted mt-1 truncate text-xs"
-                                  style={{ maxWidth: 240, display: "block" }}
+                                  className="text-muted mt-1 text-xs md:max-w-[240px] md:truncate"
                                   title={task.description}
                                 >
                                   {task.description}
                                 </div>
                               ) : null}
-                            </td>
+                            </Td>
 
-                            <td
-                              className="truncate"
+                            <Td
+                              label="Linked To"
+                              className="md:truncate"
                               onClick={(e) => e.stopPropagation()}
                             >
                               <LinkedEntityCell task={task} />
-                            </td>
+                            </Td>
 
-                            <td className="truncate">
+                            <Td label="Due" className="md:truncate">
                               {formatDue(task.due_date)}
-                            </td>
+                            </Td>
 
-                            <td className="truncate">
+                            <Td label="Status" className="md:truncate">
                               <StatusBadge kind="task" status={task.status} />
-                            </td>
+                            </Td>
 
-                            <td className="truncate">
+                            <Td label="Assignee" className="md:truncate">
                               {canViewAll ? (
                                 <select
                                   className="input"
@@ -877,10 +876,12 @@ function TasksPageInner() {
                               ) : (
                                 <span className="text-muted">—</span>
                               )}
-                            </td>
+                            </Td>
 
-                            <td
-                              className="truncate text-right"
+                            <Td
+                              actions
+                              label="Action"
+                              className="md:truncate md:text-right"
                               onClick={(e) => e.stopPropagation()}
                               onKeyDown={(e) => e.stopPropagation()}
                             >
@@ -929,6 +930,17 @@ function TasksPageInner() {
                                     }}
                                   >
                                     <Link
+                                      href={`/tasks/${task.id}`}
+                                      role="menuitem"
+                                      className="hover:bg-accent focus-visible:bg-accent block w-full px-3 py-2 text-left text-xs transition-colors"
+                                      onClick={() => {
+                                        setOpenActionsTaskId(null);
+                                        setActionsMenuPosition(null);
+                                      }}
+                                    >
+                                      Open
+                                    </Link>
+                                    <Link
                                       href={`/tasks/${task.id}/edit`}
                                       role="menuitem"
                                       className="hover:bg-accent focus-visible:bg-accent block w-full px-3 py-2 text-left text-xs transition-colors"
@@ -959,14 +971,13 @@ function TasksPageInner() {
                                   </div>
                                 ) : null}
                               </div>
-                            </td>
+                            </Td>
                           </tr>
                         );
                       })
                     )}
                   </tbody>
-                </table>
-              </div>
+              </DataTable>
             )}
           </CollapsibleSection>
         </div>
