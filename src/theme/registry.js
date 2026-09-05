@@ -2,12 +2,22 @@ import { DEFAULT_PALETTE_ID, PALETTE_STORAGE_KEY } from "./constants";
 import { rooftop } from "./themes/rooftop";
 import { azure } from "./themes/azure";
 import { slate } from "./themes/slate";
+import { emerald } from "./themes/emerald";
+import { violet } from "./themes/violet";
+import { rose } from "./themes/rose";
+import { sand } from "./themes/sand";
+import { graphite } from "./themes/graphite";
 
 /** Named palettes. Add entries here; do not branch on palette ids in pages. */
 export const palettes = {
   [rooftop.id]: rooftop,
   [azure.id]: azure,
   [slate.id]: slate,
+  [emerald.id]: emerald,
+  [violet.id]: violet,
+  [rose.id]: rose,
+  [sand.id]: sand,
+  [graphite.id]: graphite,
 };
 
 export function isPaletteId(id) {
