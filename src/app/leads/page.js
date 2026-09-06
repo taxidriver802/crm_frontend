@@ -11,7 +11,6 @@ import { formatDate } from "@/lib/helper";
 import { CollapsibleSection } from "@/components/forms/collapsible-section";
 import { Skeleton } from "@/components/loading/loadingSkeletons";
 import { KanbanBoard } from "@/components/kanban/kanban-board";
-import { ListToolbar } from "@/components/list-toolbar";
 import { SavedViewsControls } from "@/components/saved-views-controls";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { Field } from "@/components/ui/field";
@@ -336,7 +335,7 @@ function LeadsPageInner() {
           />
         </ToggleFormSection>
 
-        <section className="card p-4">
+        {/* <section className="card p-4">
           <div className="flex flex-row items-center justify-between gap-3">
             <div>
               <div className="text-muted text-sm">Total leads</div>
@@ -367,7 +366,7 @@ function LeadsPageInner() {
               )}
             </div>
           </div>
-        </section>
+        </section> */}
 
         <FilterBar
           actions={
@@ -381,6 +380,49 @@ function LeadsPageInner() {
             >
               <Icon name="refreshCcw" className="h-4 w-4" />
             </button>
+          }
+          footer={
+            <>
+              <div className="flex min-w-0 flex-wrap items-center gap-2">
+                {canViewAll ? (
+                  <Segmented
+                    aria-label="Lead scope"
+                    value={viewScope}
+                    onChange={setViewScope}
+                    options={[
+                      { value: "mine", label: "My Leads" },
+                      { value: "all", label: "Team" },
+                    ]}
+                  />
+                ) : null}
+
+                <Segmented
+                  aria-label="Lead layout"
+                  value={viewMode}
+                  onChange={setViewMode}
+                  options={[
+                    { value: "list", label: "List" },
+                    { value: "board", label: "Board" },
+                  ]}
+                />
+              </div>
+
+              <SavedViewsControls
+                entityType="leads"
+                currentFilters={currentFiltersForSave}
+                onApplyFilters={(filters) => {
+                  setQ(String(filters?.q || ""));
+                  setStatus(String(filters?.status || ""));
+                  setAssignedFilter(String(filters?.assignedFilter || ""));
+                  setViewScope(String(filters?.viewScope || "mine"));
+                  setViewMode(
+                    filters?.viewMode === "board" || filters?.viewMode === "list"
+                      ? filters.viewMode
+                      : "list",
+                  );
+                }}
+              />
+            </>
           }
         >
           <Field label="Search" className="flex-1">
@@ -423,50 +465,6 @@ function LeadsPageInner() {
             </select>
           </Field>
         </FilterBar>
-        <ListToolbar
-          left={
-            <>
-              {canViewAll ? (
-                <Segmented
-                  aria-label="Lead scope"
-                  value={viewScope}
-                  onChange={setViewScope}
-                  options={[
-                    { value: "mine", label: "My Leads" },
-                    { value: "all", label: "Team" },
-                  ]}
-                />
-              ) : null}
-
-              <Segmented
-                aria-label="Lead layout"
-                value={viewMode}
-                onChange={setViewMode}
-                options={[
-                  { value: "list", label: "List" },
-                  { value: "board", label: "Board" },
-                ]}
-              />
-            </>
-          }
-          right={
-            <SavedViewsControls
-              entityType="leads"
-              currentFilters={currentFiltersForSave}
-              onApplyFilters={(filters) => {
-                setQ(String(filters?.q || ""));
-                setStatus(String(filters?.status || ""));
-                setAssignedFilter(String(filters?.assignedFilter || ""));
-                setViewScope(String(filters?.viewScope || "mine"));
-                setViewMode(
-                  filters?.viewMode === "board" || filters?.viewMode === "list"
-                    ? filters.viewMode
-                    : "list",
-                );
-              }}
-            />
-          }
-        />
 
         <CollapsibleSection title={leadTitle} defaultOpen={true}>
           {viewMode === "board" ? (

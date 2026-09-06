@@ -7,35 +7,67 @@ import { api } from "@/lib/api";
 import { Overlay } from "@/components/ui/overlay";
 import { Icon } from "@/components/icons";
 
-function flattenResults(results) {
+const QUICK_NAV_ITEMS = [
+  { href: "/dashboard", label: "Dashboard", icon: "home", keywords: "home overview" },
+  { href: "/leads", label: "Leads", icon: "users", keywords: "contacts" },
+  { href: "/jobs", label: "Jobs", icon: "briefcase", keywords: "projects" },
+  { href: "/tasks", label: "Tasks", icon: "checklist", keywords: "to do" },
+  { href: "/invoices", label: "Invoices", icon: "invoice", keywords: "billing" },
+  { href: "/files", label: "Files", icon: "folder", keywords: "documents" },
+  { href: "/reports", label: "Reports", icon: "chart", keywords: "analytics" },
+  { href: "/automation", label: "Automation", icon: "spark", keywords: "workflows" },
+  { href: "/integrations", label: "Integrations", icon: "plug", keywords: "connections" },
+  { href: "/users", label: "Users", icon: "users", keywords: "team" },
+];
+
+function flattenResults(results, query, navigationMode) {
   const output = [];
-  for (const lead of results.leads || []) {
-    output.push({
-      key: `lead-${lead.id}`,
-      href: `/leads/${lead.id}`,
-      label: `${lead.first_name} ${lead.last_name}`.trim() || `Lead #${lead.id}`,
-      sublabel: lead.email || lead.status || "Lead",
-      group: "Leads",
-    });
+  if (navigationMode === "results") {
+    for (const lead of results.leads || []) {
+      output.push({
+        key: `lead-${lead.id}`,
+        href: `/leads/${lead.id}`,
+        label: `${lead.first_name} ${lead.last_name}`.trim() || `Lead #${lead.id}`,
+        sublabel: lead.email || lead.status || "Lead",
+        group: "Leads",
+      });
+    }
+    for (const job of results.jobs || []) {
+      output.push({
+        key: `job-${job.id}`,
+        href: `/jobs/${job.id}`,
+        label: job.title || `Job #${job.id}`,
+        sublabel: job.address || job.status || "Job",
+        group: "Jobs",
+      });
+    }
+    for (const task of results.tasks || []) {
+      output.push({
+        key: `task-${task.id}`,
+        href: `/tasks/${task.id}`,
+        label: task.title || `Task #${task.id}`,
+        sublabel: task.status || "Task",
+        group: "Tasks",
+      });
+    }
   }
-  for (const job of results.jobs || []) {
-    output.push({
-      key: `job-${job.id}`,
-      href: `/jobs/${job.id}`,
-      label: job.title || `Job #${job.id}`,
-      sublabel: job.address || job.status || "Job",
-      group: "Jobs",
-    });
+
+  const normalizedQuery = query.trim().toLowerCase();
+  if (navigationMode === "pages") {
+    for (const page of QUICK_NAV_ITEMS) {
+      if (`${page.label} ${page.keywords}`.toLowerCase().includes(normalizedQuery)) {
+        output.push({
+          key: `page-${page.href}`,
+          href: page.href,
+          label: page.label,
+          sublabel: "Go to page",
+          group: "Pages",
+          icon: page.icon,
+        });
+      }
+    }
   }
-  for (const task of results.tasks || []) {
-    output.push({
-      key: `task-${task.id}`,
-      href: `/tasks/${task.id}`,
-      label: task.title || `Task #${task.id}`,
-      sublabel: task.status || "Task",
-      group: "Tasks",
-    });
-  }
+
   return output;
 }
 
@@ -45,13 +77,20 @@ export function CommandPalette({ open, onClose }) {
   const [loading, setLoading] = useState(false);
   const [results, setResults] = useState({ leads: [], jobs: [], tasks: [] });
   const [activeIndex, setActiveIndex] = useState(0);
+  const [navigationMode, setNavigationMode] = useState("results");
   const inputRef = useRef(null);
 
-  const flatItems = useMemo(() => flattenResults(results), [results]);
+  const flatItems = useMemo(
+    () => flattenResults(results, query, navigationMode),
+    [results, query, navigationMode],
+  );
 
   useEffect(() => {
     if (!open) return;
-    const t = setTimeout(() => inputRef.current?.focus(), 20);
+    const t = setTimeout(() => {
+      inputRef.current?.focus();
+      inputRef.current?.select();
+    }, 20);
     return () => clearTimeout(t);
   }, [open]);
 
@@ -85,6 +124,7 @@ export function CommandPalette({ open, onClose }) {
 
   useEffect(() => {
     setActiveIndex(0);
+    setNavigationMode("results");
   }, [query, open]);
 
   if (!open) return null;
@@ -93,6 +133,16 @@ export function CommandPalette({ open, onClose }) {
     if (e.key === "Escape") {
       e.preventDefault();
       onClose();
+      return;
+    }
+
+    if (e.key === "Control") {
+      if (e.repeat) return;
+      e.preventDefault();
+      setNavigationMode((currentMode) =>
+        currentMode === "results" ? "pages" : "results",
+      );
+      setActiveIndex(0);
       return;
     }
 
@@ -105,6 +155,7 @@ export function CommandPalette({ open, onClose }) {
       e.preventDefault();
       setActiveIndex((prev) => (prev - 1 + flatItems.length) % flatItems.length);
     }
+
     if (e.key === "Enter") {
       const selected = flatItems[activeIndex];
       if (selected) {
@@ -136,9 +187,11 @@ export function CommandPalette({ open, onClose }) {
             onChange={(e) => setQuery(e.target.value)}
             onKeyDown={handleKeyDown}
           />
-          <kbd className="text-soft hidden rounded-theme-sm border px-1.5 py-0.5 text-[10px] sm:inline">
-            ESC
-          </kbd>
+          <div className="text-soft hidden items-center gap-1 text-[10px] sm:flex">
+            <kbd className="rounded-theme-sm border px-1.5 py-0.5">CTRL</kbd>
+            <span>{navigationMode === "results" ? "Pages" : "Results"}</span>
+            <kbd className="ml-1 rounded-theme-sm border px-1.5 py-0.5">ESC</kbd>
+          </div>
         </div>
 
         <div className="scrollbar-theme max-h-[420px] overflow-y-auto p-2">
@@ -159,8 +212,11 @@ export function CommandPalette({ open, onClose }) {
                     index === activeIndex ? "bg-accent border-strong" : "hover:bg-accent"
                   }`}
                 >
-                  <div className="text-muted text-[11px] uppercase tracking-wide">
-                    {item.group}
+                  <div className="flex items-center gap-2">
+                    {item.icon ? <Icon name={item.icon} className="text-muted h-4 w-4" /> : null}
+                    <div className="text-muted text-[11px] uppercase tracking-wide">
+                      {item.group}
+                    </div>
                   </div>
                   <div className="font-medium">{item.label}</div>
                   <div className="text-muted text-xs">{item.sublabel}</div>
