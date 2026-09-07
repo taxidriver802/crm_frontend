@@ -83,7 +83,7 @@ export default function CustomerPortalPage() {
     );
   }
 
-  const { job, estimates, invoices, files } = data;
+  const { job, estimates, invoices, files, timeline = [] } = data;
 
   return (
     <PublicFrame
@@ -107,6 +107,26 @@ export default function CustomerPortalPage() {
             </MetaItem>
           </MetaList>
         ) : null}
+      </SectionCard>
+
+      <SectionCard title="Progress">
+        {timeline.length === 0 ? (
+          <EmptyState
+            title="No updates yet"
+            description="Project milestones will show up here as work moves forward."
+          />
+        ) : (
+          <div className="space-y-2">
+            {timeline.map((item) => (
+              <ListRow key={item.id} className="flex items-start justify-between gap-3">
+                <div className="min-w-0 text-sm font-medium">{item.label}</div>
+                <div className="text-muted shrink-0 text-xs">
+                  {formatDate(item.at)}
+                </div>
+              </ListRow>
+            ))}
+          </div>
+        )}
       </SectionCard>
 
       {estimates.length > 0 ? (
@@ -162,11 +182,14 @@ export default function CustomerPortalPage() {
         </SectionCard>
       ) : null}
 
-      {files.length > 0 ? (
-        <SectionCard title="Project Photos">
-          <PhotoGallery files={files} loading={false} />
+      <SectionCard title="Project Photos">
+          <PhotoGallery
+            files={files}
+            loading={false}
+            emptyTitle="No photos shared yet."
+            emptyDescription=""
+          />
         </SectionCard>
-      ) : null}
     </PublicFrame>
   );
 }

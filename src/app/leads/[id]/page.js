@@ -5,12 +5,14 @@ import { useEffect, useMemo, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import { AppShell } from "@/components/app-shell";
+import { ReturnLink, useReturnTo } from "@/components/return-to";
 import { api } from "@/lib/api";
 import {
   buildFileUrl,
   formatBytes,
   formatDate,
   formatDateTime,
+  formatDaysInStatus,
   API_BASE,
   isPreviewableFile,
 } from "@/lib/helper";
@@ -38,6 +40,7 @@ function isOverdueTask(task) {
 export default function LeadDetailPage() {
   const { id } = useParams();
   const router = useRouter();
+  const returnTo = useReturnTo();
   const { askConfirm, confirmModal } = useConfirmModal();
 
   const [jobs, setJobs] = useState([]);
@@ -265,7 +268,7 @@ export default function LeadDetailPage() {
           : `Lead #${id}`
       }
     >
-      <div className="space-y-6">
+      <div className="min-w-0 space-y-6">
         {error ? <Alert variant="inline">{error}</Alert> : null}
         {success ? <Alert variant="inline" tone="success">{success}</Alert> : null}
 
@@ -290,7 +293,19 @@ export default function LeadDetailPage() {
             badges={
               <>
                 <StatusBadge kind="lead" status={lead.status ?? "—"} />
+                {formatDaysInStatus(lead.status_changed_at) ? (
+                  <StatusBadge>{formatDaysInStatus(lead.status_changed_at)}</StatusBadge>
+                ) : null}
                 {lead.source ? <StatusBadge>Source: {lead.source}</StatusBadge> : null}
+                {lead.service_type ? (
+                  <StatusBadge>{lead.service_type}</StatusBadge>
+                ) : null}
+                {lead.preferred_contact_method ? (
+                  <StatusBadge>Prefers {lead.preferred_contact_method}</StatusBadge>
+                ) : null}
+                {lead.urgency ? (
+                  <StatusBadge>Urgency: {lead.urgency}</StatusBadge>
+                ) : null}
                 {lead.budget_min != null || lead.budget_max != null ? (
                   <StatusBadge>
                     Budget: {lead.budget_min ?? "—"} - {lead.budget_max ?? "—"}
@@ -300,13 +315,15 @@ export default function LeadDetailPage() {
             }
             actions={
               <>
-                <button
-                  type="button"
-                  className="btn"
-                  onClick={() => router.push("/leads")}
-                >
-                  Back to Leads
-                </button>
+                {returnTo ? null : (
+                  <button
+                    type="button"
+                    className="btn"
+                    onClick={() => router.push("/leads")}
+                  >
+                    Back to Leads
+                  </button>
+                )}
                 <Link href={`/leads/${id}/edit`} className="btn btn-sm">
                   Edit
                 </Link>
@@ -362,7 +379,7 @@ export default function LeadDetailPage() {
         )}
 
         <CollapsibleSection
-          title="Notes"
+          title="Communication"
           description="Call notes, decisions, and context for this lead."
           syncKey={id}
           ready={notesLoadState.ready}
@@ -408,7 +425,7 @@ export default function LeadDetailPage() {
           ) : (
             <div className="space-y-3">
               {jobs.map((job) => (
-                <Link
+                <ReturnLink
                   key={job.id}
                   href={`/jobs/${job.id}`}
                   className="list-row list-row-interactive block"
@@ -423,7 +440,7 @@ export default function LeadDetailPage() {
                       {job.status}
                     </span>
                   </div>
-                </Link>
+                </ReturnLink>
               ))}
             </div>
           )}
@@ -466,7 +483,7 @@ export default function LeadDetailPage() {
                     <div className="text-muted text-sm">No open tasks.</div>
                   ) : (
                     openTasks.map((task) => (
-                      <Link
+                      <ReturnLink
                         key={task.id}
                         href={`/tasks/${task.id}`}
                         className="list-row list-row-interactive block"
@@ -487,7 +504,7 @@ export default function LeadDetailPage() {
                             ) : null}
                           </div>
                         </div>
-                      </Link>
+                      </ReturnLink>
                     ))
                   )}
                 </div>
@@ -499,7 +516,7 @@ export default function LeadDetailPage() {
                     <div className="text-muted text-sm">No completed tasks yet.</div>
                   ) : (
                     completedTasks.map((task) => (
-                      <Link
+                      <ReturnLink
                         key={task.id}
                         href={`/tasks/${task.id}`}
                         className="list-row list-row-interactive block opacity-85"
@@ -514,7 +531,7 @@ export default function LeadDetailPage() {
 
                           <StatusBadge kind="task" status={task.status} />
                         </div>
-                      </Link>
+                      </ReturnLink>
                     ))
                   )}
                 </div>

@@ -17,6 +17,9 @@ function leadToForm(lead) {
     budget_min: lead?.budget_min != null ? String(lead.budget_min) : "",
     budget_max: lead?.budget_max != null ? String(lead.budget_max) : "",
     notes: lead?.notes ?? "",
+    service_type: lead?.service_type ?? "",
+    preferred_contact_method: lead?.preferred_contact_method ?? "",
+    urgency: lead?.urgency ?? "",
   });
 }
 
@@ -79,6 +82,9 @@ export default function EditLeadPage() {
       email: form.email.trim() || null,
       phone: form.phone.trim() || null,
       source: form.source.trim() || null,
+      service_type: form.service_type?.trim() || null,
+      preferred_contact_method: form.preferred_contact_method?.trim() || null,
+      urgency: form.urgency?.trim() || null,
       notes: form.notes.trim() || null,
       budget_min: form.budget_min ? Number(form.budget_min) : null,
       budget_max: form.budget_max ? Number(form.budget_max) : null,

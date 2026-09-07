@@ -2,19 +2,20 @@
 
 import { Alert } from "@/components/ui/alert";
 import { Suspense, useEffect, useMemo, useState } from "react";
-import Link from "next/link";
-import { useSearchParams, useRouter } from "next/navigation";
+import { useSearchParams } from "next/navigation";
 import { AppShell } from "@/components/app-shell";
+import { ReturnLink, useReturnPush } from "@/components/return-to";
 import { ToggleFormSection } from "@/components/toggle-form-section";
 import { JobForm, createEmptyJobForm } from "@/components/forms/job-form";
 import { api } from "@/lib/api";
-import { formatDate } from "@/lib/helper";
+import { formatDate, formatDaysInStatus } from "@/lib/helper";
 import { CollapsibleSection } from "@/components/forms/collapsible-section";
 import { TableRowSkeleton } from "@/components/loading/loadingSkeletons";
 import { ListToolbar } from "@/components/list-toolbar";
 import { SavedViewsControls } from "@/components/saved-views-controls";
 import { ModalFrame } from "@/components/ui/overlay";
 import { StatusBadge } from "@/components/ui/status-badge";
+import { HealthBadge } from "@/components/ui/health-badge";
 import { Field } from "@/components/ui/field";
 import { FilterBar } from "@/components/ui/filter-bar";
 import { Segmented } from "@/components/ui/segmented";
@@ -22,7 +23,7 @@ import { Icon } from "@/components/icons";
 import { DataTable, Td } from "@/components/ui/data-table";
 
 function JobsPageInner() {
-  const router = useRouter();
+  const push = useReturnPush();
   const [q, setQ] = useState("");
   const [status, setStatus] = useState("");
 
@@ -121,12 +122,16 @@ function JobsPageInner() {
       params.set("assignedTo", assignedFilter);
     }
 
+    if (prefillLeadId.trim()) {
+      params.set("leadId", prefillLeadId.trim());
+    }
+
     params.set("limit", "50");
     params.set("offset", "0");
 
     const s = params.toString();
     return s ? `?${s}` : "";
-  }, [q, status, canViewAll, viewScope, assignedFilter]);
+  }, [q, status, canViewAll, viewScope, assignedFilter, prefillLeadId]);
 
   async function handleAssignJob(jobId, assignedTo) {
     const assignee = teamUsers.find((user) => user.id === assignedTo) || null;
@@ -413,11 +418,11 @@ function JobsPageInner() {
                       className="cursor-pointer"
                       role="link"
                       tabIndex={0}
-                      onClick={() => router.push(`/jobs/${job.id}`)}
+                      onClick={() => push(`/jobs/${job.id}`)}
                       onKeyDown={(e) => {
                         if (e.key === "Enter" || e.key === " ") {
                           e.preventDefault();
-                          router.push(`/jobs/${job.id}`);
+                          push(`/jobs/${job.id}`);
                         }
                       }}
                     >
@@ -433,19 +438,27 @@ function JobsPageInner() {
                         onClick={(e) => e.stopPropagation()}
                       >
                         {job.lead ? (
-                          <Link
+                          <ReturnLink
                             className="underline underline-offset-4 hover:opacity-80"
                             href={`/leads/${job.lead.id}`}
                           >
                             {job.lead.name}
-                          </Link>
+                          </ReturnLink>
                         ) : (
                           <span className="text-muted">—</span>
                         )}
                       </Td>
 
                       <Td label="Status">
-                        <StatusBadge kind="job" status={job.status} />
+                        <div className="flex flex-wrap items-center gap-2">
+                          <StatusBadge kind="job" status={job.status} />
+                          <HealthBadge health={job.health} />
+                        </div>
+                        {formatDaysInStatus(job.status_changed_at) ? (
+                          <div className="text-muted mt-1 text-xs">
+                            {formatDaysInStatus(job.status_changed_at)}
+                          </div>
+                        ) : null}
                       </Td>
 
                       <Td label="Address">

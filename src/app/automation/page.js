@@ -15,6 +15,7 @@ const TRIGGER_LABELS = {
   LEAD_INACTIVE: "Lead inactive",
   JOB_STATUS_CHANGED: "Job status changed",
   TASK_COMPLETED: "Task completed",
+  JOB_CREATED: "Job created",
 };
 
 const ACTION_LABELS = {

@@ -9,6 +9,7 @@ import {
   createEmptyEstimateForm,
 } from "@/components/forms/estimate-form";
 import { api } from "@/lib/api";
+import { Field } from "@/components/ui/field";
 
 function NewEstimatePageInner() {
   const router = useRouter();
@@ -21,6 +22,8 @@ function NewEstimatePageInner() {
 
   const [loadingJobs, setLoadingJobs] = useState(true);
   const [jobs, setJobs] = useState([]);
+  const [templates, setTemplates] = useState([]);
+  const [templateId, setTemplateId] = useState("");
 
   const [form, setForm] = useState(() =>
     createEmptyEstimateForm({
@@ -37,9 +40,13 @@ function NewEstimatePageInner() {
     async function loadJobs() {
       try {
         setLoadingJobs(true);
-        const res = await api(`/jobs?limit=${JOBS_LIMIT}&offset=0`);
+        const [jobsRes, templatesRes] = await Promise.all([
+          api(`/jobs?limit=${JOBS_LIMIT}&offset=0`),
+          api("/estimate-templates").catch(() => ({ templates: [] })),
+        ]);
         if (!alive) return;
-        setJobs(res?.jobs || []);
+        setJobs(jobsRes?.jobs || []);
+        setTemplates(templatesRes?.templates || []);
       } catch (e) {
         if (!alive) return;
         setError(e?.message || "Failed to load jobs for dropdown");
@@ -98,6 +105,13 @@ function NewEstimatePageInner() {
         throw new Error("Invalid response from server");
       }
 
+      if (templateId) {
+        await api(`/estimates/${newId}/apply-template`, {
+          method: "POST",
+          body: JSON.stringify({ template_id: Number(templateId) }),
+        });
+      }
+
       router.push(`/estimates/${newId}`);
     } catch (e) {
       setError(e?.message || "Failed to create estimate");
@@ -134,7 +148,26 @@ function NewEstimatePageInner() {
             isContextLocked={isContextLocked}
             onDelete={null}
             estimateId={null}
-          />
+          >
+            <Field label="Template (optional)">
+              <select
+                className="input"
+                value={templateId}
+                onChange={(e) => setTemplateId(e.target.value)}
+                disabled={saving}
+              >
+                <option value="">Start blank</option>
+                {templates.map((template) => (
+                  <option key={template.id} value={template.id}>
+                    {template.name}
+                    {template.line_items?.length
+                      ? ` (${template.line_items.length} lines)`
+                      : ""}
+                  </option>
+                ))}
+              </select>
+            </Field>
+          </EstimateForm>
         )}
       </section>
     </AppShell>

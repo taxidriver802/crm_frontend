@@ -2,11 +2,11 @@
 
 import { CSS } from "@dnd-kit/utilities";
 import { useSortable } from "@dnd-kit/sortable";
-import { useRouter } from "next/navigation";
-import { formatDate } from "@/lib/helper";
+import { useReturnPush } from "@/components/return-to";
+import { formatDate, formatDaysInStatus } from "@/lib/helper";
 
 export function KanbanCard({ lead }) {
-  const router = useRouter();
+  const push = useReturnPush();
   const sortableId = `lead:${lead.id}`;
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } =
     useSortable({
@@ -23,6 +23,8 @@ export function KanbanCard({ lead }) {
     transition,
   };
 
+  const aging = formatDaysInStatus(lead.status_changed_at);
+
   return (
     <div
       ref={setNodeRef}
@@ -32,13 +34,13 @@ export function KanbanCard({ lead }) {
       tabIndex={0}
       onClick={() => {
         if (!isDragging) {
-          router.push(`/leads/${lead.id}`);
+          push(`/leads/${lead.id}`);
         }
       }}
       onKeyDown={(e) => {
         if ((e.key === "Enter" || e.key === " ") && !isDragging) {
           e.preventDefault();
-          router.push(`/leads/${lead.id}`);
+          push(`/leads/${lead.id}`);
         }
       }}
     >
@@ -63,6 +65,10 @@ export function KanbanCard({ lead }) {
       <div className="text-muted mt-2 text-xs">
         {lead.source || "Unknown source"} • {formatDate(lead.created_at)}
       </div>
+      {aging ? <div className="text-muted mt-1 text-xs">{aging}</div> : null}
+      {lead.urgency ? (
+        <div className="text-muted mt-1 text-xs">{lead.urgency}</div>
+      ) : null}
       <div className="text-muted mt-1 text-xs">
         Assignee:{" "}
         {lead.assigned_user

@@ -16,6 +16,7 @@ const QUICK_NAV_ITEMS = [
   { href: "/files", label: "Files", icon: "folder", keywords: "documents" },
   { href: "/reports", label: "Reports", icon: "chart", keywords: "analytics" },
   { href: "/automation", label: "Automation", icon: "spark", keywords: "workflows" },
+  { href: "/estimates/templates", label: "Templates", icon: "invoice", keywords: "quotes estimate packages" },
   { href: "/integrations", label: "Integrations", icon: "plug", keywords: "connections" },
   { href: "/users", label: "Users", icon: "users", keywords: "team" },
 ];

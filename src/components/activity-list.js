@@ -1,6 +1,8 @@
+"use client";
+
 import { useMemo, useState } from "react";
 import { formatActivity, formatActivityTimestamp, getActivityHref } from "@/lib/activity";
-import Link from "next/link";
+import { ReturnLink } from "@/components/return-to";
 
 function getActivityDateLabel(value) {
   if (!value) return "Older";
@@ -157,9 +159,9 @@ function ActivityItem({ item }) {
   );
 
   return href ? (
-    <Link href={href} className="block">
+    <ReturnLink href={href} className="block">
       {content}
-    </Link>
+    </ReturnLink>
   ) : (
     content
   );

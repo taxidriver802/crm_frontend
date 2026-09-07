@@ -41,6 +41,7 @@ export function EstimateForm({
   isContextLocked = false,
   onDelete = null,
   estimateId,
+  children,
 }) {
   const isCompact = layout === "compact";
 
@@ -129,6 +130,7 @@ export function EstimateForm({
           </>
         )}
       </div>
+      {children}
       <div className="flex flex-row justify-between">
         <FormActions>
           <button type="submit" disabled={saving || loadingJobs} className="btn btn-primary">

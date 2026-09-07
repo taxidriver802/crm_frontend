@@ -72,7 +72,7 @@ export function CollapsibleSection({
       </div>
 
       {open ? (
-        <div className={`p-4 ${contentClassName}`.trim()}>
+        <div className={cx("min-w-0 p-4", contentClassName)}>
           {children}
           {secondaryActions ? (
             <div className="mt-4 flex justify-end">{secondaryActions}</div>

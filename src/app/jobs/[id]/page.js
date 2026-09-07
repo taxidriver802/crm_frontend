@@ -5,12 +5,14 @@ import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
 import { AppShell } from "@/components/app-shell";
+import { ReturnLink } from "@/components/return-to";
 import { api } from "@/lib/api";
 import {
   buildFileUrl,
   formatBytes,
   formatDate,
   formatDateTime,
+  formatDaysInStatus,
   API_BASE,
   isPreviewableFile,
 } from "@/lib/helper";
@@ -22,6 +24,11 @@ import { TaskForm, createEmptyTaskForm } from "@/components/forms/task-form";
 import { CollapsibleSection } from "@/components/forms/collapsible-section";
 import { ActivityList } from "@/components/activity-list";
 import { NotesSection } from "@/components/notes-section";
+import {
+  buildPortalLinkMessage,
+  copyText,
+  logOutboundEmailOnJob,
+} from "@/lib/message-templates";
 import { PhotoGallery } from "@/components/photo-gallery";
 import {
   LoadingSpinner,
@@ -31,6 +38,7 @@ import {
 import { SectionCard } from "@/components/ui/section-card";
 import { PageError } from "@/components/error-boundary";
 import { StatusBadge } from "@/components/ui/status-badge";
+import { HealthBadge } from "@/components/ui/health-badge";
 import { MetaList, MetaItem } from "@/components/ui/meta";
 import { Field, FormActions } from "@/components/ui/field";
 import { EmptyState } from "@/components/error-boundary";
@@ -62,6 +70,7 @@ export default function JobDetailPage() {
   const [loadingFiles, setLoadingFiles] = useState(true);
   const [filesError, setFilesError] = useState("");
   const [uploading, setUploading] = useState(false);
+  const [fileDragOver, setFileDragOver] = useState(false);
   const [busyFileId, setBusyFileId] = useState(null);
 
   const [loading, setLoading] = useState(true);
@@ -114,6 +123,7 @@ export default function JobDetailPage() {
 
   const [previewFile, setPreviewFile] = useState(null);
   const [portalBusy, setPortalBusy] = useState(false);
+  const [portalMessageBusy, setPortalMessageBusy] = useState(false);
   const [portalHint, setPortalHint] = useState("");
 
   useEffect(() => {
@@ -420,25 +430,27 @@ export default function JobDetailPage() {
     }
   }
 
-  async function handleFileUpload(event) {
-    const file = event.target.files?.[0];
-    if (!file) return;
+  async function uploadJobFiles(fileList) {
+    const selected = Array.from(fileList || []);
+    if (!selected.length) return;
 
     setUploading(true);
     setFilesError("");
 
     try {
-      const formData = new FormData();
-      formData.append("file", file);
-      formData.append("job_id", String(id));
+      for (const file of selected) {
+        const formData = new FormData();
+        formData.append("file", file);
+        formData.append("job_id", String(id));
 
-      const res = await fetch(`${API_BASE}/files`, {
-        method: "POST",
-        credentials: "include",
-        body: formData,
-      });
+        const res = await fetch(`${API_BASE}/files`, {
+          method: "POST",
+          credentials: "include",
+          body: formData,
+        });
 
-      if (!res.ok) throw new Error("Upload failed");
+        if (!res.ok) throw new Error(`Upload failed for ${file.name}`);
+      }
 
       await loadFiles();
       await loadActivity();
@@ -446,6 +458,33 @@ export default function JobDetailPage() {
       setFilesError(e.message);
     } finally {
       setUploading(false);
+    }
+  }
+
+  function handleFileUpload(event) {
+    uploadJobFiles(event.target.files);
+    event.target.value = "";
+  }
+
+  function handleFileDrop(event) {
+    event.preventDefault();
+    setFileDragOver(false);
+    if (!canManageFiles) return;
+    uploadJobFiles(event.dataTransfer.files);
+  }
+
+  async function saveFileMeta(fileId, updates) {
+    setFiles((prev) =>
+      prev.map((file) => (file.id === fileId ? { ...file, ...updates } : file)),
+    );
+    try {
+      await api(`/files/${fileId}`, {
+        method: "PATCH",
+        body: JSON.stringify(updates),
+      });
+    } catch (e) {
+      setFilesError(e.message || "Failed to update file");
+      await loadFiles();
     }
   }
 
@@ -491,6 +530,37 @@ export default function JobDetailPage() {
       setPortalHint(e?.message || "Failed to generate portal link");
     } finally {
       setPortalBusy(false);
+    }
+  }
+
+  async function handleCopyPortalMessage() {
+    setPortalMessageBusy(true);
+    setPortalHint("");
+    try {
+      const res = await api(`/portal/generate/${id}`, { method: "POST" });
+      const url = `${window.location.origin}/public/portal/${res.token}`;
+      const message = buildPortalLinkMessage({
+        first_name: lead?.first_name || "there",
+        job_title: job?.title || "your job",
+        link: url,
+      });
+      const copied = await copyText(message);
+      try {
+        await logOutboundEmailOnJob(id, message);
+        setPortalHint(
+          copied
+            ? "Portal message copied and logged."
+            : "Portal message logged. Copy it from the communication log.",
+        );
+      } catch {
+        setPortalHint(
+          copied ? "Portal message copied. Could not log communication." : message,
+        );
+      }
+    } catch (e) {
+      setPortalHint(e?.message || "Failed to generate portal link");
+    } finally {
+      setPortalMessageBusy(false);
     }
   }
 
@@ -604,7 +674,7 @@ export default function JobDetailPage() {
 
   return (
     <AppShell title={job ? job.title : "Job"}>
-      <div className="space-y-6">
+      <div className="min-w-0 space-y-6">
         {isInitialLoading ? (
           <div className="space-y-6">
             <div className="card space-y-3 p-4">
@@ -648,8 +718,8 @@ export default function JobDetailPage() {
         {error ? <PageError message={error} /> : null}
 
         {!isInitialLoading && job ? (
-          <div className="grid gap-6 lg:grid-cols-3">
-            <div className="space-y-6 lg:col-span-2">
+          <div className="grid min-w-0 gap-6 lg:grid-cols-3">
+            <div className="min-w-0 space-y-6 lg:col-span-2">
               <SectionCard size="lg" title="Job Overview" description="Overview and current status">
                 <div className="space-y-4">
                   <div className="detail-toolbar">
@@ -657,14 +727,14 @@ export default function JobDetailPage() {
                       {job.lead_id ? (
                         <div className="text-sm">
                           <span className="text-muted">Lead: </span>
-                          <Link
+                          <ReturnLink
                             href={`/leads/${job.lead_id}`}
                             className="underline underline-offset-4 hover:opacity-80"
                           >
                             {lead
                               ? `${lead.first_name} ${lead.last_name}`
                               : `Lead #${job.lead_id}`}
-                          </Link>
+                          </ReturnLink>
                         </div>
                       ) : null}
                       <div>
@@ -680,6 +750,14 @@ export default function JobDetailPage() {
                         disabled={portalBusy}
                       >
                         {portalBusy ? "Link…" : "Customer Portal"}
+                      </button>
+                      <button
+                        type="button"
+                        className="btn px-3 py-2 text-xs"
+                        onClick={handleCopyPortalMessage}
+                        disabled={portalMessageBusy}
+                      >
+                        {portalMessageBusy ? "Message…" : "Copy message"}
                       </button>
                       <Link href={`/jobs/${id}/edit`} className="btn px-3 py-2 text-xs">
                         Edit
@@ -700,7 +778,7 @@ export default function JobDetailPage() {
               </SectionCard>
 
               <CollapsibleSection
-                title="Notes"
+                title="Communication"
                 description="Capture conversations and decisions for this job."
                 syncKey={id}
                 ready={notesLoadState.ready}
@@ -785,7 +863,7 @@ export default function JobDetailPage() {
                 ) : (
                   <div className="min-w-0 space-y-3">
                     {sortedEstimates.map((estimate) => (
-                      <Link
+                      <ReturnLink
                         key={estimate.id}
                         href={`/estimates/${estimate.id}`}
                         className="list-row list-row-interactive list-row-split"
@@ -822,7 +900,7 @@ export default function JobDetailPage() {
                             {formatCurrency(Number(estimate.grand_total || 0).toFixed(2))}
                           </div>
                         </div>
-                      </Link>
+                      </ReturnLink>
                     ))}
                   </div>
                 )}
@@ -860,7 +938,7 @@ export default function JobDetailPage() {
                           new Date(a.updated_at || a.created_at),
                       )
                       .map((inv) => (
-                        <Link
+                        <ReturnLink
                           key={inv.id}
                           href={`/invoices/${inv.id}`}
                           className="hover:bg-accent flex min-w-0 items-start justify-between gap-3 rounded-lg border p-4 transition"
@@ -883,7 +961,7 @@ export default function JobDetailPage() {
                               ${formatCurrency(Number(inv.grand_total || 0).toFixed(2))}
                             </div>
                           </div>
-                        </Link>
+                        </ReturnLink>
                       ))}
                   </div>
                 )}
@@ -1093,7 +1171,7 @@ export default function JobDetailPage() {
                           className="list-row list-row-muted flex items-start justify-between gap-3"
                         >
                           <div className="min-w-0">
-                            <Link
+                            <ReturnLink
                               href={`/tasks/${task.id}`}
                               className="block hover:opacity-80"
                             >
@@ -1110,7 +1188,7 @@ export default function JobDetailPage() {
                               <div className="text-muted mt-2 text-xs">
                                 Due: {formatDateTime(task.due_date)}
                               </div>
-                            </Link>
+                            </ReturnLink>
                           </div>
 
                           <div className="flex shrink-0 items-center gap-2">
@@ -1134,17 +1212,25 @@ export default function JobDetailPage() {
               </CollapsibleSection>
             </div>
 
-            <div className="space-y-6">
+            <div className="min-w-0 space-y-6">
               <SectionCard size="lg" title="Details">
                 <MetaList>
                   <MetaItem label="Address">{job.address || "—"}</MetaItem>
-                  <MetaItem label="Current status">{job.status}</MetaItem>
+                  <MetaItem label="Current status">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span>{job.status}</span>
+                      <HealthBadge health={job.health} />
+                    </div>
+                  </MetaItem>
+                  <MetaItem label="In this status">
+                    {formatDaysInStatus(job.status_changed_at) || "—"}
+                  </MetaItem>
                   <MetaItem label="Created">{formatDate(job.created_at)}</MetaItem>
                 </MetaList>
               </SectionCard>
 
               <section className="card transition hover:bg-accent">
-                <Link href={`/leads/${job.lead_id}`} className="block p-4">
+                <ReturnLink href={`/leads/${job.lead_id}`} className="block p-4">
                   <div className="mb-3">
                     <h2 className="section-heading">Lead Snapshot</h2>
                     <p className="text-muted mt-1 text-sm">
@@ -1195,19 +1281,20 @@ export default function JobDetailPage() {
                       ) : null}
                     </div>
                   )}
-                </Link>
+                </ReturnLink>
               </section>
 
               <SectionCard size="lg"
                 title="Attached Files"
-                description="Files uploaded directly to this job."
+                description="Drop photos here or choose files. Tag before/after and hide internal shots from the portal."
                 right={
                   canManageFiles ? (
                     <label className="btn cursor-pointer px-3 py-2 text-xs">
-                      {uploading ? "Uploading…" : "Upload file"}
+                      {uploading ? "Uploading…" : "Upload files"}
                       <input
                         type="file"
                         className="hidden"
+                        multiple
                         onChange={handleFileUpload}
                         disabled={uploading}
                       />
@@ -1217,6 +1304,24 @@ export default function JobDetailPage() {
               >
                 {filesError ? (
                   <Alert variant="inline" className="mb-3">{filesError}</Alert>
+                ) : null}
+
+                {canManageFiles ? (
+                  <div
+                    onDragOver={(event) => {
+                      event.preventDefault();
+                      setFileDragOver(true);
+                    }}
+                    onDragLeave={() => setFileDragOver(false)}
+                    onDrop={handleFileDrop}
+                    className={`mb-3 rounded-lg border border-dashed p-4 text-sm ${
+                      fileDragOver ? "border-strong bg-accent" : "text-muted"
+                    }`}
+                  >
+                    {uploading
+                      ? "Uploading…"
+                      : "Drop files here to attach them to this job."}
+                  </div>
                 ) : null}
 
                 {!isInitialLoading && loadingFiles ? (
@@ -1232,15 +1337,69 @@ export default function JobDetailPage() {
                         key={file.id}
                         className="list-row list-row-split"
                       >
-                        <div className="min-w-0">
+                        <div className="min-w-0 flex-1 space-y-2">
                           <div className="truncate font-medium">{file.original_name}</div>
-                          <div className="text-muted mt-1 text-xs">
+                          <div className="text-muted text-xs">
                             {file.mime_type || "Unknown type"} •{" "}
                             {formatBytes(file.size_bytes)}
                           </div>
-                          <div className="text-muted mt-1 text-xs">
+                          <div className="text-muted text-xs">
                             Uploaded: {formatDate(file.created_at)}
                           </div>
+                          {canManageFiles ? (
+                            <div className="grid gap-2 sm:grid-cols-3">
+                              <label className="text-muted block text-xs">
+                                Caption
+                                <input
+                                  className="input mt-1"
+                                  value={file.caption || ""}
+                                  onChange={(event) => {
+                                    const caption = event.target.value;
+                                    setFiles((prev) =>
+                                      prev.map((row) =>
+                                        row.id === file.id ? { ...row, caption } : row,
+                                      ),
+                                    );
+                                  }}
+                                  onBlur={(event) => {
+                                    const caption = event.target.value.trim() || null;
+                                    saveFileMeta(file.id, { caption });
+                                  }}
+                                  placeholder="Shown in the gallery"
+                                />
+                              </label>
+                              <label className="text-muted block text-xs">
+                                Category
+                                <select
+                                  className="input mt-1"
+                                  value={file.category || "other"}
+                                  onChange={(event) => {
+                                    saveFileMeta(file.id, {
+                                      category: event.target.value,
+                                    });
+                                  }}
+                                >
+                                  <option value="before">Before</option>
+                                  <option value="after">After</option>
+                                  <option value="other">Other</option>
+                                </select>
+                              </label>
+                              <label className="text-muted mt-6 flex items-center gap-2 text-xs">
+                                <input
+                                  type="checkbox"
+                                  checked={file.client_visible !== false}
+                                  onChange={(event) => {
+                                    saveFileMeta(file.id, {
+                                      client_visible: event.target.checked,
+                                    });
+                                  }}
+                                />
+                                Show in portal
+                              </label>
+                            </div>
+                          ) : file.caption ? (
+                            <div className="text-muted text-xs">{file.caption}</div>
+                          ) : null}
                         </div>
 
                         <div className="flex shrink-0 flex-wrap items-center gap-2">

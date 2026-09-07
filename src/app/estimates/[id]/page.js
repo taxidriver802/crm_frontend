@@ -4,8 +4,10 @@ import { Alert } from "@/components/ui/alert";
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { AppShell } from "@/components/app-shell";
+import { ReturnLink } from "@/components/return-to";
 import { useConfirmModal } from "@/components/modals/confirm-modal";
 import { api } from "@/lib/api";
+import { Field } from "@/components/ui/field";
 import { CollapsibleSection } from "@/components/forms/collapsible-section";
 import { ToggleFormSection } from "@/components/toggle-form-section";
 import {
@@ -17,6 +19,13 @@ import { API_BASE } from "@/lib/helper";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { DetailHeader } from "@/components/ui/detail-header";
 import { MetaItem } from "@/components/ui/meta";
+import {
+  buildEstimateShareMessage,
+  copyText,
+  firstNameFromLeadName,
+  formatMessageAmount,
+  logOutboundEmailOnJob,
+} from "@/lib/message-templates";
 
 export default function EstimateDetailPage() {
   const { id } = useParams();
@@ -35,9 +44,13 @@ export default function EstimateDetailPage() {
   const [sortDirection, setSortDirection] = useState("desc");
   const [pdfBusy, setPdfBusy] = useState(false);
   const [shareBusy, setShareBusy] = useState(false);
+  const [messageBusy, setMessageBusy] = useState(false);
   const [resendBusy, setResendBusy] = useState(false);
   const [shareHint, setShareHint] = useState("");
   const [invoiceBusy, setInvoiceBusy] = useState(false);
+  const [templates, setTemplates] = useState([]);
+  const [applyTemplateId, setApplyTemplateId] = useState("");
+  const [applyBusy, setApplyBusy] = useState(false);
   const lineItems = estimate?.line_items || [];
 
   async function loadEstimate() {
@@ -96,6 +109,47 @@ export default function EstimateDetailPage() {
     }
   }
 
+  async function copyMessage() {
+    setMessageBusy(true);
+    setShareHint("");
+    setError("");
+    try {
+      const res = await api(`/estimates/${id}/share`, { method: "POST" });
+      const url = res.share_url;
+      if (!url) throw new Error("Could not create share link");
+      if (res.estimate) {
+        setEstimate(res.estimate);
+      }
+      const data = res.estimate || estimate;
+      const message = buildEstimateShareMessage({
+        first_name: firstNameFromLeadName(data?.job?.lead_name),
+        job_title: data?.job?.title || "your job",
+        amount: formatMessageAmount(data?.grand_total),
+        due_date: "",
+        link: url,
+      });
+      const copied = await copyText(message);
+      try {
+        await logOutboundEmailOnJob(data.job_id, message);
+        setShareHint(
+          copied
+            ? "Message copied and logged on the job."
+            : "Message logged on the job. Copy it from the communication log.",
+        );
+      } catch {
+        setShareHint(
+          copied
+            ? "Message copied. Could not log communication."
+            : message,
+        );
+      }
+    } catch (e) {
+      setError(e?.message || "Could not copy message");
+    } finally {
+      setMessageBusy(false);
+    }
+  }
+
   /** After client declines or asks for revision: clear response, set Sent, new token, copy link. */
   async function resendToClient() {
     setResendBusy(true);
@@ -129,12 +183,54 @@ export default function EstimateDetailPage() {
       setLoading(true);
       setError("");
 
-      await loadEstimate();
+      const [templatesRes] = await Promise.all([
+        api("/estimate-templates").catch(() => ({ templates: [] })),
+        loadEstimate(),
+      ]);
+      setTemplates(templatesRes?.templates || []);
     } catch (e) {
       setError(e?.message || "Failed to load estimate");
     } finally {
       setLoading(false);
     }
+  }
+
+  async function applyTemplate() {
+    if (!applyTemplateId || applyBusy) return;
+
+    const run = async () => {
+      setApplyBusy(true);
+      setError("");
+      try {
+        const res = await api(`/estimates/${id}/apply-template`, {
+          method: "POST",
+          body: JSON.stringify({ template_id: Number(applyTemplateId) }),
+        });
+        if (res?.estimate) {
+          setEstimate(res.estimate);
+        } else {
+          await loadEstimate();
+        }
+        setApplyTemplateId("");
+      } catch (e) {
+        setError(e?.message || "Failed to apply template");
+      } finally {
+        setApplyBusy(false);
+      }
+    };
+
+    if (lineItems.length > 0) {
+      askConfirm({
+        title: "Add template lines?",
+        description:
+          "This appends the template’s line items. Existing lines stay on the estimate.",
+        confirmLabel: "Apply template",
+        onConfirm: run,
+      });
+      return;
+    }
+
+    await run();
   }
 
   async function handleCreateInvoice() {
@@ -298,12 +394,12 @@ export default function EstimateDetailPage() {
           <DetailHeader
             title={estimate.title}
             subtitle={
-              <Link
+              <ReturnLink
                 href={`/jobs/${estimate.job?.id ?? estimate.job_id}`}
                 className="underline"
               >
                 Job #{estimate.job_id}
-              </Link>
+              </ReturnLink>
             }
             badges={<StatusBadge kind="estimate" status={estimate.status} />}
             actions={
@@ -323,6 +419,14 @@ export default function EstimateDetailPage() {
                   onClick={createShareLink}
                 >
                   {shareBusy ? "Link…" : "Copy share link"}
+                </button>
+                <button
+                  type="button"
+                  className="btn btn-ghost btn-sm"
+                  disabled={messageBusy}
+                  onClick={copyMessage}
+                >
+                  {messageBusy ? "Message…" : "Copy message"}
                 </button>
                 {estimate.status === "Approved" ? (
                   <button
@@ -461,6 +565,42 @@ export default function EstimateDetailPage() {
             onDelete={handleDeleteLineItem}
           />
         </ToggleFormSection>
+
+        {estimate?.status === "Draft" ? (
+          <section className="card p-4">
+            <div className="mb-3">
+              <h3 className="section-heading">Apply template</h3>
+              <p className="text-muted mt-1 text-xs">
+                Copies package lines onto this draft. Existing lines are kept.
+              </p>
+            </div>
+            <div className="flex flex-wrap items-end gap-2">
+              <Field label="Template" className="min-w-[12rem] flex-1">
+                <select
+                  className="input"
+                  value={applyTemplateId}
+                  onChange={(e) => setApplyTemplateId(e.target.value)}
+                  disabled={applyBusy}
+                >
+                  <option value="">Select a template…</option>
+                  {templates.map((template) => (
+                    <option key={template.id} value={template.id}>
+                      {template.name}
+                    </option>
+                  ))}
+                </select>
+              </Field>
+              <button
+                type="button"
+                className="btn btn-primary"
+                disabled={!applyTemplateId || applyBusy}
+                onClick={applyTemplate}
+              >
+                {applyBusy ? "Applying…" : "Apply template"}
+              </button>
+            </div>
+          </section>
+        ) : null}
 
         {/* LINE ITEMS */}
         <CollapsibleSection

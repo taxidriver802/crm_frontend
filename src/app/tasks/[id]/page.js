@@ -5,6 +5,7 @@ import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { AppShell } from "@/components/app-shell";
+import { ReturnLink } from "@/components/return-to";
 import { api } from "@/lib/api";
 import {
   formatBytes,
@@ -359,12 +360,12 @@ export default function TaskDetailPage() {
               linked.href ? (
                 <>
                   Related {linked.kind?.toLowerCase()}:{" "}
-                  <Link
+                  <ReturnLink
                     href={linked.href}
                     className="underline underline-offset-4 hover:opacity-80"
                   >
                     {linked.label}
-                  </Link>
+                  </ReturnLink>
                 </>
               ) : (
                 "No context linked"
@@ -399,7 +400,7 @@ export default function TaskDetailPage() {
                 <DetailMoreMenu label="More"> 
                   {task.lead_id ? (
                     <DetailMoreMenuItem
-                      as={Link}
+                      as={ReturnLink}
                       href={`/leads/${task.lead_id}`}
                       className="text-main"
                     >
@@ -407,7 +408,7 @@ export default function TaskDetailPage() {
                     </DetailMoreMenuItem>
                   ) : task.job_id ? (
                     <DetailMoreMenuItem
-                      as={Link}
+                      as={ReturnLink}
                       href={`/jobs/${task.job_id}`}
                       className="text-main"
                     >
@@ -561,18 +562,18 @@ export default function TaskDetailPage() {
               actions={
                 <>
                   {task?.lead ? (
-                    <Link
+                    <ReturnLink
                       href={`/leads/${task.lead.id}`}
                       className="btn px-3 py-2 text-xs"
                     >
                       Open lead
-                    </Link>
+                    </ReturnLink>
                   ) : null}
 
                   {task?.job ? (
-                    <Link href={`/jobs/${task.job.id}`} className="btn px-3 py-2 text-xs">
+                    <ReturnLink href={`/jobs/${task.job.id}`} className="btn px-3 py-2 text-xs">
                       Open job
-                    </Link>
+                    </ReturnLink>
                   ) : null}
                 </>
               }

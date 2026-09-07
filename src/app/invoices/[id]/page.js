@@ -3,19 +3,27 @@
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { AppShell } from "@/components/app-shell";
+import { ReturnLink } from "@/components/return-to";
 import { useConfirmModal } from "@/components/modals/confirm-modal";
 import { api } from "@/lib/api";
 import { CollapsibleSection } from "@/components/forms/collapsible-section";
 import { ToggleFormSection } from "@/components/toggle-form-section";
 import { DetailSkeleton } from "@/components/loading/loadingSkeletons";
 import { PageError } from "@/components/error-boundary";
-import Link from "next/link";
 import { API_BASE, formatDate } from "@/lib/helper";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { Field, FormActions } from "@/components/ui/field";
 import { DetailHeader } from "@/components/ui/detail-header";
 import { MetaItem } from "@/components/ui/meta";
 import { ListRow } from "@/components/ui/list-row";
+import {
+  buildInvoiceReminderMessage,
+  copyText,
+  dueDateLabel,
+  firstNameFromLeadName,
+  formatMessageAmount,
+  logOutboundEmailOnJob,
+} from "@/lib/message-templates";
 
 const INVOICE_STATUSES = ["Draft", "Sent", "Paid", "Overdue"];
 
@@ -108,6 +116,7 @@ export default function InvoiceDetailPage() {
   const [error, setError] = useState("");
   const [pdfBusy, setPdfBusy] = useState(false);
   const [shareBusy, setShareBusy] = useState(false);
+  const [messageBusy, setMessageBusy] = useState(false);
   const [shareHint, setShareHint] = useState("");
   const [statusBusy, setStatusBusy] = useState(false);
   const [qbBusy, setQbBusy] = useState(false);
@@ -183,6 +192,43 @@ export default function InvoiceDetailPage() {
       setError(e?.message || "Could not create share link");
     } finally {
       setShareBusy(false);
+    }
+  }
+
+  async function copyMessage() {
+    setMessageBusy(true);
+    setShareHint("");
+    setError("");
+    try {
+      const res = await api(`/invoices/${id}/share`, { method: "POST" });
+      const url = res.share_url;
+      if (!url) throw new Error("Could not create share link");
+      if (res.invoice) setInvoice(res.invoice);
+      const data = res.invoice || invoice;
+      const message = buildInvoiceReminderMessage({
+        first_name: firstNameFromLeadName(data?.job?.lead_name),
+        job_title: data?.job?.title || "your job",
+        amount: formatMessageAmount(data?.grand_total),
+        due_date: dueDateLabel(data?.due_date),
+        link: url,
+      });
+      const copied = await copyText(message);
+      try {
+        await logOutboundEmailOnJob(data.job_id, message);
+        setShareHint(
+          copied
+            ? "Message copied and logged on the job."
+            : "Message logged on the job. Copy it from the communication log.",
+        );
+      } catch {
+        setShareHint(
+          copied ? "Message copied. Could not log communication." : message,
+        );
+      }
+    } catch (e) {
+      setError(e?.message || "Could not copy message");
+    } finally {
+      setMessageBusy(false);
     }
   }
 
@@ -326,15 +372,15 @@ export default function InvoiceDetailPage() {
             title={invoice.invoice_number}
             subtitle={
               <>
-                <Link href={`/jobs/${invoice.job_id}`} className="underline">
+                <ReturnLink href={`/jobs/${invoice.job_id}`} className="underline">
                   {invoice.job?.title ?? `Job #${invoice.job_id}`}
-                </Link>
+                </ReturnLink>
                 {invoice.estimate_id ? (
                   <div className="mt-1 text-xs">
                     From{" "}
-                    <Link href={`/estimates/${invoice.estimate_id}`} className="underline">
+                    <ReturnLink href={`/estimates/${invoice.estimate_id}`} className="underline">
                       Estimate #{invoice.estimate_id}
-                    </Link>
+                    </ReturnLink>
                   </div>
                 ) : null}
               </>
@@ -357,6 +403,14 @@ export default function InvoiceDetailPage() {
                   onClick={createShareLink}
                 >
                   {shareBusy ? "Link…" : "Copy share link"}
+                </button>
+                <button
+                  type="button"
+                  className="btn btn-ghost btn-sm"
+                  disabled={messageBusy}
+                  onClick={copyMessage}
+                >
+                  {messageBusy ? "Message…" : "Copy message"}
                 </button>
                 <button
                   type="button"

@@ -4,6 +4,22 @@ import { Alert } from "@/components/ui/alert";
 import { Field, FormActions } from "@/components/ui/field";
 
 const STATUS_OPTIONS = ["New", "Contacted", "Qualified", "Closed", "Inactive"];
+const SOURCE_OPTIONS = [
+  "Referral",
+  "Website",
+  "Repeat customer",
+  "Door knock",
+  "Other",
+];
+const SERVICE_OPTIONS = [
+  "Inspection",
+  "Repair",
+  "Replacement",
+  "Gutters",
+  "Maintenance",
+];
+const CONTACT_OPTIONS = ["Call", "Text", "Email"];
+const URGENCY_OPTIONS = ["Low", "Normal", "Urgent"];
 
 const EMPTY_FORM = {
   first_name: "",
@@ -15,10 +31,20 @@ const EMPTY_FORM = {
   budget_min: "",
   budget_max: "",
   notes: "",
+  service_type: "",
+  preferred_contact_method: "",
+  urgency: "",
 };
 
-export function createEmptyLeadForm() {
-  return { ...EMPTY_FORM };
+function withCurrentValue(options, value) {
+  if (value && !options.includes(value)) {
+    return [value, ...options];
+  }
+  return options;
+}
+
+export function createEmptyLeadForm(overrides = {}) {
+  return { ...EMPTY_FORM, ...overrides };
 }
 
 export function LeadForm({
@@ -77,12 +103,18 @@ export function LeadForm({
         </Field>
 
         <Field label="Source">
-          <input
+          <select
             className="input"
-            placeholder="Referral, Website, Open House..."
             value={form.source}
             onChange={(e) => setField("source", e.target.value)}
-          />
+          >
+            <option value="">—</option>
+            {withCurrentValue(SOURCE_OPTIONS, form.source).map((source) => (
+              <option key={source} value={source}>
+                {source}
+              </option>
+            ))}
+          </select>
         </Field>
 
         <Field label="Status">
@@ -94,6 +126,53 @@ export function LeadForm({
             {STATUS_OPTIONS.map((status) => (
               <option key={status} value={status}>
                 {status}
+              </option>
+            ))}
+          </select>
+        </Field>
+
+        <Field label="Service">
+          <select
+            className="input"
+            value={form.service_type || ""}
+            onChange={(e) => setField("service_type", e.target.value)}
+          >
+            <option value="">—</option>
+            {withCurrentValue(SERVICE_OPTIONS, form.service_type).map((service) => (
+              <option key={service} value={service}>
+                {service}
+              </option>
+            ))}
+          </select>
+        </Field>
+
+        <Field label="Preferred contact">
+          <select
+            className="input"
+            value={form.preferred_contact_method || ""}
+            onChange={(e) => setField("preferred_contact_method", e.target.value)}
+          >
+            <option value="">—</option>
+            {withCurrentValue(CONTACT_OPTIONS, form.preferred_contact_method).map(
+              (method) => (
+                <option key={method} value={method}>
+                  {method}
+                </option>
+              ),
+            )}
+          </select>
+        </Field>
+
+        <Field label="Urgency">
+          <select
+            className="input"
+            value={form.urgency || ""}
+            onChange={(e) => setField("urgency", e.target.value)}
+          >
+            <option value="">—</option>
+            {withCurrentValue(URGENCY_OPTIONS, form.urgency).map((urgency) => (
+              <option key={urgency} value={urgency}>
+                {urgency}
               </option>
             ))}
           </select>

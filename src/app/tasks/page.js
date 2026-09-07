@@ -12,10 +12,12 @@ import {
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { AppShell } from "@/components/app-shell";
+import { ReturnLink, useReturnPush } from "@/components/return-to";
 import { ToggleFormSection } from "@/components/toggle-form-section";
 import { TaskForm, createEmptyTaskForm } from "@/components/forms/task-form";
 import { api } from "@/lib/api";
-import { formatDue, LinkedEntityCell } from "@/lib/helper";
+import { formatDue } from "@/lib/helper";
+import { LinkedEntityCell } from "@/components/linked-entity-cell";
 import { CollapsibleSection } from "@/components/forms/collapsible-section";
 import { Skeleton, TableRowSkeleton } from "@/components/loading/loadingSkeletons";
 import { TaskCalendar } from "@/components/calendar/task-calendar";
@@ -61,6 +63,7 @@ function parseDuePresetFromSearch(searchParams) {
 
 function TasksPageInner() {
   const router = useRouter();
+  const push = useReturnPush();
   const searchParams = useSearchParams();
 
   const prefillLeadId = searchParams.get("lead_id") || "";
@@ -762,7 +765,7 @@ function TasksPageInner() {
                 <TaskCalendar
                   tasks={tasks}
                   onRangeChange={handleCalendarRangeChange}
-                  onTaskClick={(task) => router.push(`/tasks/${task.id}`)}
+                  onTaskClick={(task) => push(`/tasks/${task.id}`)}
                   onDayCreate={(day) => {
                     const yyyy = day.getFullYear();
                     const mm = String(day.getMonth() + 1).padStart(2, "0");
@@ -810,11 +813,11 @@ function TasksPageInner() {
                             className="cursor-pointer"
                             role="link"
                             tabIndex={0}
-                            onClick={() => router.push(`/tasks/${task.id}`)}
+                            onClick={() => push(`/tasks/${task.id}`)}
                             onKeyDown={(e) => {
                               if (e.key === "Enter" || e.key === " ") {
                                 e.preventDefault();
-                                router.push(`/tasks/${task.id}`);
+                                push(`/tasks/${task.id}`);
                               }
                             }}
                           >
@@ -929,7 +932,7 @@ function TasksPageInner() {
                                       width: actionsMenuPosition.width,
                                     }}
                                   >
-                                    <Link
+                                    <ReturnLink
                                       href={`/tasks/${task.id}`}
                                       role="menuitem"
                                       className="hover:bg-accent focus-visible:bg-accent block w-full px-3 py-2 text-left text-xs transition-colors"
@@ -939,7 +942,7 @@ function TasksPageInner() {
                                       }}
                                     >
                                       Open
-                                    </Link>
+                                    </ReturnLink>
                                     <Link
                                       href={`/tasks/${task.id}/edit`}
                                       role="menuitem"

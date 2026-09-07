@@ -2,12 +2,13 @@
 
 import { Alert } from "@/components/ui/alert";
 import { Suspense, useEffect, useMemo, useState } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useSearchParams } from "next/navigation";
 import { AppShell } from "@/components/app-shell";
+import { useReturnPush } from "@/components/return-to";
 import { ToggleFormSection } from "@/components/toggle-form-section";
 import { LeadForm, createEmptyLeadForm } from "@/components/forms/lead-form";
 import { api } from "@/lib/api";
-import { formatDate } from "@/lib/helper";
+import { formatDate, formatDaysInStatus } from "@/lib/helper";
 import { CollapsibleSection } from "@/components/forms/collapsible-section";
 import { Skeleton } from "@/components/loading/loadingSkeletons";
 import { KanbanBoard } from "@/components/kanban/kanban-board";
@@ -23,7 +24,7 @@ import { DataTable, Td } from "@/components/ui/data-table";
 const LEAD_PIPELINE_COLUMNS = ["New", "Contacted", "Qualified", "Closed", "Inactive"];
 
 function LeadsPageInner() {
-  const router = useRouter();
+  const push = useReturnPush();
   const searchParams = useSearchParams();
   const [q, setQ] = useState("");
   const [status, setStatus] = useState(() => searchParams.get("status") || "");
@@ -203,6 +204,9 @@ function LeadsPageInner() {
       email: leadForm.email.trim() || null,
       phone: leadForm.phone.trim() || null,
       source: leadForm.source.trim() || null,
+      service_type: leadForm.service_type?.trim() || null,
+      preferred_contact_method: leadForm.preferred_contact_method?.trim() || null,
+      urgency: leadForm.urgency?.trim() || null,
       notes: leadForm.notes.trim() || null,
       budget_min: leadForm.budget_min ? Number(leadForm.budget_min) : null,
       budget_max: leadForm.budget_max ? Number(leadForm.budget_max) : null,
@@ -533,11 +537,11 @@ function LeadsPageInner() {
                       className="cursor-pointer"
                       role="link"
                       tabIndex={0}
-                      onClick={() => router.push(`/leads/${lead.id}`)}
+                      onClick={() => push(`/leads/${lead.id}`)}
                       onKeyDown={(e) => {
                         if (e.key === "Enter" || e.key === " ") {
                           e.preventDefault();
-                          router.push(`/leads/${lead.id}`);
+                          push(`/leads/${lead.id}`);
                         }
                       }}
                     >
@@ -552,6 +556,11 @@ function LeadsPageInner() {
 
                       <Td label="Status">
                         <StatusBadge kind="lead" status={lead.status} />
+                        {formatDaysInStatus(lead.status_changed_at) ? (
+                          <div className="text-muted mt-1 text-xs">
+                            {formatDaysInStatus(lead.status_changed_at)}
+                          </div>
+                        ) : null}
                       </Td>
 
                       <Td label="Source">{lead.source ?? "—"}</Td>

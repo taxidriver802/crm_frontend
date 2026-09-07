@@ -6,6 +6,12 @@ import { Alert } from "@/components/ui/alert";
 import { Overlay } from "@/components/ui/overlay";
 import { EmptyState } from "@/components/error-boundary";
 
+const PHOTO_GROUPS = [
+  { key: "before", label: "Before" },
+  { key: "after", label: "After" },
+  { key: "other", label: "Other" },
+];
+
 function isImageFile(file) {
   const mime = String(file?.mime_type || "").toLowerCase();
   if (mime.startsWith("image/")) return true;
@@ -14,8 +20,35 @@ function isImageFile(file) {
   return [".png", ".jpg", ".jpeg", ".webp", ".gif"].some((ext) => name.endsWith(ext));
 }
 
-export function PhotoGallery({ files = [], loading = false, error = "" }) {
+function photoCaption(file) {
+  const caption = String(file?.caption || "").trim();
+  if (caption) return caption;
+  return file?.original_name || "Photo";
+}
+
+function photoDate(file) {
+  if (!file?.created_at) return "";
+  const date = new Date(file.created_at);
+  if (Number.isNaN(date.getTime())) return "";
+  return date.toLocaleDateString();
+}
+
+export function PhotoGallery({
+  files = [],
+  loading = false,
+  error = "",
+  emptyTitle = "No photos on this job yet",
+  emptyDescription = "Upload images in Attached Files.",
+}) {
   const photos = useMemo(() => files.filter(isImageFile), [files]);
+  const groups = useMemo(
+    () =>
+      PHOTO_GROUPS.map((group) => ({
+        ...group,
+        photos: photos.filter((file) => (file.category || "other") === group.key),
+      })).filter((group) => group.photos.length > 0),
+    [photos],
+  );
   const [activeIndex, setActiveIndex] = useState(-1);
 
   useEffect(() => {
@@ -34,6 +67,8 @@ export function PhotoGallery({ files = [], loading = false, error = "" }) {
     return () => window.removeEventListener("keydown", onKeyDown);
   }, [activeIndex, photos.length]);
 
+  const activePhoto = activeIndex >= 0 ? photos[activeIndex] : null;
+
   return (
     <div className="space-y-3">
       {error ? <Alert variant="inline">{error}</Alert> : null}
@@ -45,32 +80,41 @@ export function PhotoGallery({ files = [], loading = false, error = "" }) {
           ))}
         </div>
       ) : photos.length === 0 ? (
-        <EmptyState
-          title="No photos on this job yet"
-          description="Upload images in Attached Files."
-        />
+        <EmptyState title={emptyTitle} description={emptyDescription} />
       ) : (
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-          {photos.map((file, index) => (
-            <button
-              key={file.id}
-              type="button"
-              className="group relative overflow-hidden rounded-md border"
-              onClick={() => setActiveIndex(index)}
-              title={file.original_name}
-            >
-              <img
-                src={buildFileUrl(file)}
-                alt={file.original_name || `Photo ${index + 1}`}
-                className="h-32 w-full object-cover"
-                loading="lazy"
-              />
-            </button>
+        <div className="space-y-5">
+          {groups.map((group) => (
+            <div key={group.key} className="space-y-2">
+              <div className="text-muted text-xs font-medium uppercase tracking-wide">
+                {group.label}
+              </div>
+              <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+                {group.photos.map((file) => {
+                  const index = photos.findIndex((row) => row.id === file.id);
+                  return (
+                    <button
+                      key={file.id}
+                      type="button"
+                      className="group relative overflow-hidden rounded-md border"
+                      onClick={() => setActiveIndex(index)}
+                      title={photoCaption(file)}
+                    >
+                      <img
+                        src={buildFileUrl(file)}
+                        alt={photoCaption(file)}
+                        className="h-32 w-full object-cover"
+                        loading="lazy"
+                      />
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
           ))}
         </div>
       )}
 
-      {activeIndex >= 0 && photos[activeIndex] ? (
+      {activePhoto ? (
         <Overlay
           layer="lightbox"
           strong
@@ -107,12 +151,13 @@ export function PhotoGallery({ files = [], loading = false, error = "" }) {
 
           <div className="max-h-[85vh] max-w-[90vw] overflow-hidden rounded-lg">
             <img
-              src={buildFileUrl(photos[activeIndex])}
-              alt={photos[activeIndex].original_name || "Photo"}
+              src={buildFileUrl(activePhoto)}
+              alt={photoCaption(activePhoto)}
               className="max-h-[85vh] max-w-[90vw] object-contain"
             />
             <div className="text-on-overlay mt-2 text-center text-xs opacity-90">
-              {photos[activeIndex].original_name}
+              {photoCaption(activePhoto)}
+              {photoDate(activePhoto) ? ` · ${photoDate(activePhoto)}` : ""}
             </div>
           </div>
         </Overlay>

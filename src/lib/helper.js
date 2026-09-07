@@ -1,5 +1,3 @@
-import Link from "next/link";
-
 export const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL || "";
 
 export function getFileTypeLabel(file) {
@@ -79,6 +77,16 @@ export function formatDue(dueDate) {
   });
 }
 
+export function formatDaysInStatus(statusChangedAt) {
+  if (!statusChangedAt) return "";
+  const date = new Date(statusChangedAt);
+  if (Number.isNaN(date.getTime())) return "";
+  const days = Math.max(0, Math.floor((Date.now() - date.getTime()) / 86400000));
+  if (days === 0) return "Today in status";
+  if (days === 1) return "1d in status";
+  return `${days}d in status`;
+}
+
 export function getLinkedEntity(task) {
   if (task?.job) {
     return {
@@ -125,19 +133,34 @@ export function getLinkedEntity(task) {
   };
 }
 
-export function LinkedEntityCell({ task }) {
-  const linked = getLinkedEntity(task);
+/** Split plain text into text/link parts for http(s) URLs. */
+export function linkifyTextParts(text) {
+  const input = String(text ?? "");
+  if (!input) return [];
 
-  if (!linked.href) {
-    return <span className="text-muted">{linked.label}</span>;
+  const pattern = /https?:\/\/[^\s<]+/gi;
+  const parts = [];
+  let last = 0;
+
+  for (const match of input.matchAll(pattern)) {
+    let url = match[0];
+    const trailing = url.match(/[.,;:!?)\]}>]+$/);
+    if (trailing) {
+      url = url.slice(0, -trailing[0].length);
+    }
+    if (!url) continue;
+
+    const start = match.index ?? 0;
+    if (start > last) {
+      parts.push({ type: "text", value: input.slice(last, start) });
+    }
+    parts.push({ type: "link", value: url, href: url });
+    last = start + url.length;
   }
 
-  return (
-    <div className="flex flex-col">
-      <span className="text-muted text-xs">{linked.kind}</span>
-      <Link className="underline underline-offset-4 hover:opacity-80" href={linked.href}>
-        {linked.label}
-      </Link>
-    </div>
-  );
+  if (last < input.length) {
+    parts.push({ type: "text", value: input.slice(last) });
+  }
+
+  return parts.length ? parts : [{ type: "text", value: input }];
 }

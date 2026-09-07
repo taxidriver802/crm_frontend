@@ -1,4 +1,7 @@
+"use client";
+
 import Link from "next/link";
+import { ReturnLink } from "@/components/return-to";
 import { cx } from "@/lib/cx";
 
 export function ListRow({
@@ -6,6 +9,7 @@ export function ListRow({
   href,
   interactive = false,
   muted = false,
+  returnTo = true,
   className = "",
   children,
   ...props
@@ -18,10 +22,11 @@ export function ListRow({
   );
 
   if (href) {
+    const Comp = returnTo ? ReturnLink : Link;
     return (
-      <Link href={href} className={classes} {...props}>
+      <Comp href={href} className={classes} {...props}>
         {children}
-      </Link>
+      </Comp>
     );
   }
 

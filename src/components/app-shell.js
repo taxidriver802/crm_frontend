@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { Suspense, useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 
@@ -11,6 +11,7 @@ import { ThemeToggle } from "@/components/theme/theme-toggle";
 import { CommandPalette } from "@/components/command-palette";
 import { Overlay } from "@/components/ui/overlay";
 import { Icon } from "@/components/icons";
+import { ReturnBackButton, ReturnToProvider } from "@/components/return-to";
 import { cx } from "@/lib/cx";
 
 import MainLogo from "@/assets/mainlogo.svg";
@@ -32,6 +33,12 @@ const SYSTEM_NAV = [
 ];
 
 const USERS_NAV = { href: "/users", label: "Users", icon: "users", priority: "secondary" };
+const TEMPLATES_NAV = {
+  href: "/estimates/templates",
+  label: "Templates",
+  icon: "invoice",
+  priority: "secondary",
+};
 
 const DESKTOP_SIDEBAR_STORAGE_KEY = "crm-desktop-sidebar";
 
@@ -166,7 +173,7 @@ function getNotificationHref(notification) {
   return null;
 }
 
-export function AppShell({ children, title, description, right }) {
+export function AppShell({ children, title, description, right, back }) {
   const pathname = usePathname();
   const router = useRouter();
   const { showToast } = useToast();
@@ -248,9 +255,16 @@ export function AppShell({ children, title, description, right }) {
   const isAdminUser = user?.role === "owner" || user?.role === "admin";
 
   const navItems = useMemo(() => {
+    const systemNav = [
+      SYSTEM_NAV[0],
+      SYSTEM_NAV[1],
+      SYSTEM_NAV[2],
+      ...(isAdminUser ? [TEMPLATES_NAV] : []),
+      SYSTEM_NAV[3],
+    ];
     return isAdminUser
-      ? [...WORKFLOW_NAV, ...SYSTEM_NAV, USERS_NAV]
-      : [...WORKFLOW_NAV, ...SYSTEM_NAV];
+      ? [...WORKFLOW_NAV, ...systemNav, USERS_NAV]
+      : [...WORKFLOW_NAV, ...systemNav];
   }, [isAdminUser]);
 
   const primaryNavItems = navItems.filter((item) => item.priority === "primary");
@@ -646,7 +660,8 @@ export function AppShell({ children, title, description, right }) {
   }
 
   return (
-    <div className="app-shell bg-app text-main flex overflow-hidden">
+    <ReturnToProvider title={title}>
+      <div className="app-shell bg-app text-main flex overflow-hidden">
       {/* SIDEBAR — large screens; toggled from the topbar */}
       <aside
         id="desktop-sidebar"
@@ -718,10 +733,13 @@ export function AppShell({ children, title, description, right }) {
               title={desktopSidebarOpen ? "Collapse menu" : "Open menu"}
             >
               <Icon
-                name={desktopSidebarOpen ? "chevronLeft" : "menu"}
+                name={desktopSidebarOpen ? "panelLeft" : "menu"}
                 className="h-4 w-4"
               />
             </button>
+            <Suspense fallback={null}>
+              <ReturnBackButton back={back} />
+            </Suspense>
             <div className={cx("flex min-w-0 flex-col", !description && "justify-center")}>
               {title ? (
                 <h1 className="truncate text-[15px] font-semibold tracking-tight">{title}</h1>
@@ -897,6 +915,7 @@ export function AppShell({ children, title, description, right }) {
         tone="danger"
       />
       <CommandPalette open={searchOpen} onClose={() => setSearchOpen(false)} />
-    </div>
+      </div>
+    </ReturnToProvider>
   );
 }

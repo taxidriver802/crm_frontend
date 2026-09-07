@@ -275,7 +275,7 @@ function CustomTimePicker({ value, onChange, isOpen, onToggle, onClose }) {
       </button>
 
       {isOpen && (
-        <div className="dropdown-panel absolute right-0 z-50 mt-2 w-full min-w-[220px] p-3">
+        <div className="dropdown-panel absolute right-0 z-50 mt-2 w-full min-w-0 p-3">
           <div className="grid grid-cols-3 gap-2">
             <div>
               <label className="field-label mb-1">Hour</label>
@@ -409,7 +409,7 @@ export function CustomDateTimePicker({ value, onChange }) {
   }, []);
 
   return (
-    <div ref={pickerRef} className="flex gap-2">
+    <div ref={pickerRef} className="flex min-w-0 w-full max-w-full gap-2">
       {/* Date Button */}
       <div className="relative w-full">
         <button

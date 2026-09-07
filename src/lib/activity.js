@@ -21,6 +21,7 @@ const TYPE_ICONS = {
   INVOICE_STATUS_CHANGED: "🔄",
   INVOICE_DELETED: "🗑️",
   INVOICE_PAID: "💰",
+  COMMUNICATION_LOGGED: "💬",
 };
 
 function safeMeta(activity) {
@@ -231,6 +232,17 @@ export function formatActivity(activity) {
         title: "Invoice paid",
         detail: meta.invoiceNumber || activity.message || "An invoice was marked as paid",
         meta: null,
+      };
+
+    case "COMMUNICATION_LOGGED":
+      return {
+        icon,
+        title: activity.title || "Communication logged",
+        detail: activity.message || "A conversation was logged",
+        meta:
+          meta.commType || meta.direction
+            ? `${meta.direction || ""} ${meta.commType || ""}`.trim()
+            : null,
       };
 
     default:

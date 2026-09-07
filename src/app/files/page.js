@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 
 
 import { AppShell } from "@/components/app-shell";
+import { useReturnPush } from "@/components/return-to";
 import { useConfirmModal } from "@/components/modals/confirm-modal";
 import { FilePreviewModal } from "@/components/modals/file-preview-modal";
 import { api } from "@/lib/api";
@@ -31,11 +32,12 @@ import { FilterBar } from "@/components/ui/filter-bar";
 import { DataTable, Td } from "@/components/ui/data-table";
 import { EmptyState } from "@/components/error-boundary";
 
-function ScopeBadge({ file, router }) {
+function ScopeBadge({ file }) {
+  const push = useReturnPush();
   if (file.lead_id) {
     return (
       <button
-        onClick={() => router.push(`/leads/${file.lead_id}`)}
+        onClick={() => push(`/leads/${file.lead_id}`)}
         className="text-sm underline underline-offset-4 hover:opacity-80"
       >
         Lead #{file.lead_id}
@@ -46,7 +48,7 @@ function ScopeBadge({ file, router }) {
   if (file.job_id) {
     return (
       <button
-        onClick={() => router.push(`/jobs/${file.job_id}`)}
+        onClick={() => push(`/jobs/${file.job_id}`)}
         className="text-sm underline underline-offset-4 hover:opacity-80"
       >
         Job #{file.job_id}
@@ -444,7 +446,7 @@ export default function FilesPage() {
                         </Td>
 
                         <Td label="Attached To" className="align-top">
-                          <ScopeBadge file={file} router={router} />
+                          <ScopeBadge file={file} />
                         </Td>
 
                         <Td label="Uploaded" className="text-muted align-top">

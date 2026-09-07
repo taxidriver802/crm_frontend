@@ -1,4 +1,7 @@
+"use client";
+
 import Link from "next/link";
+import { ReturnLink } from "@/components/return-to";
 import { cx } from "@/lib/cx";
 
 export function StatCard({
@@ -6,6 +9,7 @@ export function StatCard({
   value,
   sub,
   href,
+  returnTo = true,
   onClick,
   active = false,
   size = "default",
@@ -49,10 +53,11 @@ export function StatCard({
   );
 
   if (href) {
+    const Comp = returnTo ? ReturnLink : Link;
     return (
-      <Link href={href} className="block h-full">
+      <Comp href={href} className="block h-full">
         {inner}
-      </Link>
+      </Comp>
     );
   }
 

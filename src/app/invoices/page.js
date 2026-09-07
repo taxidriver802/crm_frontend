@@ -2,8 +2,8 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { AppShell } from "@/components/app-shell";
+import { ReturnLink, useReturnPush } from "@/components/return-to";
 import { api } from "@/lib/api";
 import { ListToolbar } from "@/components/list-toolbar";
 import { TableRowSkeleton } from "@/components/loading/loadingSkeletons";
@@ -28,7 +28,7 @@ function formatCurrency(num) {
 }
 
 export default function InvoicesListPage() {
-  const router = useRouter();
+  const push = useReturnPush();
   const [invoices, setInvoices] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -118,19 +118,19 @@ export default function InvoicesListPage() {
                   <tr
                     key={inv.id}
                     className="cursor-pointer"
-                    onClick={() => router.push(`/invoices/${inv.id}`)}
+                    onClick={() => push(`/invoices/${inv.id}`)}
                   >
                     <Td primary label="Invoice" className="font-medium">
                       {inv.invoice_number}
                     </Td>
                     <Td label="Job">
-                      <Link
+                      <ReturnLink
                         href={`/jobs/${inv.job_id}`}
                         className="underline underline-offset-2"
                         onClick={(e) => e.stopPropagation()}
                       >
                         {inv.job_title || `Job #${inv.job_id}`}
-                      </Link>
+                      </ReturnLink>
                     </Td>
                     <Td label="Client">{inv.lead_name || "—"}</Td>
                     <Td label="Status">

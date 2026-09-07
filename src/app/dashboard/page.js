@@ -14,6 +14,8 @@ import { PageError, EmptyState } from "@/components/error-boundary";
 import { Segmented } from "@/components/ui/segmented";
 import { ListRow } from "@/components/ui/list-row";
 import { Icon } from "@/components/icons";
+import { ActionQueue } from "@/components/dashboard/action-queue";
+import { ReturnLink } from "@/components/return-to";
 
 import LoadingDots, {
   Skeleton,
@@ -48,8 +50,12 @@ export default function DashboardPage() {
   const [refreshingDashboard, setRefreshingDashboard] = useState(false);
   const [err, setErr] = useState("");
   const [tab, setTab] = useState("due_today");
+  const [viewScope, setViewScope] = useState("mine");
 
   const isInitialLoading = loading && !data;
+  const canViewAll = user?.role === "owner" || user?.role === "admin";
+  const dashboardPath =
+    canViewAll && viewScope === "all" ? "/dashboard?view=all" : "/dashboard";
 
   const stats = useMemo(() => {
     if (!data?.ok) return [];
@@ -135,6 +141,15 @@ export default function DashboardPage() {
     return taskData.nextUp || [];
   }, [data, tab]);
 
+  const taskCounts = useMemo(() => {
+    const counts = data?.tasks?.counts || {};
+    return {
+      overdue: counts.overdue ?? 0,
+      dueToday: counts.due_today ?? 0,
+      nextUp: counts.next_7_days ?? 0,
+    };
+  }, [data]);
+
   const dashboardTasksEmpty = useMemo(() => {
     if (!data?.ok) return true;
     const taskData = data.tasks || {};
@@ -168,37 +183,37 @@ export default function DashboardPage() {
     );
   const leadTitle =
     statusSummary.length > 0 ? (
-      <Link className="hover:underline" href="/leads">
+      <ReturnLink className="hover:underline" href="/leads">
         All leads
-      </Link>
+      </ReturnLink>
     ) : (
-      <Link className="text-muted hover:underline" href="/leads">
+      <ReturnLink className="text-muted hover:underline" href="/leads">
         No leads yet
-      </Link>
+      </ReturnLink>
     );
 
   const jobsByStatusTitle =
     jobStatusSummary.length > 0 ? (
-      <Link className="hover:underline" href="/jobs">
+      <ReturnLink className="hover:underline" href="/jobs">
         All jobs
-      </Link>
+      </ReturnLink>
     ) : (
-      <Link className="text-muted hover:underline" href="/jobs">
+      <ReturnLink className="text-muted hover:underline" href="/jobs">
         No jobs yet
-      </Link>
+      </ReturnLink>
     );
 
   const estimatesByStatusTitle = (
-    <Link className="hover:underline" href="/jobs">
+    <ReturnLink className="hover:underline" href="/jobs">
       By status
-    </Link>
+    </ReturnLink>
   );
 
   const taskTitle = (
     <div className="flex gap-5">
-      <Link className="hover:underline" href="/tasks">
+      <ReturnLink className="hover:underline" href="/tasks">
         Tasks
-      </Link>
+      </ReturnLink>
     </div>
   );
 
@@ -206,12 +221,12 @@ export default function DashboardPage() {
     const leadName = getTaskLeadLabel(t);
     const jobLabel = getTaskJobLabel(t);
     const jobPart = t.job?.id ? (
-      <Link
+      <ReturnLink
         href={`/jobs/${t.job.id}`}
         className="hover:text-main font-medium underline-offset-2 hover:underline"
       >
         {t.job?.title || jobLabel}
-      </Link>
+      </ReturnLink>
     ) : jobLabel ? (
       <span>{jobLabel}</span>
     ) : null;
@@ -219,12 +234,12 @@ export default function DashboardPage() {
     return (
       <ListRow className="flex items-start justify-between gap-3">
         <div className="min-w-0">
-          <Link
+          <ReturnLink
             href={`/tasks/${t.id}`}
             className="hover:text-main font-medium hover:underline"
           >
             {t.title}
-          </Link>
+          </ReturnLink>
           <div className="text-muted mt-1 flex flex-wrap items-center gap-x-1 text-sm">
             {leadName ? <span>{leadName}</span> : null}
             {leadName && jobPart ? <span>·</span> : null}
@@ -270,7 +285,7 @@ export default function DashboardPage() {
     setErr("");
 
     const requests = [
-      api("/dashboard"),
+      api(dashboardPath),
       api("/auth/me", { credentials: "include" }),
       refreshActivity ? api("/dashboard/activities") : Promise.resolve(null),
     ];
@@ -328,7 +343,10 @@ export default function DashboardPage() {
 
     async function loadDashboard() {
       try {
-        await refreshDashboardSections({ initial: true, refreshActivity: true });
+        await refreshDashboardSections({
+          initial: !data,
+          refreshActivity: true,
+        });
       } finally {
         if (!alive) return;
       }
@@ -339,13 +357,24 @@ export default function DashboardPage() {
     return () => {
       alive = false;
     };
-  }, []);
+  }, [viewScope]);
 
   return (
     <AppShell
       title="Dashboard"
       right={
-        <div className="flex items-center gap-2 text-sm">
+        <div className="flex items-center gap-3 text-sm">
+          {canViewAll ? (
+            <Segmented
+              aria-label="Dashboard scope"
+              value={viewScope}
+              onChange={setViewScope}
+              options={[
+                { value: "mine", label: "Mine", short: "Mine" },
+                { value: "all", label: "Team", short: "Team" },
+              ]}
+            />
+          ) : null}
           {refreshingDashboard ? (
             <div className="pr-2">
               <LoadingDots />
@@ -367,6 +396,15 @@ export default function DashboardPage() {
 
         <div className="grid gap-4 xl:grid-cols-[minmax(0,2fr)_minmax(320px,1fr)]">
           <div className="space-y-4">
+            <ActionQueue
+              title="Start here"
+              items={data?.actions?.startHere}
+              loading={isInitialLoading}
+              hideWhenEmpty={false}
+              emptyTitle="You're caught up"
+              collapsible
+            />
+
             <CollapsibleSection
               title={taskTitle}
               ready={!isInitialLoading}
@@ -378,13 +416,30 @@ export default function DashboardPage() {
                   value={tab}
                   onChange={setTab}
                   options={[
-                    { value: "overdue", label: "Overdue", short: "OD" },
-                    { value: "due_today", label: "Due Today", short: "Today" },
-                    { value: "next_up", label: "Next Up", short: "Next" },
+                    {
+                      value: "overdue",
+                      label: "Overdue",
+                      short: "OD",
+                      count: taskCounts.overdue,
+                      countTone: taskCounts.overdue > 0 ? "danger" : undefined,
+                    },
+                    {
+                      value: "due_today",
+                      label: "Due Today",
+                      short: "Today",
+                      count: taskCounts.dueToday,
+                      countTone: taskCounts.dueToday > 0 ? "warning" : undefined,
+                    },
+                    {
+                      value: "next_up",
+                      label: "Next Up",
+                      short: "Next",
+                      count: taskCounts.nextUp,
+                    },
                   ]}
                 />
 
-                <Link
+                <ReturnLink
                   className="text-muted text-xs hover:underline"
                   href={
                     tab === "overdue"
@@ -395,7 +450,7 @@ export default function DashboardPage() {
                   }
                 >
                   Open in Tasks
-                </Link>
+                </ReturnLink>
               </div>
 
               <div className="space-y-2">
@@ -425,6 +480,36 @@ export default function DashboardPage() {
                 </Link>
               </div>
             </SectionCard>
+
+            <ActionQueue
+              title="Estimates awaiting"
+              items={data?.actions?.estimatesAwaiting}
+              loading={isInitialLoading}
+              href="/jobs"
+              collapsible
+            />
+            <ActionQueue
+              title="Invoices due"
+              items={data?.actions?.invoicesDue}
+              loading={isInitialLoading}
+              href="/invoices?due=this_week"
+              collapsible
+            />
+            <ActionQueue
+              title="Stale leads"
+              items={data?.actions?.staleLeads}
+              loading={isInitialLoading}
+              href="/leads"
+              collapsible
+            />
+            <ActionQueue
+              title="Blocked jobs"
+              items={data?.actions?.blockedJobs}
+              loading={isInitialLoading}
+              href="/jobs"
+              collapsible
+            />
+
             <CollapsibleSection
               title={recentTitle}
               ready={!loadingActivity}
@@ -448,25 +533,18 @@ export default function DashboardPage() {
             </CollapsibleSection>
 
             <CollapsibleSection
-              title={jobsByStatusTitle}
+              title="By status"
               ready={!isInitialLoading}
-              empty={jobStatusSummary.length === 0}
+              empty={
+                jobStatusSummary.length === 0 &&
+                estimateStatusSummary.length === 0 &&
+                statusSummary.length === 0
+              }
+              defaultOpen={false}
             >
-              {isInitialLoading ? (
-                <div className="space-y-2">
-                  {Array.from({ length: 4 }).map((_, i) => (
-                    <ListRow key={i}>
-                      <div className="flex items-center justify-between">
-                        <Skeleton className="h-5 w-24 rounded-full" />
-                        <Skeleton className="h-4 w-8" />
-                      </div>
-                    </ListRow>
-                  ))}
-                </div>
-              ) : jobStatusSummary.length === 0 ? (
-                <EmptyState title="No jobs yet" />
-              ) : (
-                <div className="space-y-2">
+              <div className="space-y-4">
+                <div>
+                  <div className="text-muted mb-2 text-xs font-medium">{jobsByStatusTitle}</div>
                   {jobStatusSummary.map((row) => (
                     <ListRow
                       key={row.status}
@@ -478,29 +556,8 @@ export default function DashboardPage() {
                     </ListRow>
                   ))}
                 </div>
-              )}
-            </CollapsibleSection>
-
-            <CollapsibleSection
-              title={estimatesByStatusTitle}
-              ready={!isInitialLoading}
-              empty={estimateStatusSummary.length === 0}
-            >
-              {isInitialLoading ? (
-                <div className="space-y-2">
-                  {Array.from({ length: 3 }).map((_, i) => (
-                    <ListRow key={i}>
-                      <div className="flex items-center justify-between">
-                        <Skeleton className="h-5 w-20 rounded-full" />
-                        <Skeleton className="h-4 w-8" />
-                      </div>
-                    </ListRow>
-                  ))}
-                </div>
-              ) : estimateStatusSummary.length === 0 ? (
-                <EmptyState title="No estimates yet" />
-              ) : (
-                <div className="space-y-2">
+                <div>
+                  <div className="text-muted mb-2 text-xs font-medium">{estimatesByStatusTitle}</div>
                   {estimateStatusSummary.map((row) => (
                     <ListRow
                       key={row.status}
@@ -511,29 +568,8 @@ export default function DashboardPage() {
                     </ListRow>
                   ))}
                 </div>
-              )}
-            </CollapsibleSection>
-
-            <CollapsibleSection
-              title={leadTitle}
-              ready={!isInitialLoading}
-              empty={statusSummary.length === 0}
-            >
-              {isInitialLoading ? (
-                <div className="space-y-2">
-                  {Array.from({ length: 4 }).map((_, i) => (
-                    <ListRow key={i}>
-                      <div className="flex items-center justify-between">
-                        <Skeleton className="h-5 w-24 rounded-full" />
-                        <Skeleton className="h-4 w-8" />
-                      </div>
-                    </ListRow>
-                  ))}
-                </div>
-              ) : statusSummary.length === 0 ? (
-                <EmptyState title="No leads yet" />
-              ) : (
-                <div className="space-y-2">
+                <div>
+                  <div className="text-muted mb-2 text-xs font-medium">{leadTitle}</div>
                   {statusSummary.map((row) => (
                     <ListRow
                       key={row.status}
@@ -545,7 +581,7 @@ export default function DashboardPage() {
                     </ListRow>
                   ))}
                 </div>
-              )}
+              </div>
             </CollapsibleSection>
           </div>
         </div>
