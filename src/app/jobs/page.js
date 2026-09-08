@@ -16,7 +16,7 @@ import { Field } from "@/components/ui/field";
 import { FilterBar } from "@/components/ui/filter-bar";
 import { Segmented } from "@/components/ui/segmented";
 import { Icon } from "@/components/icons";
-import { JobList } from "@/components/job-list";
+import { JobsList } from "@/components/lists/jobs-list";
 
 function JobsPageInner() {
   const push = useReturnPush();
@@ -384,7 +384,7 @@ function JobsPageInner() {
         />
 
         <CollapsibleSection title={jobTitle} defaultOpen={true}>
-          <JobList
+          <JobsList
             jobs={jobs}
             loading={loadingJobs}
             canViewAll={canViewAll}

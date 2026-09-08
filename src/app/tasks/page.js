@@ -12,24 +12,21 @@ import {
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { AppShell } from "@/components/app-shell";
-import { ReturnLink, useReturnPush } from "@/components/return-to";
+import { useReturnPush } from "@/components/return-to";
 import { ToggleFormSection } from "@/components/toggle-form-section";
 import { TaskForm, createEmptyTaskForm, buildTaskApiPayload } from "@/components/forms/task-form";
 import { api } from "@/lib/api";
-import { formatTaskSchedule } from "@/lib/helper";
-import { LinkedEntityCell } from "@/components/linked-entity-cell";
 import { CollapsibleSection } from "@/components/forms/collapsible-section";
-import { Skeleton, TableRowSkeleton } from "@/components/loading/loadingSkeletons";
+import { Skeleton } from "@/components/loading/loadingSkeletons";
 import { TaskCalendar } from "@/components/calendar/task-calendar";
 import { ListToolbar } from "@/components/list-toolbar";
 import { SavedViewsControls } from "@/components/saved-views-controls";
 import { StatCard } from "@/components/ui/stat-card";
-import { StatusBadge } from "@/components/ui/status-badge";
 import { Field } from "@/components/ui/field";
 import { FilterBar } from "@/components/ui/filter-bar";
 import { Segmented } from "@/components/ui/segmented";
-import { DataTable, Td } from "@/components/ui/data-table";
 import { Icon } from "@/components/icons";
+import { TasksList } from "@/components/lists/tasks-list";
 
 /** 12rem — matches `min-w-[12rem]` menus */
 const TABLE_DROPDOWN_MENU_WIDTH_PX = 192;
@@ -777,213 +774,33 @@ function TasksPageInner() {
                 />
               </div>
             ) : (
-              <DataTable>
-                  <thead>
-                    <tr>
-                      <th>Title</th>
-                      <th>Linked To</th>
-                      <th>Due</th>
-                      <th>Status</th>
-                      <th>Assignee</th>
-                      <th className="text-right">Action</th>
-                    </tr>
-                  </thead>
-
-                  <tbody>
-                    {!isInitialLoading && loadingTasks ? (
-                      Array.from({ length: 3 }).map((_, i) => (
-                        <TableRowSkeleton key={i} cols={6} />
-                      ))
-                    ) : tasks.length === 0 ? (
-                      <tr>
-                        <Td empty className="text-muted" colSpan={6}>
-                          No tasks found. Try adjusting filters or create a new task.
-                        </Td>
-                      </tr>
-                    ) : (
-                      tasks.map((task) => {
-                        const menuOpen = openActionsTaskId === task.id;
-                        const isCompleted = task.status === "Completed";
-
-                        return (
-                          <tr
-                            key={task.id}
-                            className="cursor-pointer"
-                            role="link"
-                            tabIndex={0}
-                            onClick={() => push(`/tasks/${task.id}`)}
-                            onKeyDown={(e) => {
-                              if (e.key === "Enter" || e.key === " ") {
-                                e.preventDefault();
-                                push(`/tasks/${task.id}`);
-                              }
-                            }}
-                          >
-                            <Td primary label="Title">
-                              <div
-                                className="font-medium md:max-w-[240px] md:truncate"
-                                title={task.title}
-                              >
-                                {task.title}
-                                {task.kind === "appointment" ? (
-                                  <span className="text-muted ml-2 text-xs font-normal">
-                                    Appt
-                                  </span>
-                                ) : null}
-                              </div>
-                              {task.description ? (
-                                <div
-                                  className="text-muted mt-1 text-xs md:max-w-[240px] md:truncate"
-                                  title={task.description}
-                                >
-                                  {task.description}
-                                </div>
-                              ) : null}
-                            </Td>
-
-                            <Td
-                              label="Linked To"
-                              className="md:truncate"
-                              onClick={(e) => e.stopPropagation()}
-                            >
-                              <LinkedEntityCell task={task} />
-                            </Td>
-
-                            <Td label="Due" className="md:truncate">
-                              {formatTaskSchedule(task)}
-                            </Td>
-
-                            <Td label="Status" className="md:truncate">
-                              <StatusBadge kind="task" status={task.status} />
-                            </Td>
-
-                            <Td label="Assignee" className="md:truncate">
-                              {canViewAll ? (
-                                <select
-                                  className="input"
-                                  value={task.assigned_to || ""}
-                                  onClick={(e) => e.stopPropagation()}
-                                  onKeyDown={(e) => e.stopPropagation()}
-                                  onChange={(e) => {
-                                    e.stopPropagation();
-                                    handleAssignTask(task.id, e.target.value);
-                                  }}
-                                >
-                                  <option value="">Unassigned</option>
-                                  {teamUsers.map((user) => (
-                                    <option key={user.id} value={user.id}>
-                                      {user.first_name} {user.last_name}
-                                    </option>
-                                  ))}
-                                </select>
-                              ) : task.assigned_user ? (
-                                `${task.assigned_user.first_name || ""} ${task.assigned_user.last_name || ""}`.trim() ||
-                                task.assigned_user.email
-                              ) : (
-                                <span className="text-muted">—</span>
-                              )}
-                            </Td>
-
-                            <Td
-                              actions
-                              label="Action"
-                              className="md:truncate md:text-right"
-                              onClick={(e) => e.stopPropagation()}
-                              onKeyDown={(e) => e.stopPropagation()}
-                            >
-                              <div
-                                className="relative flex justify-end"
-                                data-task-actions-menu={task.id}
-                              >
-                                <button
-                                  type="button"
-                                  className="btn flex items-center gap-1 px-3 py-1.5 text-xs"
-                                  aria-label={`Actions for ${task.title}`}
-                                  aria-expanded={menuOpen}
-                                  aria-haspopup="menu"
-                                  onClick={(e) => {
-                                    const wrap = e.currentTarget.closest(
-                                      "[data-task-actions-menu]",
-                                    );
-                                    if (openActionsTaskId === task.id) {
-                                      setOpenActionsTaskId(null);
-                                      setActionsMenuPosition(null);
-                                      return;
-                                    }
-                                    if (wrap) {
-                                      setActionsMenuPosition(
-                                        getTableDropdownMenuPosition(wrap),
-                                      );
-                                    }
-                                    setOpenActionsTaskId(task.id);
-                                  }}
-                                >
-                                  Actions
-                                  <span className="text-muted" aria-hidden>
-                                    ▾
-                                  </span>
-                                </button>
-
-                                {menuOpen && actionsMenuPosition ? (
-                                  <div
-                                    role="menu"
-                                    aria-label={`Actions for ${task.title}`}
-                                    className="dropdown-panel fixed z-dialog min-w-[12rem] overflow-hidden py-1 shadow-lg"
-                                    style={{
-                                      top: actionsMenuPosition.top,
-                                      left: actionsMenuPosition.left,
-                                      width: actionsMenuPosition.width,
-                                    }}
-                                  >
-                                    <ReturnLink
-                                      href={`/tasks/${task.id}`}
-                                      role="menuitem"
-                                      className="hover:bg-accent focus-visible:bg-accent block w-full px-3 py-2 text-left text-xs transition-colors"
-                                      onClick={() => {
-                                        setOpenActionsTaskId(null);
-                                        setActionsMenuPosition(null);
-                                      }}
-                                    >
-                                      Open
-                                    </ReturnLink>
-                                    <Link
-                                      href={`/tasks/${task.id}/edit`}
-                                      role="menuitem"
-                                      className="hover:bg-accent focus-visible:bg-accent block w-full px-3 py-2 text-left text-xs transition-colors"
-                                      onClick={() => {
-                                        setOpenActionsTaskId(null);
-                                        setActionsMenuPosition(null);
-                                      }}
-                                    >
-                                      Edit
-                                    </Link>
-                                    <button
-                                      type="button"
-                                      role="menuitem"
-                                      className="hover:bg-accent focus-visible:bg-accent block w-full px-3 py-2 text-left text-xs transition-colors"
-                                      onClick={() => {
-                                        setOpenActionsTaskId(null);
-                                        setActionsMenuPosition(null);
-                                        setTaskStatus(
-                                          task.id,
-                                          isCompleted ? "Pending" : "Completed",
-                                        );
-                                      }}
-                                    >
-                                      {isCompleted
-                                        ? "Mark pending"
-                                        : "Mark completed"}
-                                    </button>
-                                  </div>
-                                ) : null}
-                              </div>
-                            </Td>
-                          </tr>
-                        );
-                      })
-                    )}
-                  </tbody>
-              </DataTable>
+              <TasksList
+                tasks={tasks}
+                loading={!isInitialLoading && loadingTasks}
+                canViewAll={canViewAll}
+                teamUsers={teamUsers}
+                onOpen={(taskId) => push(`/tasks/${taskId}`)}
+                onAssign={handleAssignTask}
+                openActionsTaskId={openActionsTaskId}
+                actionsMenuPosition={actionsMenuPosition}
+                onToggleActions={(taskId, triggerEl) => {
+                  if (openActionsTaskId === taskId) {
+                    setOpenActionsTaskId(null);
+                    setActionsMenuPosition(null);
+                    return;
+                  }
+                  const wrap = triggerEl.closest("[data-task-actions-menu]");
+                  if (wrap) {
+                    setActionsMenuPosition(getTableDropdownMenuPosition(wrap));
+                  }
+                  setOpenActionsTaskId(taskId);
+                }}
+                onCloseActions={() => {
+                  setOpenActionsTaskId(null);
+                  setActionsMenuPosition(null);
+                }}
+                onSetStatus={setTaskStatus}
+              />
             )}
           </CollapsibleSection>
         </div>
