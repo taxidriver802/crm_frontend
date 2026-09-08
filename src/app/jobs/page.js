@@ -4,23 +4,19 @@ import { Alert } from "@/components/ui/alert";
 import { Suspense, useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { AppShell } from "@/components/app-shell";
-import { ReturnLink, useReturnPush } from "@/components/return-to";
+import { useReturnPush } from "@/components/return-to";
 import { ToggleFormSection } from "@/components/toggle-form-section";
 import { JobForm, createEmptyJobForm } from "@/components/forms/job-form";
 import { api } from "@/lib/api";
-import { formatDate, formatDaysInStatus } from "@/lib/helper";
 import { CollapsibleSection } from "@/components/forms/collapsible-section";
-import { TableRowSkeleton } from "@/components/loading/loadingSkeletons";
 import { ListToolbar } from "@/components/list-toolbar";
 import { SavedViewsControls } from "@/components/saved-views-controls";
 import { ModalFrame } from "@/components/ui/overlay";
-import { StatusBadge } from "@/components/ui/status-badge";
-import { HealthBadge } from "@/components/ui/health-badge";
 import { Field } from "@/components/ui/field";
 import { FilterBar } from "@/components/ui/filter-bar";
 import { Segmented } from "@/components/ui/segmented";
 import { Icon } from "@/components/icons";
-import { DataTable, Td } from "@/components/ui/data-table";
+import { JobList } from "@/components/job-list";
 
 function JobsPageInner() {
   const push = useReturnPush();
@@ -388,128 +384,15 @@ function JobsPageInner() {
         />
 
         <CollapsibleSection title={jobTitle} defaultOpen={true}>
-          <DataTable>
-              <thead>
-                <tr>
-                  <th>Title</th>
-                  <th>Lead</th>
-                  <th>Status</th>
-                  <th>Address</th>
-                  <th>Assignee</th>
-                  <th>Created</th>
-                </tr>
-              </thead>
-
-              <tbody>
-                {loadingJobs ? (
-                  Array.from({ length: 3 }).map((_, i) => (
-                    <TableRowSkeleton key={i} cols={6} />
-                  ))
-                ) : jobs.length === 0 ? (
-                  <tr>
-                    <Td empty className="text-muted" colSpan={6}>
-                      No jobs found.
-                    </Td>
-                  </tr>
-                ) : (
-                  jobs.map((job) => (
-                    <tr
-                      key={job.id}
-                      className="cursor-pointer"
-                      role="link"
-                      tabIndex={0}
-                      onClick={() => push(`/jobs/${job.id}`)}
-                      onKeyDown={(e) => {
-                        if (e.key === "Enter" || e.key === " ") {
-                          e.preventDefault();
-                          push(`/jobs/${job.id}`);
-                        }
-                      }}
-                    >
-                      <Td primary label="Title">
-                        <div className="font-medium">{job.title}</div>
-                        <div className="text-muted mt-1 text-xs md:max-w-[12.5rem] md:truncate">
-                          {job.description || "—"}
-                        </div>
-                      </Td>
-
-                      <Td
-                        label="Lead"
-                        onClick={(e) => e.stopPropagation()}
-                      >
-                        {job.lead ? (
-                          <ReturnLink
-                            className="underline underline-offset-4 hover:opacity-80"
-                            href={`/leads/${job.lead.id}`}
-                          >
-                            {job.lead.name}
-                          </ReturnLink>
-                        ) : (
-                          <span className="text-muted">—</span>
-                        )}
-                      </Td>
-
-                      <Td label="Status">
-                        <div className="flex flex-wrap items-center gap-2">
-                          <StatusBadge kind="job" status={job.status} />
-                          <HealthBadge health={job.health} />
-                        </div>
-                        {formatDaysInStatus(job.status_changed_at) ? (
-                          <div className="text-muted mt-1 text-xs">
-                            {formatDaysInStatus(job.status_changed_at)}
-                          </div>
-                        ) : null}
-                      </Td>
-
-                      <Td label="Address">
-                        {job.address ? (
-                          <button
-                            type="button"
-                            className="text-main hover:bg-accent -mx-1 block min-w-0 w-full max-w-none rounded px-1 py-0.5 text-left transition md:max-w-[min(16rem,45vw)]"
-                            title="Show full address"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setAddressPreview(job.address);
-                            }}
-                          >
-                            <span className="block md:truncate">{job.address}</span>
-                          </button>
-                        ) : (
-                          <span className="text-muted">—</span>
-                        )}
-                      </Td>
-                      <Td label="Assignee">
-                        {canViewAll ? (
-                          <select
-                            className="input"
-                            value={job.assigned_to || ""}
-                            onClick={(e) => e.stopPropagation()}
-                            onKeyDown={(e) => e.stopPropagation()}
-                            onChange={(e) => {
-                              e.stopPropagation();
-                              handleAssignJob(job.id, e.target.value);
-                            }}
-                          >
-                            <option value="">Unassigned</option>
-                            {teamUsers.map((user) => (
-                              <option key={user.id} value={user.id}>
-                                {user.first_name} {user.last_name}
-                              </option>
-                            ))}
-                          </select>
-                        ) : job.assigned_user ? (
-                          `${job.assigned_user.first_name || ""} ${job.assigned_user.last_name || ""}`.trim() ||
-                          job.assigned_user.email
-                        ) : (
-                          <span className="text-muted">—</span>
-                        )}
-                      </Td>
-                      <Td label="Created">{formatDate(job.created_at)}</Td>
-                    </tr>
-                  ))
-                )}
-              </tbody>
-          </DataTable>
+          <JobList
+            jobs={jobs}
+            loading={loadingJobs}
+            canViewAll={canViewAll}
+            teamUsers={teamUsers}
+            onOpen={(jobId) => push(`/jobs/${jobId}`)}
+            onAssign={handleAssignJob}
+            onShowAddress={setAddressPreview}
+          />
         </CollapsibleSection>
 
         {addressPreview ? (
