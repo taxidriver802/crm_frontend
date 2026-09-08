@@ -19,6 +19,9 @@ const EMPTY_TASK_FORM = {
   title: "",
   description: "",
   due_date: "",
+  end_at: "",
+  location: "",
+  kind: "task",
   status: "Pending",
 };
 
@@ -27,6 +30,35 @@ export function createEmptyTaskForm(overrides = {}) {
     ...EMPTY_TASK_FORM,
     ...overrides,
   };
+}
+
+export function buildTaskApiPayload(form, { contextType } = {}) {
+  const kind = form.kind === "appointment" ? "appointment" : "task";
+  const payload = {
+    title: (form.title || "").trim(),
+    description: (form.description || "").trim() || null,
+    status: form.status || "Pending",
+    kind,
+    due_date: form.due_date ? new Date(form.due_date).toISOString() : null,
+    end_at:
+      kind === "appointment" && form.end_at
+        ? new Date(form.end_at).toISOString()
+        : null,
+    location:
+      kind === "appointment"
+        ? (form.location || "").trim() || null
+        : null,
+  };
+
+  if (contextType === "lead") {
+    payload.lead_id = form.lead_id ? Number(form.lead_id) : null;
+    payload.job_id = null;
+  } else if (contextType === "job") {
+    payload.job_id = form.job_id ? Number(form.job_id) : null;
+    payload.lead_id = null;
+  }
+
+  return payload;
 }
 
 function getLeadOptionLabel(lead) {
@@ -60,6 +92,7 @@ export function TaskForm({
   layout = "default", // default | compact
 }) {
   const isCompact = layout === "compact";
+  const isAppointment = form.kind === "appointment";
 
   function setField(key, value) {
     onChange((prev) => ({ ...prev, [key]: value }));
@@ -68,6 +101,25 @@ export function TaskForm({
   return (
     <form onSubmit={onSubmit} className="space-y-4">
       {error ? <Alert variant="inline">{error}</Alert> : null}
+
+      <Segmented
+        aria-label="Task type"
+        value={isAppointment ? "appointment" : "task"}
+        onChange={(next) => {
+          onChange((prev) => ({
+            ...prev,
+            kind: next,
+            title:
+              next === "appointment" && !(prev.title || "").trim()
+                ? "Site visit"
+                : prev.title,
+          }));
+        }}
+        options={[
+          { value: "task", label: "Task" },
+          { value: "appointment", label: "Appointment" },
+        ]}
+      />
 
       {!isContextLocked ? (
         <Segmented
@@ -162,12 +214,42 @@ export function TaskForm({
           </select>
         </Field>
 
-        <Field label="Due date">
+        <Field
+          label={isAppointment ? "Starts" : "Due date"}
+          required={isAppointment}
+        >
           <CustomDateTimePicker
             value={form.due_date}
             onChange={(val) => setField("due_date", val)}
           />
         </Field>
+
+        {isAppointment ? (
+          <Field
+            label="Ends"
+            help="Optional. Must be after the start time."
+            className={isCompact ? "md:col-span-2" : "sm:col-span-2"}
+          >
+            <CustomDateTimePicker
+              value={form.end_at || ""}
+              onChange={(val) => setField("end_at", val)}
+            />
+          </Field>
+        ) : null}
+
+        {isAppointment ? (
+          <Field
+            label="Location"
+            className={isCompact ? "md:col-span-2" : "sm:col-span-2"}
+          >
+            <input
+              className="input"
+              value={form.location || ""}
+              onChange={(e) => setField("location", e.target.value)}
+              placeholder="Job address or meeting place"
+            />
+          </Field>
+        ) : null}
 
         <Field
           label="Title"
@@ -178,7 +260,9 @@ export function TaskForm({
             className="input"
             value={form.title}
             onChange={(e) => setField("title", e.target.value)}
-            placeholder="e.g. Call about showing"
+            placeholder={
+              isAppointment ? "e.g. Site visit" : "e.g. Call about showing"
+            }
             required
           />
         </Field>
@@ -198,7 +282,9 @@ export function TaskForm({
 
       <FormActions>
         <button type="submit" className="btn btn-primary" disabled={saving}>
-          {saving ? "Saving…" : submitLabel}
+          {saving
+            ? "Saving…"
+            : submitLabel || (isAppointment ? "Schedule appointment" : "Create task")}
         </button>
 
         {onCancel ? (
