@@ -15,6 +15,7 @@ import { Segmented } from "@/components/ui/segmented";
 import { ListRow } from "@/components/ui/list-row";
 import { Icon } from "@/components/icons";
 import { ActionQueue } from "@/components/dashboard/action-queue";
+import { WorkloadTable } from "@/components/dashboard/workload-table";
 import { ReturnLink } from "@/components/return-to";
 
 import LoadingDots, {
@@ -44,6 +45,7 @@ function getTaskJobLabel(task) {
 export default function DashboardPage() {
   const [data, setData] = useState(null);
   const [activity, setActivity] = useState([]);
+  const [workload, setWorkload] = useState(null);
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
   const [loadingActivity, setLoadingActivity] = useState(true);
@@ -304,6 +306,22 @@ export default function DashboardPage() {
       setUser(null);
     }
 
+    const nextUser =
+      authRes.status === "fulfilled" ? authRes.value?.user || null : null;
+    const canLoadWorkload =
+      nextUser?.role === "owner" || nextUser?.role === "admin";
+
+    if (canLoadWorkload) {
+      try {
+        const workloadRes = await api("/dashboard/workload");
+        setWorkload(workloadRes?.workload || []);
+      } catch {
+        setWorkload(null);
+      }
+    } else {
+      setWorkload(null);
+    }
+
     if (refreshActivity) {
       if (activityRes.status === "fulfilled") {
         setActivity(activityRes.value?.activity || []);
@@ -467,6 +485,13 @@ export default function DashboardPage() {
                 )}
               </div>
             </CollapsibleSection>
+
+            {canViewAll ? (
+              <WorkloadTable
+                rows={workload}
+                loading={isInitialLoading || (loading && workload == null)}
+              />
+            ) : null}
           </div>
 
           <div className="space-y-4">
