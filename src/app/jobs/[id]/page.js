@@ -11,16 +11,15 @@ import {
   buildFileUrl,
   formatBytes,
   formatDate,
-  formatDateTime,
   formatDaysInStatus,
+  formatTaskSchedule,
   API_BASE,
   isPreviewableFile,
 } from "@/lib/helper";
 
-import { ToggleFormSection } from "@/components/toggle-form-section";
 import { useConfirmModal } from "@/components/modals/confirm-modal";
 import { FilePreviewModal } from "@/components/modals/file-preview-modal";
-import { TaskForm, createEmptyTaskForm } from "@/components/forms/task-form";
+import { TaskForm, createEmptyTaskForm, buildTaskApiPayload } from "@/components/forms/task-form";
 import { CollapsibleSection } from "@/components/forms/collapsible-section";
 import { ActivityList } from "@/components/activity-list";
 import { NotesSection } from "@/components/notes-section";
@@ -51,6 +50,8 @@ const JOB_STATUSES = [
   "Closed Won",
   "Closed Lost",
 ];
+
+const EARLY_JOB_STATUSES = new Set(["New", "Contacted"]);
 
 const DEFAULT_VISIBLE_TASKS = 6;
 
@@ -114,6 +115,7 @@ export default function JobDetailPage() {
   const [updatingStatus, setUpdatingStatus] = useState(null);
 
   const [isTaskFormOpen, setIsTaskFormOpen] = useState(false);
+  const [updateJobStatusOnSchedule, setUpdateJobStatusOnSchedule] = useState(true);
   const [taskForm, setTaskForm] = useState(
     createEmptyTaskForm({
       job_id: String(id),
@@ -378,14 +380,14 @@ export default function JobDetailPage() {
         throw new Error("Title is required.");
       }
 
-      const payload = {
-        job_id: Number(id),
-        lead_id: null,
-        title: taskForm.title.trim(),
-        description: taskForm.description.trim() || null,
-        due_date: taskForm.due_date ? new Date(taskForm.due_date).toISOString() : null,
-        status: taskForm.status || "Pending",
-      };
+      if (taskForm.kind === "appointment" && !taskForm.due_date) {
+        throw new Error("Appointments require a start time.");
+      }
+
+      const payload = buildTaskApiPayload(
+        { ...taskForm, job_id: String(id) },
+        { contextType: "job" },
+      );
 
       const data = await api("/tasks", {
         method: "POST",
@@ -393,6 +395,20 @@ export default function JobDetailPage() {
       });
 
       setTasks((prev) => [data.task, ...prev]);
+
+      const shouldFlipStatus =
+        payload.kind === "appointment" &&
+        updateJobStatusOnSchedule &&
+        EARLY_JOB_STATUSES.has(job?.status);
+
+      if (shouldFlipStatus) {
+        await api(`/jobs/${id}`, {
+          method: "PATCH",
+          body: JSON.stringify({ status: "Appointment Scheduled" }),
+        });
+        await loadJob();
+      }
+
       setTaskForm(
         createEmptyTaskForm({
           job_id: String(id),
@@ -407,6 +423,32 @@ export default function JobDetailPage() {
     } finally {
       setCreatingTask(false);
     }
+  }
+
+  function openNewTaskForm() {
+    setTaskForm(
+      createEmptyTaskForm({
+        job_id: String(id),
+        status: "Pending",
+        kind: "task",
+      }),
+    );
+    setIsTaskFormOpen(true);
+  }
+
+  function openScheduleAppointmentForm() {
+    const canFlip = EARLY_JOB_STATUSES.has(job?.status);
+    setUpdateJobStatusOnSchedule(canFlip);
+    setTaskForm(
+      createEmptyTaskForm({
+        job_id: String(id),
+        status: "Pending",
+        kind: "appointment",
+        title: "Site visit",
+        location: job?.address || "",
+      }),
+    );
+    setIsTaskFormOpen(true);
   }
 
   async function handleToggleTaskStatus(task) {
@@ -1106,40 +1148,106 @@ export default function JobDetailPage() {
                 empty={tasks.length === 0}
               >
                 <div className="space-y-4">
-                  <ToggleFormSection
-                    title="Tasks"
-                    description="Create and manage tasks tied directly to this job"
-                    isOpen={isTaskFormOpen}
-                    onToggle={() => setIsTaskFormOpen((open) => !open)}
-                    openLabel="+ New Task"
-                    closeLabel="Hide Task Form"
-                    fullFormUrl={`/tasks/new?job_id=${id}`}
-                  >
-                    <TaskForm
-                      form={taskForm}
-                      onChange={setTaskForm}
-                      onSubmit={handleCreateTask}
-                      saving={creatingTask}
-                      error=""
-                      submitLabel="Create task"
-                      cancelLabel="Clear"
-                      onCancel={() =>
-                        setTaskForm(
-                          createEmptyTaskForm({
-                            job_id: String(id),
-                            status: "Pending",
-                          }),
-                        )
-                      }
-                      contextType="job"
-                      leads={[]}
-                      jobs={[{ id: String(id), title: job?.title || `Job #${id}` }]}
-                      loadingLeads={false}
-                      loadingJobs={false}
-                      isContextLocked={true}
-                      layout="compact"
-                    />
-                  </ToggleFormSection>
+                  <section className="card p-4">
+                    <div className="mb-4 flex min-w-0 flex-wrap items-start justify-between gap-3">
+                      <div className="min-w-0">
+                        <h3 className="section-heading">Tasks</h3>
+                        <p className="text-muted mt-1 text-xs">
+                          Create tasks or schedule a site appointment for this job
+                        </p>
+                      </div>
+                      <div className="flex shrink-0 flex-wrap items-center justify-end gap-2">
+                        <ReturnLink
+                          href={`/tasks/new?job_id=${id}`}
+                          className="btn btn-sm"
+                        >
+                          Full Form
+                        </ReturnLink>
+                        <button
+                          type="button"
+                          className="btn btn-sm"
+                          onClick={() => {
+                            if (isTaskFormOpen && taskForm.kind !== "appointment") {
+                              setIsTaskFormOpen(false);
+                              return;
+                            }
+                            openNewTaskForm();
+                          }}
+                        >
+                          {isTaskFormOpen && taskForm.kind !== "appointment"
+                            ? "Hide Task Form"
+                            : "+ New Task"}
+                        </button>
+                        <button
+                          type="button"
+                          className="btn btn-sm"
+                          onClick={() => {
+                            if (isTaskFormOpen && taskForm.kind === "appointment") {
+                              setIsTaskFormOpen(false);
+                              return;
+                            }
+                            openScheduleAppointmentForm();
+                          }}
+                        >
+                          {isTaskFormOpen && taskForm.kind === "appointment"
+                            ? "Hide Appointment Form"
+                            : "Schedule appointment"}
+                        </button>
+                      </div>
+                    </div>
+
+                    {isTaskFormOpen ? (
+                      <div className="space-y-3">
+                        <TaskForm
+                          form={taskForm}
+                          onChange={setTaskForm}
+                          onSubmit={handleCreateTask}
+                          saving={creatingTask}
+                          error=""
+                          submitLabel={
+                            taskForm.kind === "appointment"
+                              ? "Schedule appointment"
+                              : "Create task"
+                          }
+                          cancelLabel="Clear"
+                          onCancel={() =>
+                            setTaskForm(
+                              createEmptyTaskForm({
+                                job_id: String(id),
+                                status: "Pending",
+                                kind: taskForm.kind || "task",
+                              }),
+                            )
+                          }
+                          contextType="job"
+                          leads={[]}
+                          jobs={[
+                            {
+                              id: String(id),
+                              title: job?.title || `Job #${id}`,
+                            },
+                          ]}
+                          loadingLeads={false}
+                          loadingJobs={false}
+                          isContextLocked={true}
+                          layout="compact"
+                        />
+                        {taskForm.kind === "appointment" &&
+                        EARLY_JOB_STATUSES.has(job?.status) ? (
+                          <label className="text-muted flex items-center gap-2 text-sm">
+                            <input
+                              type="checkbox"
+                              checked={updateJobStatusOnSchedule}
+                              onChange={(e) =>
+                                setUpdateJobStatusOnSchedule(e.target.checked)
+                              }
+                            />
+                            Set job status to Appointment Scheduled
+                          </label>
+                        ) : null}
+                      </div>
+                    ) : null}
+                  </section>
 
                   {!loadingTasks && tasks.length > DEFAULT_VISIBLE_TASKS ? (
                     <div className="flex items-center justify-between gap-3">
@@ -1177,6 +1285,11 @@ export default function JobDetailPage() {
                             >
                               <div className="font-medium underline underline-offset-4">
                                 {task.title}
+                                {task.kind === "appointment" ? (
+                                  <span className="text-muted ml-2 text-xs font-normal no-underline">
+                                    Appointment
+                                  </span>
+                                ) : null}
                               </div>
 
                               {task.description ? (
@@ -1186,7 +1299,11 @@ export default function JobDetailPage() {
                               ) : null}
 
                               <div className="text-muted mt-2 text-xs">
-                                Due: {formatDateTime(task.due_date)}
+                                {task.kind === "appointment" ? "When" : "Due"}:{" "}
+                                {formatTaskSchedule(task)}
+                                {task.kind === "appointment" && task.location
+                                  ? ` · ${task.location}`
+                                  : null}
                               </div>
                             </ReturnLink>
                           </div>
@@ -1333,45 +1450,90 @@ export default function JobDetailPage() {
                 ) : (
                   <div className="space-y-3">
                     {files.map((file) => (
-                      <div
-                        key={file.id}
-                        className="list-row list-row-split"
-                      >
-                        <div className="min-w-0 flex-1 space-y-2">
-                          <div className="truncate font-medium">{file.original_name}</div>
-                          <div className="text-muted text-xs">
-                            {file.mime_type || "Unknown type"} •{" "}
-                            {formatBytes(file.size_bytes)}
+                      <div key={file.id} className="list-row space-y-3">
+                        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                          <div className="min-w-0">
+                            <div className="truncate font-medium">
+                              {file.original_name}
+                            </div>
+                            <div className="text-muted text-xs">
+                              {file.mime_type || "Unknown type"} •{" "}
+                              {formatBytes(file.size_bytes)}
+                            </div>
+                            <div className="text-muted text-xs">
+                              Uploaded: {formatDate(file.created_at)}
+                            </div>
+                            {!canManageFiles && file.caption ? (
+                              <div className="text-muted mt-1 text-xs">
+                                {file.caption}
+                              </div>
+                            ) : null}
                           </div>
-                          <div className="text-muted text-xs">
-                            Uploaded: {formatDate(file.created_at)}
+
+                          <div className="flex shrink-0 flex-wrap items-center gap-2">
+                            {isPreviewableFile(file) ? (
+                              <button
+                                type="button"
+                                onClick={() => setPreviewFile(file)}
+                                className="btn px-3 py-1.5 text-xs"
+                              >
+                                Preview
+                              </button>
+                            ) : (
+                              <a
+                                href={buildFileUrl(file)}
+                                target="_blank"
+                                rel="noreferrer"
+                                className="btn px-3 py-1.5 text-xs"
+                              >
+                                Open
+                              </a>
+                            )}
+
+                            {canManageFiles ? (
+                              <button
+                                onClick={() => handleDeleteFile(file.id)}
+                                disabled={busyFileId === file.id}
+                                className="btn btn-danger px-3 py-1.5 text-xs"
+                              >
+                                {busyFileId === file.id
+                                  ? "Deleting..."
+                                  : "Delete"}
+                              </button>
+                            ) : null}
                           </div>
-                          {canManageFiles ? (
-                            <div className="grid gap-2 sm:grid-cols-3">
-                              <label className="text-muted block text-xs">
-                                Caption
-                                <input
-                                  className="input mt-1"
-                                  value={file.caption || ""}
-                                  onChange={(event) => {
-                                    const caption = event.target.value;
-                                    setFiles((prev) =>
-                                      prev.map((row) =>
-                                        row.id === file.id ? { ...row, caption } : row,
-                                      ),
-                                    );
-                                  }}
-                                  onBlur={(event) => {
-                                    const caption = event.target.value.trim() || null;
-                                    saveFileMeta(file.id, { caption });
-                                  }}
-                                  placeholder="Shown in the gallery"
-                                />
-                              </label>
-                              <label className="text-muted block text-xs">
+                        </div>
+
+                        {canManageFiles ? (
+                          <div className="border-base space-y-3 border-t pt-3">
+                            <label className="text-muted block min-w-0 text-xs">
+                              Caption
+                              <input
+                                className="input mt-1 w-full"
+                                value={file.caption || ""}
+                                onChange={(event) => {
+                                  const caption = event.target.value;
+                                  setFiles((prev) =>
+                                    prev.map((row) =>
+                                      row.id === file.id
+                                        ? { ...row, caption }
+                                        : row,
+                                    ),
+                                  );
+                                }}
+                                onBlur={(event) => {
+                                  const caption =
+                                    event.target.value.trim() || null;
+                                  saveFileMeta(file.id, { caption });
+                                }}
+                                placeholder="Shown in the gallery"
+                              />
+                            </label>
+                            <div className="flex flex-wrap items-end gap-3">
+                              <label className="text-muted block min-w-[9rem] flex-1 text-xs">
                                 Category
                                 <select
-                                  className="input mt-1"
+                                  className="input mt-1 w-full"
                                   value={file.category || "other"}
                                   onChange={(event) => {
                                     saveFileMeta(file.id, {
@@ -1384,7 +1546,7 @@ export default function JobDetailPage() {
                                   <option value="other">Other</option>
                                 </select>
                               </label>
-                              <label className="text-muted mt-6 flex items-center gap-2 text-xs">
+                              <label className="text-muted flex shrink-0 items-center gap-2 pb-2.5 text-xs">
                                 <input
                                   type="checkbox"
                                   checked={file.client_visible !== false}
@@ -1397,41 +1559,8 @@ export default function JobDetailPage() {
                                 Show in portal
                               </label>
                             </div>
-                          ) : file.caption ? (
-                            <div className="text-muted text-xs">{file.caption}</div>
-                          ) : null}
-                        </div>
-
-                        <div className="flex shrink-0 flex-wrap items-center gap-2">
-                          {isPreviewableFile(file) ? (
-                            <button
-                              type="button"
-                              onClick={() => setPreviewFile(file)}
-                              className="btn px-3 py-1.5 text-xs"
-                            >
-                              Preview
-                            </button>
-                          ) : (
-                            <a
-                              href={buildFileUrl(file)}
-                              target="_blank"
-                              rel="noreferrer"
-                              className="btn px-3 py-1.5 text-xs"
-                            >
-                              Open
-                            </a>
-                          )}
-
-                          {canManageFiles ? (
-                            <button
-                              onClick={() => handleDeleteFile(file.id)}
-                              disabled={busyFileId === file.id}
-                              className="btn btn-danger px-3 py-1.5 text-xs"
-                            >
-                              {busyFileId === file.id ? "Deleting..." : "Delete"}
-                            </button>
-                          ) : null}
-                        </div>
+                          </div>
+                        ) : null}
                       </div>
                     ))}
                   </div>
