@@ -16,15 +16,45 @@ import {
 } from "@/components/calendar/calendar-shared";
 import { Segmented } from "@/components/ui/segmented";
 import { cx } from "@/lib/cx";
+import { formatTaskSchedule, isTaskOverdue } from "@/lib/helper";
 
 function taskEventClass(task) {
   if (String(task?.status || "").toLowerCase() === "completed") {
     return "cal-event cal-event-done";
   }
-  if (task?.due_date && new Date(task.due_date).getTime() < Date.now()) {
+  if (isTaskOverdue(task)) {
     return "cal-event cal-event-overdue";
   }
+  if (task?.kind === "appointment") {
+    return "cal-event cal-event-appointment";
+  }
   return "cal-event cal-event-upcoming";
+}
+
+function taskEventLabel(task, { dayKey } = {}) {
+  const prefix = task?.kind === "appointment" ? "Appt · " : "";
+  if (!task?.due_date) return `${prefix}${task?.title || "Task"}`;
+
+  const startKey = formatDayKey(new Date(task.due_date));
+  const isContinuation =
+    task?.kind === "appointment" &&
+    task?.end_at &&
+    dayKey &&
+    dayKey !== startKey;
+
+  if (isContinuation) {
+    return `${prefix}cont. ${task.title}`;
+  }
+
+  const schedule = formatTaskSchedule(task);
+  const timePart =
+    task?.kind === "appointment" && task?.end_at
+      ? schedule
+      : new Date(task.due_date).toLocaleTimeString(undefined, {
+          hour: "numeric",
+          minute: "2-digit",
+        });
+  return `${prefix}${timePart} ${task.title}`;
 }
 
 export function TaskCalendar({ tasks, onTaskClick, onRangeChange, onDayCreate }) {
@@ -56,9 +86,26 @@ export function TaskCalendar({ tasks, onTaskClick, onRangeChange, onDayCreate })
     const map = new Map();
     for (const task of tasks) {
       if (!task?.due_date) continue;
-      const key = formatDayKey(new Date(task.due_date));
-      if (!map.has(key)) map.set(key, []);
-      map.get(key).push(task);
+      const start = startOfDay(new Date(task.due_date));
+      if (Number.isNaN(start.getTime())) continue;
+
+      let end = start;
+      if (task.kind === "appointment" && task.end_at) {
+        const endDay = startOfDay(new Date(task.end_at));
+        if (!Number.isNaN(endDay.getTime()) && endDay > start) {
+          end = endDay;
+        }
+      }
+
+      let cursor = start;
+      let guard = 0;
+      while (cursor <= end && guard < 62) {
+        const key = formatDayKey(cursor);
+        if (!map.has(key)) map.set(key, []);
+        map.get(key).push(task);
+        cursor = addDays(cursor, 1);
+        guard += 1;
+      }
     }
     return map;
   }, [tasks]);
@@ -201,9 +248,13 @@ export function TaskCalendar({ tasks, onTaskClick, onRangeChange, onDayCreate })
                       type="button"
                       className={taskEventClass(task)}
                       onClick={() => onTaskClick?.(task)}
-                      title={task.title}
+                      title={
+                        task.location
+                          ? `${task.title} · ${task.location}`
+                          : task.title
+                      }
                     >
-                      {task.title}
+                      {taskEventLabel(task, { dayKey: key })}
                     </button>
                   ))
                 )}
@@ -276,11 +327,21 @@ export function TaskCalendar({ tasks, onTaskClick, onRangeChange, onDayCreate })
                   <button
                     key={task.id}
                     type="button"
-                    className={cx(taskEventClass(task), "whitespace-normal px-3 py-2 text-left text-sm")}
+                    className={cx(
+                      taskEventClass(task),
+                      "whitespace-normal px-3 py-2 text-left text-sm",
+                    )}
                     onClick={() => onTaskClick?.(task)}
                     title={task.title}
                   >
-                    {task.title}
+                    <div className="font-medium">
+                      {taskEventLabel(task, {
+                        dayKey: formatDayKey(selectedDay),
+                      })}
+                    </div>
+                    {task.kind === "appointment" && task.location ? (
+                      <div className="mt-1 text-[11px] opacity-80">{task.location}</div>
+                    ) : null}
                   </button>
                 ))}
               </div>
