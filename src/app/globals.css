@@ -989,6 +989,12 @@
     color: var(--text);
   }
 
+  .cal-event-appointment {
+    background: var(--info-soft, var(--accent-soft));
+    color: var(--info, var(--accent));
+    font-weight: 600;
+  }
+
   .cal-compact {
     display: grid;
     grid-template-columns: repeat(7, minmax(0, 1fr));
