@@ -14,9 +14,9 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { AppShell } from "@/components/app-shell";
 import { ReturnLink, useReturnPush } from "@/components/return-to";
 import { ToggleFormSection } from "@/components/toggle-form-section";
-import { TaskForm, createEmptyTaskForm } from "@/components/forms/task-form";
+import { TaskForm, createEmptyTaskForm, buildTaskApiPayload } from "@/components/forms/task-form";
 import { api } from "@/lib/api";
-import { formatDue } from "@/lib/helper";
+import { formatTaskSchedule } from "@/lib/helper";
 import { LinkedEntityCell } from "@/components/linked-entity-cell";
 import { CollapsibleSection } from "@/components/forms/collapsible-section";
 import { Skeleton, TableRowSkeleton } from "@/components/loading/loadingSkeletons";
@@ -476,14 +476,12 @@ function TasksPageInner() {
       return;
     }
 
-    const payload = {
-      lead_id: contextType === "lead" ? Number(taskForm.lead_id) : null,
-      job_id: contextType === "job" ? Number(taskForm.job_id) : null,
-      title: taskForm.title.trim(),
-      description: taskForm.description.trim() || null,
-      status: taskForm.status || "Pending",
-      due_date: taskForm.due_date ? new Date(taskForm.due_date).toISOString() : null,
-    };
+    if (taskForm.kind === "appointment" && !taskForm.due_date) {
+      setCreateError("Appointments require a start time.");
+      return;
+    }
+
+    const payload = buildTaskApiPayload(taskForm, { contextType });
 
     try {
       setCreatingTask(true);
@@ -827,6 +825,11 @@ function TasksPageInner() {
                                 title={task.title}
                               >
                                 {task.title}
+                                {task.kind === "appointment" ? (
+                                  <span className="text-muted ml-2 text-xs font-normal">
+                                    Appt
+                                  </span>
+                                ) : null}
                               </div>
                               {task.description ? (
                                 <div
@@ -847,7 +850,7 @@ function TasksPageInner() {
                             </Td>
 
                             <Td label="Due" className="md:truncate">
-                              {formatDue(task.due_date)}
+                              {formatTaskSchedule(task)}
                             </Td>
 
                             <Td label="Status" className="md:truncate">

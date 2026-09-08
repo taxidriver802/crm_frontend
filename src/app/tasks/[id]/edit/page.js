@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { AppShell } from "@/components/app-shell";
-import { TaskForm, createEmptyTaskForm } from "@/components/forms/task-form";
+import { TaskForm, createEmptyTaskForm, buildTaskApiPayload } from "@/components/forms/task-form";
 import { api } from "@/lib/api";
 
 function toDatetimeLocal(value) {
@@ -65,6 +65,9 @@ export default function EditTaskPage() {
             title: nextTask?.title || "",
             description: nextTask?.description || "",
             due_date: toDatetimeLocal(nextTask?.due_date),
+            end_at: toDatetimeLocal(nextTask?.end_at),
+            location: nextTask?.location || "",
+            kind: nextTask?.kind === "appointment" ? "appointment" : "task",
             status: nextTask?.status || "Pending",
           }),
         );
@@ -127,14 +130,12 @@ export default function EditTaskPage() {
       return;
     }
 
-    const payload = {
-      title: form.title.trim(),
-      description: form.description.trim() || null,
-      status: form.status,
-      due_date: form.due_date ? new Date(form.due_date).toISOString() : null,
-      lead_id: contextType === "lead" ? Number(form.lead_id) : null,
-      job_id: contextType === "job" ? Number(form.job_id) : null,
-    };
+    if (form.kind === "appointment" && !form.due_date) {
+      setError("Appointments require a start time.");
+      return;
+    }
+
+    const payload = buildTaskApiPayload(form, { contextType });
 
     try {
       setSaving(true);

@@ -11,9 +11,10 @@ import {
   formatBytes,
   buildFileUrl,
   formatDate,
-  formatDue,
+  formatTaskSchedule,
   isPreviewableFile,
   getLinkedEntity,
+  isTaskOverdue,
 } from "@/lib/helper";
 import { FilePreviewModal } from "@/components/modals/file-preview-modal";
 import { useConfirmModal } from "@/components/modals/confirm-modal";
@@ -29,17 +30,19 @@ function isCompleted(task) {
 }
 
 function isOverdue(task) {
-  if (!task?.due_date || isCompleted(task)) return false;
-  const d = new Date(task.due_date);
-  return !Number.isNaN(d.getTime()) && d.getTime() < Date.now();
+  return isTaskOverdue(task);
 }
 
 function isDueSoon(task) {
-  if (!task?.due_date || isCompleted(task)) return false;
+  if (!task?.due_date || isCompleted(task) || isTaskOverdue(task)) return false;
   const now = Date.now();
-  const due = new Date(task.due_date).getTime();
-  if (Number.isNaN(due)) return false;
-  return due > now && due <= now + 1000 * 60 * 60 * 24;
+  // Appointments with an end are "due soon" only as the end approaches
+  const deadline =
+    task?.kind === "appointment" && task?.end_at
+      ? new Date(task.end_at).getTime()
+      : new Date(task.due_date).getTime();
+  if (Number.isNaN(deadline)) return false;
+  return deadline > now && deadline <= now + 1000 * 60 * 60 * 24;
 }
 
 function TaskStatusBadge({ task }) {
@@ -374,7 +377,10 @@ export default function TaskDetailPage() {
             badges={
               <>
                 <TaskStatusBadge task={task} />
-                <StatusBadge>{formatDue(task.due_date)}</StatusBadge>
+                {task.kind === "appointment" ? (
+                  <StatusBadge>Appointment</StatusBadge>
+                ) : null}
+                <StatusBadge>{formatTaskSchedule(task)}</StatusBadge>
                 {isOverdue(task) ? (
                   <StatusBadge tone="danger">Overdue</StatusBadge>
                 ) : isDueSoon(task) ? (
@@ -457,6 +463,9 @@ export default function TaskDetailPage() {
               </>
             }
           >
+            {task.kind === "appointment" && task.location ? (
+              <MetaItem label="Location">{task.location}</MetaItem>
+            ) : null}
             <MetaItem label="Description">
               <span className="whitespace-pre-wrap">
                 {task.description || "No description provided."}
