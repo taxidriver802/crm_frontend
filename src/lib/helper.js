@@ -77,6 +77,52 @@ export function formatDue(dueDate) {
   });
 }
 
+export function formatTaskSchedule(task) {
+  if (!task?.due_date) {
+    return task?.kind === "appointment" ? "No start time" : "No due date";
+  }
+
+  const start = formatDue(task.due_date);
+  if (task?.kind === "appointment" && task?.end_at) {
+    const end = new Date(task.end_at);
+    if (!Number.isNaN(end.getTime())) {
+      const startDay = new Date(task.due_date);
+      const sameDay =
+        startDay.getFullYear() === end.getFullYear() &&
+        startDay.getMonth() === end.getMonth() &&
+        startDay.getDate() === end.getDate();
+      if (sameDay) {
+        const endLabel = end.toLocaleString(undefined, {
+          hour: "numeric",
+          minute: "2-digit",
+        });
+        return `${start} – ${endLabel}`;
+      }
+      return `${start} – ${formatDue(task.end_at)}`;
+    }
+  }
+  return start;
+}
+
+/** Effective deadline: appointment end when set, otherwise due_date/start. */
+export function getTaskDeadline(task) {
+  if (task?.kind === "appointment" && task?.end_at) {
+    const end = new Date(task.end_at);
+    if (!Number.isNaN(end.getTime())) return end;
+  }
+  if (!task?.due_date) return null;
+  const due = new Date(task.due_date);
+  return Number.isNaN(due.getTime()) ? null : due;
+}
+
+export function isTaskOverdue(task) {
+  if (!task || String(task.status || "").toLowerCase() === "completed") {
+    return false;
+  }
+  const deadline = getTaskDeadline(task);
+  return Boolean(deadline && deadline.getTime() < Date.now());
+}
+
 export function formatDaysInStatus(statusChangedAt) {
   if (!statusChangedAt) return "";
   const date = new Date(statusChangedAt);
