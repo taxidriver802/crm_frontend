@@ -15,6 +15,7 @@ import {
   formatDaysInStatus,
   API_BASE,
   isPreviewableFile,
+  isTaskOverdue,
 } from "@/lib/helper";
 import { FilePreviewModal } from "@/components/modals/file-preview-modal";
 import { useConfirmModal } from "@/components/modals/confirm-modal";
@@ -32,9 +33,7 @@ function isCompletedTask(task) {
 }
 
 function isOverdueTask(task) {
-  if (!task?.due_date || isCompletedTask(task)) return false;
-  const due = new Date(task.due_date);
-  return !Number.isNaN(due.getTime()) && due.getTime() < Date.now();
+  return isTaskOverdue(task);
 }
 
 export default function LeadDetailPage() {
