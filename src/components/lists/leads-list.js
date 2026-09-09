@@ -12,7 +12,7 @@ import {
 } from "@/components/ui/entity-list";
 import { formatDate, formatDaysInStatus } from "@/lib/helper";
 
-function LeadRow({ lead, canViewAll, teamUsers, onOpen, onAssign }) {
+function LeadRow({ lead, canViewAll, teamUsers, onOpen, onAssign, variant = "card" }) {
   const name = `${lead.first_name || ""} ${lead.last_name || ""}`.trim() || "Lead";
   const contact =
     (lead.email ?? "—") + (lead.phone ? ` • ${lead.phone}` : "");
@@ -20,6 +20,7 @@ function LeadRow({ lead, canViewAll, teamUsers, onOpen, onAssign }) {
 
   return (
     <EntityListRow
+      variant={variant}
       ariaLabel={`${name}, status ${lead.status}`}
       onOpen={() => onOpen(lead.id)}
     >
@@ -55,9 +56,12 @@ export function LeadsList({
   teamUsers = [],
   onOpen,
   onAssign,
+  layout = "stack",
 }) {
+  const rowVariant = layout === "flush" ? "flush" : "card";
+
   return (
-    <EntityList loading={loading} emptyTitle="No leads found">
+    <EntityList layout={layout} loading={loading} emptyTitle="No leads found">
       {leads.map((lead) => (
         <LeadRow
           key={lead.id}
@@ -66,6 +70,7 @@ export function LeadsList({
           teamUsers={teamUsers}
           onOpen={onOpen}
           onAssign={onAssign}
+          variant={rowVariant}
         />
       ))}
     </EntityList>

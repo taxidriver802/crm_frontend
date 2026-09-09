@@ -35,6 +35,20 @@ function safeMeta(activity) {
   }
 }
 
+/** Human-readable name of the entity this activity refers to (task/job/file/etc). */
+export function getActivitySubject(activity, meta = safeMeta(activity)) {
+  return (
+    meta.taskTitle ||
+    meta.jobTitle ||
+    meta.estimateTitle ||
+    meta.invoiceNumber ||
+    meta.fileName ||
+    meta.leadName ||
+    meta.jobLeadName ||
+    null
+  );
+}
+
 export function getActivityHref(activity) {
   if (!activity?.entity_type || !activity?.entity_id) return null;
 
@@ -50,107 +64,119 @@ export function getActivityHref(activity) {
 export function formatActivity(activity) {
   const meta = safeMeta(activity);
   const icon = TYPE_ICONS[activity.type] || "•";
+  const subject = getActivitySubject(activity, meta);
 
   switch (activity.type) {
     case "JOB_CREATED":
       return {
         icon,
         title: "Job created",
-        detail: meta.jobTitle || activity.message || "A job was created",
-        meta: meta.address || null,
+        subject: subject || activity.message || null,
+        detail: meta.address || null,
+        meta: null,
       };
 
     case "JOB_STATUS_CHANGED":
       return {
         icon,
         title: "Status changed",
+        subject,
         detail:
           meta.fromStatus && meta.toStatus
             ? `${meta.fromStatus} → ${meta.toStatus}`
             : activity.message || "Job status updated",
-        meta: meta.jobTitle || null,
+        meta: null,
       };
 
     case "TASK_CREATED":
       return {
         icon,
         title: "Task created",
-        detail: meta.taskTitle || activity.message || "A task was created",
-        meta: meta.dueDate ? `Due ${formatDateTime(meta.dueDate)}` : null,
+        subject: subject || activity.message || null,
+        detail: meta.dueDate ? `Due ${formatDateTime(meta.dueDate)}` : null,
+        meta: meta.jobTitle || meta.leadName || null,
       };
 
     case "TASK_COMPLETED":
       return {
         icon,
         title: "Task completed",
-        detail: meta.taskTitle || activity.message || "A task was completed",
-        meta:
+        subject: subject || activity.message || null,
+        detail:
           meta.fromStatus && meta.toStatus
             ? `${meta.fromStatus} → ${meta.toStatus}`
             : null,
+        meta: meta.jobTitle || meta.leadName || null,
       };
 
     case "TASK_REOPENED":
       return {
         icon,
         title: "Task reopened",
-        detail: meta.taskTitle || activity.message || "A task was reopened",
-        meta:
+        subject: subject || activity.message || null,
+        detail:
           meta.fromStatus && meta.toStatus
             ? `${meta.fromStatus} → ${meta.toStatus}`
             : null,
+        meta: meta.jobTitle || meta.leadName || null,
       };
 
     case "TASK_UPDATED":
       return {
         icon,
         title: activity.title || "Task updated",
-        detail: meta.taskTitle || activity.message || "Task updated",
-        meta:
+        subject: subject || activity.message || null,
+        detail:
           meta.fromDueDate || meta.toDueDate
             ? `${meta.fromDueDate ? formatDateTime(meta.fromDueDate) : "No due date"} → ${
                 meta.toDueDate ? formatDateTime(meta.toDueDate) : "No due date"
               }`
             : null,
+        meta: meta.jobTitle || meta.leadName || null,
       };
 
     case "TASK_DELETED":
       return {
         icon,
         title: "Task deleted",
-        detail: meta.taskTitle || activity.message || "A task was deleted",
-        meta: null,
+        subject: subject || activity.message || null,
+        detail: null,
+        meta: meta.jobTitle || meta.leadName || null,
       };
 
     case "FILE_UPLOADED":
       return {
         icon,
         title: "File uploaded",
-        detail: meta.fileName || activity.message || "A file was uploaded",
-        meta: meta.mimeType || null,
+        subject: subject || activity.message || null,
+        detail: meta.mimeType || null,
+        meta: null,
       };
 
     case "FILE_DELETED":
       return {
         icon,
         title: "File deleted",
-        detail: meta.fileName || activity.message || "A file was deleted",
-        meta: meta.mimeType || null,
+        subject: subject || activity.message || null,
+        detail: meta.mimeType || null,
+        meta: null,
       };
 
     case "ESTIMATE_CREATED":
       return {
         icon,
         title: activity.title || "Estimate Created",
-        detail: activity.message || "An estimate was created",
-        meta: meta.estimateTitle || null,
+        subject: subject || activity.message || null,
+        detail: null,
+        meta: null,
       };
 
     case "ESTIMATE_UPDATED":
       return {
         icon,
         title: "Estimate updated",
-        detail: meta.estimateTitle || activity.message || "An estimate was updated",
+        subject: subject || activity.message || null,
+        detail: null,
         meta: null,
       };
 
@@ -158,19 +184,20 @@ export function formatActivity(activity) {
       return {
         icon,
         title: "Estimate status changed",
+        subject,
         detail:
           meta.previousStatus && meta.newStatus
             ? `${meta.previousStatus} → ${meta.newStatus}`
             : activity.message || "Estimate status updated",
-        meta: meta.estimateTitle || null,
+        meta: null,
       };
 
     case "ESTIMATE_CLIENT_RESPONDED":
       return {
         icon,
         title: "Client responded",
-        detail:
-          activity.message || meta.estimateTitle || "The client responded to an estimate",
+        subject: subject || null,
+        detail: activity.message || "The client responded to an estimate",
         meta: meta.note || null,
       };
 
@@ -178,7 +205,8 @@ export function formatActivity(activity) {
       return {
         icon,
         title: "Estimate deleted",
-        detail: meta.estimateTitle || activity.message || "An estimate was deleted",
+        subject: subject || activity.message || null,
+        detail: null,
         meta: null,
       };
 
@@ -186,8 +214,8 @@ export function formatActivity(activity) {
       return {
         icon,
         title: "Estimate resent",
-        detail:
-          meta.estimateTitle || activity.message || "Share link refreshed for the client",
+        subject: subject || activity.message || null,
+        detail: "Share link refreshed for the client",
         meta: null,
       };
 
@@ -195,15 +223,17 @@ export function formatActivity(activity) {
       return {
         icon,
         title: activity.title || "Invoice created",
-        detail: activity.message || "An invoice was created",
-        meta: meta.invoiceNumber || null,
+        subject: subject || activity.message || null,
+        detail: null,
+        meta: null,
       };
 
     case "INVOICE_UPDATED":
       return {
         icon,
         title: "Invoice updated",
-        detail: meta.invoiceNumber || activity.message || "An invoice was updated",
+        subject: subject || activity.message || null,
+        detail: null,
         meta: null,
       };
 
@@ -211,18 +241,20 @@ export function formatActivity(activity) {
       return {
         icon,
         title: "Invoice status changed",
+        subject,
         detail:
           meta.previousStatus && meta.newStatus
             ? `${meta.previousStatus} → ${meta.newStatus}`
             : activity.message || "Invoice status updated",
-        meta: meta.invoiceNumber || null,
+        meta: null,
       };
 
     case "INVOICE_DELETED":
       return {
         icon,
         title: "Invoice deleted",
-        detail: meta.invoiceNumber || activity.message || "An invoice was deleted",
+        subject: subject || activity.message || null,
+        detail: null,
         meta: null,
       };
 
@@ -230,7 +262,8 @@ export function formatActivity(activity) {
       return {
         icon,
         title: "Invoice paid",
-        detail: meta.invoiceNumber || activity.message || "An invoice was marked as paid",
+        subject: subject || activity.message || null,
+        detail: null,
         meta: null,
       };
 
@@ -238,6 +271,7 @@ export function formatActivity(activity) {
       return {
         icon,
         title: activity.title || "Communication logged",
+        subject: subject || null,
         detail: activity.message || "A conversation was logged",
         meta:
           meta.commType || meta.direction
@@ -249,6 +283,7 @@ export function formatActivity(activity) {
       return {
         icon,
         title: activity.title || "Activity",
+        subject,
         detail: activity.message || null,
         meta: null,
       };

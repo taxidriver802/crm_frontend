@@ -1,6 +1,8 @@
 const FROM_PARAM = "from";
 const FROM_LABEL_PARAM = "fromLabel";
 const LOCAL_ORIGIN = "http://local.invalid";
+const RETURN_STACK_KEY = "crm-return-stack";
+const RETURN_STACK_MAX = 5;
 
 const ALLOWED_PREFIXES = [
   "/dashboard",
@@ -85,6 +87,7 @@ export function formatBackLabel(label) {
   const text = typeof label === "string" ? label.trim() : "";
   if (!text) return "Back";
   if (/^back\b/i.test(text)) return text;
+  if (text.startsWith("Good ")) return "Back to Dashboard";
   return `Back to ${text}`;
 }
 
@@ -145,16 +148,123 @@ export function parseReturnTo(searchParams, pathname) {
   return { href: from, label: fromLabel };
 }
 
-export function resolveReturnBack(back, parsed) {
+function normalizeStackEntry(entry) {
+  if (!entry || typeof entry !== "object") return null;
+  const rawHref = typeof entry.href === "string" ? entry.href.trim() : "";
+  if (!rawHref || !isSafeReturnPath(rawHref)) return null;
+
+  let url;
+  try {
+    url = new URL(rawHref, LOCAL_ORIGIN);
+  } catch {
+    return null;
+  }
+  if (url.origin !== LOCAL_ORIGIN) return null;
+
+  url.searchParams.delete(FROM_PARAM);
+  url.searchParams.delete(FROM_LABEL_PARAM);
+  const href = `${url.pathname}${url.search}${url.hash}`;
+  if (!isSafeReturnPath(href)) return null;
+
+  const label =
+    (typeof entry.label === "string" ? entry.label.trim() : "") ||
+    inferReturnLabel(href);
+
+  return { href, label };
+}
+
+function canUseSessionStorage() {
+  return typeof window !== "undefined" && typeof sessionStorage !== "undefined";
+}
+
+export function readReturnStack() {
+  if (!canUseSessionStorage()) return [];
+  try {
+    const raw = sessionStorage.getItem(RETURN_STACK_KEY);
+    if (!raw) return [];
+    const parsed = JSON.parse(raw);
+    if (!Array.isArray(parsed)) return [];
+    return parsed.map(normalizeStackEntry).filter(Boolean).slice(-RETURN_STACK_MAX);
+  } catch {
+    return [];
+  }
+}
+
+function writeReturnStack(stack) {
+  if (!canUseSessionStorage()) return;
+  try {
+    if (!stack.length) {
+      sessionStorage.removeItem(RETURN_STACK_KEY);
+      return;
+    }
+    sessionStorage.setItem(RETURN_STACK_KEY, JSON.stringify(stack.slice(-RETURN_STACK_MAX)));
+  } catch {
+    // Ignore quota / private-mode failures.
+  }
+}
+
+export function clearReturnStack() {
+  writeReturnStack([]);
+}
+
+export function pushReturnStack(entry) {
+  const normalized = normalizeStackEntry(entry);
+  if (!normalized) return readReturnStack();
+
+  const stack = readReturnStack();
+  const top = stack[stack.length - 1];
+  if (top && pathnameOf(top.href) === pathnameOf(normalized.href)) {
+    stack[stack.length - 1] = normalized;
+    writeReturnStack(stack);
+    return stack;
+  }
+
+  stack.push(normalized);
+  writeReturnStack(stack);
+  return stack;
+}
+
+function stackEntryForPathname(stack, pathname) {
+  if (!pathname) return stack[stack.length - 1] || null;
+  for (let i = stack.length - 1; i >= 0; i -= 1) {
+    if (pathnameOf(stack[i].href) !== pathname) return stack[i];
+  }
+  return null;
+}
+
+export function peekReturnStack(pathname) {
+  return stackEntryForPathname(readReturnStack(), pathname);
+}
+
+export function popReturnStack(pathname) {
+  const stack = readReturnStack();
+  if (!stack.length) return null;
+
+  if (!pathname) {
+    const entry = stack.pop() || null;
+    writeReturnStack(stack);
+    return entry;
+  }
+
+  while (stack.length && pathnameOf(stack[stack.length - 1].href) === pathname) {
+    stack.pop();
+  }
+
+  const entry = stack.pop() || null;
+  writeReturnStack(stack);
+  return entry;
+}
+
+export function resolveReturnBack(back, parsed, stackEntry) {
   if (back === false) return null;
 
   const override = back && typeof back === "object" ? back : null;
-  const href = override?.href || parsed?.href;
+  const href = override?.href || stackEntry?.href || parsed?.href;
   if (!href || !isSafeReturnPath(href)) return null;
 
   const text = formatBackLabel(
-    override?.label || parsed?.label || inferReturnLabel(href),
+    override?.label || stackEntry?.label || parsed?.label || inferReturnLabel(href),
   );
 
-  return { href, text };
+  return { href, text, fromStack: !override?.href && Boolean(stackEntry?.href) };
 }

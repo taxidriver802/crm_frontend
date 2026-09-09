@@ -7,6 +7,9 @@ import {
   currentOriginHref,
   originLabelFromTitle,
   parseReturnTo,
+  peekReturnStack,
+  popReturnStack,
+  pushReturnStack,
   resolveReturnBack,
   withReturnTo,
 } from "@/lib/return-to";
@@ -48,14 +51,26 @@ export function ReturnToProvider({ title, children }) {
   );
 }
 
-export function ReturnLink({ href, fromLabel, ...props }) {
+export function ReturnLink({ href, fromLabel, onClick, ...props }) {
   const { originHref, originLabel } = useContext(ReturnOriginContext);
+  const label = fromLabel ?? originLabel;
   const nextHref = withReturnTo(href, {
     from: originHref,
-    fromLabel: fromLabel ?? originLabel,
+    fromLabel: label,
   });
 
-  return <Link href={nextHref} {...props} />;
+  return (
+    <Link
+      {...props}
+      href={nextHref}
+      onClick={(event) => {
+        if (originHref) {
+          pushReturnStack({ href: originHref, label });
+        }
+        onClick?.(event);
+      }}
+    />
+  );
 }
 
 export function useReturnTo() {
@@ -70,10 +85,14 @@ export function useReturnPush() {
 
   return useCallback(
     (href, fromLabel) => {
+      const label = fromLabel ?? originLabel;
+      if (originHref) {
+        pushReturnStack({ href: originHref, label });
+      }
       router.push(
         withReturnTo(href, {
           from: originHref,
-          fromLabel: fromLabel ?? originLabel,
+          fromLabel: label,
         }),
       );
     },
@@ -82,18 +101,35 @@ export function useReturnPush() {
 }
 
 export function ReturnBackButton({ back }) {
+  const pathname = usePathname();
+  const router = useRouter();
   const parsed = useReturnTo();
-  const resolved = resolveReturnBack(back, parsed);
+  const [stackEntry, setStackEntry] = useState(null);
+
+  useLayoutEffect(() => {
+    setStackEntry(peekReturnStack(pathname));
+  }, [pathname, parsed?.href]);
+
+  const resolved = resolveReturnBack(back, parsed, stackEntry);
 
   if (!resolved) return null;
 
   return (
-    <Link
-      href={resolved.href}
+    <button
+      type="button"
       className="btn shrink-0 px-3 py-2 text-xs"
       title={resolved.text}
+      onClick={() => {
+        if (resolved.fromStack) {
+          const fromStack = popReturnStack(pathname);
+          const target = fromStack?.href || resolved.href;
+          if (target) router.push(target);
+          return;
+        }
+        router.push(resolved.href);
+      }}
     >
       <span className="max-w-[10rem] truncate sm:max-w-[16rem]">{resolved.text}</span>
-    </Link>
+    </button>
   );
 }

@@ -12,6 +12,7 @@ import { CommandPalette } from "@/components/command-palette";
 import { Overlay } from "@/components/ui/overlay";
 import { Icon } from "@/components/icons";
 import { ReturnBackButton, ReturnToProvider } from "@/components/return-to";
+import { clearReturnStack } from "@/lib/return-to";
 import { cx } from "@/lib/cx";
 
 import MainLogo from "@/assets/mainlogo.svg";
@@ -499,6 +500,7 @@ export function AppShell({ children, title, description, right, back }) {
     setNotificationsOpen(false);
 
     if (href) {
+      clearReturnStack();
       router.push(href);
     }
   }
@@ -525,7 +527,10 @@ export function AppShell({ children, title, description, right, back }) {
       <Link
         key={item.href}
         href={item.href}
-        onClick={onNavigate}
+        onClick={(event) => {
+          clearReturnStack();
+          onNavigate?.(event);
+        }}
         className={cx(
           tone === "chrome"
             ? "nav-chrome"
@@ -547,7 +552,9 @@ export function AppShell({ children, title, description, right, back }) {
     return (
       <div
         className={cx(
-          "dropdown-panel z-50 flex max-h-[min(85dvh,32rem)] min-h-0 flex-col overflow-hidden shadow-lg",
+          "dropdown-panel z-50 flex max-h-[min(85dvh,32rem)] min-h-0 flex-col overflow-hidden",
+          /* Stronger edge + elevation so the panel reads above page cards without a full-screen dim */
+          "border-strong shadow-[0_12px_40px_rgb(15_20_23/0.16)] dark:shadow-[0_16px_48px_rgb(0_0_0/0.55)]",
           /* Small screens: pin to viewport so the panel never hangs off the left edge */
           "fixed inset-x-3 top-[max(4.25rem,calc(env(safe-area-inset-top,0px)+3.75rem))] w-auto",
           /* sm+: anchor to bell, cap width so medium layouts stay lighter */
@@ -678,7 +685,11 @@ export function AppShell({ children, title, description, right, back }) {
         }}
       >
         <div className="flex h-full w-64 min-w-64 flex-col">
-          <Link href="/dashboard" className="flex items-center gap-3 px-5 py-5">
+          <Link
+            href="/dashboard"
+            className="flex items-center gap-3 px-5 py-5"
+            onClick={() => clearReturnStack()}
+          >
             <MainLogo className="h-8 w-8" />
             <span className="text-sm font-semibold tracking-tight">CRM</span>
           </Link>
@@ -750,9 +761,11 @@ export function AppShell({ children, title, description, right, back }) {
             </div>
           </div>
 
-          <div className="flex shrink-0 items-center gap-1.5 sm:gap-2">
+          <div className="flex min-w-0 shrink-0 items-center gap-1.5 sm:gap-2">
             {right ? (
-              <div className="hidden items-center gap-2 lg:flex">{right}</div>
+              <div className="hidden min-w-0 items-center gap-2 lg:flex lg:flex-wrap">
+                {right}
+              </div>
             ) : null}
 
             <div className="notifications-menu relative">
@@ -781,7 +794,16 @@ export function AppShell({ children, title, description, right, back }) {
                 )}
               </button>
 
-              {notificationsOpen && renderNotificationsPanel()}
+              {notificationsOpen ? (
+                <>
+                  <Overlay
+                    className="sm:hidden"
+                    aria-hidden
+                    onClick={() => setNotificationsOpen(false)}
+                  />
+                  {renderNotificationsPanel()}
+                </>
+              ) : null}
             </div>
 
             <button
@@ -890,6 +912,7 @@ export function AppShell({ children, title, description, right, back }) {
               <Link
                 key={item.href}
                 href={item.href}
+                onClick={() => clearReturnStack()}
                 className={cx(
                   "flex min-w-[3.25rem] flex-col items-center gap-0.5 px-2 py-1 text-[10px] transition",
                   active ? "text-chrome font-semibold" : "text-chrome-muted",

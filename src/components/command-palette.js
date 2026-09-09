@@ -6,6 +6,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { api } from "@/lib/api";
 import { Overlay } from "@/components/ui/overlay";
 import { Icon } from "@/components/icons";
+import { clearReturnStack } from "@/lib/return-to";
 
 const QUICK_NAV_ITEMS = [
   { href: "/dashboard", label: "Dashboard", icon: "home", keywords: "home overview" },
@@ -161,6 +162,7 @@ export function CommandPalette({ open, onClose }) {
       const selected = flatItems[activeIndex];
       if (selected) {
         onClose();
+        clearReturnStack();
         router.push(selected.href);
       }
     }
@@ -208,7 +210,10 @@ export function CommandPalette({ open, onClose }) {
                 <Link
                   key={item.key}
                   href={item.href}
-                  onClick={onClose}
+                  onClick={() => {
+                    clearReturnStack();
+                    onClose();
+                  }}
                   className={`block rounded-theme-md border px-3 py-2 transition ${
                     index === activeIndex ? "bg-accent border-strong" : "hover:bg-accent"
                   }`}

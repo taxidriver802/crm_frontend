@@ -106,8 +106,9 @@ export function EntityListAssignee({
 export function EntityListRow({
   ariaLabel,
   onOpen,
-  children,
+  variant = "card",
   className = "",
+  children,
 }) {
   function handleKeyDown(e) {
     if (!onOpen) return;
@@ -117,6 +118,8 @@ export function EntityListRow({
     }
   }
 
+  const flush = variant === "flush";
+
   return (
     <div
       role={onOpen ? "link" : undefined}
@@ -125,9 +128,13 @@ export function EntityListRow({
       onClick={onOpen || undefined}
       onKeyDown={onOpen ? handleKeyDown : undefined}
       className={cx(
-        "list-row",
+        flush
+          ? "border-base border-t px-4 py-3.5 first:border-t-0"
+          : "list-row",
         onOpen &&
-          "hover:bg-accent focus-visible:border-strong cursor-pointer focus:outline-none",
+          (flush
+            ? "hover:bg-accent-soft focus-visible:bg-accent-soft cursor-pointer focus:outline-none"
+            : "hover:bg-accent focus-visible:border-strong cursor-pointer focus:outline-none"),
         className,
       )}
     >
@@ -136,11 +143,16 @@ export function EntityListRow({
   );
 }
 
-export function EntityListSkeleton({ rows = 3 }) {
-  return (
-    <div className="space-y-2">
+export function EntityListSkeleton({ rows = 3, layout = "stack" }) {
+  const flush = layout === "flush";
+  const rowClass = flush
+    ? "border-base space-y-2 border-t px-4 py-3.5 first:border-t-0"
+    : "list-row space-y-3";
+
+  const rowsEl = (
+    <div className={flush ? "card overflow-hidden p-0" : "space-y-2"}>
       {Array.from({ length: rows }).map((_, i) => (
-        <div key={i} className="list-row space-y-3">
+        <div key={i} className={rowClass}>
           <div className="flex items-start justify-between gap-3">
             <div className="min-w-0 flex-1 space-y-2">
               <Skeleton className="h-4 w-1/3" />
@@ -153,6 +165,8 @@ export function EntityListSkeleton({ rows = 3 }) {
       ))}
     </div>
   );
+
+  return rowsEl;
 }
 
 export function EntityList({
@@ -160,11 +174,17 @@ export function EntityList({
   emptyTitle,
   emptyDescription,
   skeletonRows = 3,
+  layout = "stack",
   children,
 }) {
-  if (loading) return <EntityListSkeleton rows={skeletonRows} />;
+  if (loading) return <EntityListSkeleton rows={skeletonRows} layout={layout} />;
   if (Children.count(children) === 0) {
-    return <EmptyState title={emptyTitle} description={emptyDescription} />;
+    const empty = <EmptyState title={emptyTitle} description={emptyDescription} />;
+    return layout === "flush" ? <div className="card p-4">{empty}</div> : empty;
+  }
+
+  if (layout === "flush") {
+    return <div className="card overflow-hidden p-0">{children}</div>;
   }
 
   return <div className="space-y-2">{children}</div>;
