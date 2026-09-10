@@ -108,6 +108,7 @@ export default function TaskDetailPage() {
     }
 
     boot();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [router]);
 
   useEffect(() => {

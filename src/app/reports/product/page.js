@@ -42,6 +42,7 @@ export default function ProductMetricsPage() {
 
   useEffect(() => {
     loadData();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [days]);
 
   const funnel = data?.funnel || {};

@@ -303,6 +303,8 @@ export function AppShell({ children, title, description, right, back }) {
     }, 30000);
 
     return () => clearInterval(interval);
+    // Polling interval; loaders close over latest state via refs/setters.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const isAdminUser = user?.role === "owner" || user?.role === "admin";
@@ -771,7 +773,7 @@ export function AppShell({ children, title, description, right, back }) {
       <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
         {/* TOPBAR */}
         <header className={cx(
-          "border-base bg-surface-elevated relative sticky top-0 z-10 flex shrink-0 items-center justify-between gap-4 border-b px-4 py-2.5 sm:px-6",
+          "border-base bg-surface-elevated sticky top-0 z-10 flex shrink-0 items-center justify-between gap-4 border-b px-4 py-2.5 sm:px-6",
           searchOpen && searchSurface === "topbar" && "z-[85]",
         )}>
           <div

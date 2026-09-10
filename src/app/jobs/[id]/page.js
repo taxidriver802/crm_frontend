@@ -674,6 +674,7 @@ export default function JobDetailPage() {
 
   useEffect(() => {
     if (id) loadPage();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id]);
 
   useEffect(() => {
@@ -681,6 +682,7 @@ export default function JobDetailPage() {
     if (limit === 50) return;
 
     loadActivity({ append: true });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [limit, id]);
   const sortedTasks = [...tasks].sort((a, b) => {
     const aCompleted = a.status === "Completed";

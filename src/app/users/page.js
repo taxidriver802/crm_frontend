@@ -109,6 +109,7 @@ export default function UsersPage() {
     }
 
     boot();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [router]);
 
   function syncActionsMenuPosition(userId) {

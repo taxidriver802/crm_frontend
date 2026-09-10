@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useId, useRef, useState } from "react";
+import { useEffect, useId, useRef, useState, useSyncExternalStore } from "react";
 import { useTheme } from "next-themes";
 import { Icon } from "@/components/icons";
 import { PalettePicker } from "@/components/theme/palette-picker";
@@ -13,14 +13,16 @@ export function ThemeToggle({
   tone = "default",
 }) {
   const { theme, setTheme, systemTheme } = useTheme();
-  const [mounted, setMounted] = useState(false);
+  const mounted = useSyncExternalStore(
+    () => () => {},
+    () => true,
+    () => false,
+  );
   const [paletteOpen, setPaletteOpen] = useState(false);
   const rootRef = useRef(null);
   const menuId = useId();
   const chrome = tone === "chrome";
   const iconOnly = variant === "icon";
-
-  useEffect(() => setMounted(true), []);
 
   useEffect(() => {
     if (!paletteOpen) return undefined;

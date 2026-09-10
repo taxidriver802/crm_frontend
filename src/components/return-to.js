@@ -1,6 +1,6 @@
 "use client";
 
-import { createContext, useCallback, useContext, useLayoutEffect, useMemo, useState, Suspense } from "react";
+import { createContext, useCallback, useContext, useLayoutEffect, useMemo, useState, Suspense, useSyncExternalStore } from "react";
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import {
@@ -104,11 +104,11 @@ export function ReturnBackButton({ back }) {
   const pathname = usePathname();
   const router = useRouter();
   const parsed = useReturnTo();
-  const [stackEntry, setStackEntry] = useState(null);
-
-  useLayoutEffect(() => {
-    setStackEntry(peekReturnStack(pathname));
-  }, [pathname, parsed?.href]);
+  const stackEntry = useSyncExternalStore(
+    () => () => {},
+    () => peekReturnStack(pathname),
+    () => null,
+  );
 
   const resolved = resolveReturnBack(back, parsed, stackEntry);
 

@@ -149,6 +149,7 @@ export default function InvoiceDetailPage() {
 
   useEffect(() => {
     if (id) loadPage();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id]);
 
   async function downloadPdf() {

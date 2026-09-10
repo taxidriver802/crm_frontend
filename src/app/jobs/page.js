@@ -244,7 +244,6 @@ function JobsPageInner() {
   useEffect(() => {
     if (!isCreateOpen) return;
     loadLeads();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isCreateOpen]);
 
   useEffect(() => {

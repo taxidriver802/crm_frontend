@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import {
   buildFileUrl,
   formatBytes,
@@ -32,12 +32,14 @@ function EmptyPreviewState() {
 }
 
 export function FilePreviewModal({ open, file, onClose }) {
+  const previewKey = open && file ? `${file.id ?? ""}:${file.original_name ?? ""}` : "";
   const [loading, setLoading] = useState(true);
+  const [seenKey, setSeenKey] = useState(previewKey);
 
-  useEffect(() => {
-    if (!open || !file) return;
+  if (previewKey && previewKey !== seenKey) {
+    setSeenKey(previewKey);
     setLoading(true);
-  }, [open, file]);
+  }
 
   if (!open || !file) return null;
 
@@ -83,6 +85,8 @@ export function FilePreviewModal({ open, file, onClose }) {
               <>
                 {loading ? <LoadingState /> : null}
 
+                {/* Dynamic authenticated file URL — next/image not suitable */}
+                {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
                   src={fileUrl}
                   alt={file.original_name || "Preview"}

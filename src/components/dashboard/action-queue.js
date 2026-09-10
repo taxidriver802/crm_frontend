@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useState } from "react";
 import { ReturnLink } from "@/components/return-to";
 import { ListRow } from "@/components/ui/list-row";
 import { SectionCard } from "@/components/ui/section-card";
@@ -27,17 +27,20 @@ export function ActionQueue({
 }) {
   const list = Array.isArray(items) ? items : [];
   const empty = !loading && list.length === 0;
-  const [open, setOpen] = useState(() => (collapsible && empty ? false : defaultOpen));
-  const userToggledRef = useRef(false);
-
-  useEffect(() => {
-    if (!collapsible || loading || userToggledRef.current) return;
-    setOpen(empty ? false : defaultOpen);
-  }, [collapsible, loading, empty, defaultOpen]);
+  const automaticOpen = empty ? false : defaultOpen;
+  // null = follow automaticOpen; boolean = user has toggled
+  const [userOpen, setUserOpen] = useState(null);
+  const open = !collapsible
+    ? true
+    : userOpen === null
+      ? automaticOpen
+      : userOpen;
 
   function toggleOpen() {
-    userToggledRef.current = true;
-    setOpen((prev) => !prev);
+    setUserOpen((prev) => {
+      const current = prev === null ? automaticOpen : prev;
+      return !current;
+    });
   }
 
   if (!loading && hideWhenEmpty && list.length === 0) {
@@ -58,8 +61,7 @@ export function ActionQueue({
                 className="flex min-w-0 max-w-full flex-wrap items-center justify-end gap-2"
                 onClickCapture={() => {
                   if (collapsible && !open) {
-                    userToggledRef.current = true;
-                    setOpen(true);
+                    setUserOpen(true);
                   }
                 }}
               >

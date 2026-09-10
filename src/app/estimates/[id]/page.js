@@ -247,6 +247,7 @@ export default function EstimateDetailPage() {
 
   useEffect(() => {
     if (id) loadPage();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id]);
 
   async function handleSubmitLineItem(e) {

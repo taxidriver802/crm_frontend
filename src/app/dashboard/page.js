@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, useSyncExternalStore } from "react";
 import { AppShell } from "@/components/app-shell";
 import { api } from "@/lib/api";
 import { PageError } from "@/components/error-boundary";
@@ -16,6 +16,16 @@ import {
   todayLabel,
 } from "@/components/dashboard/queue";
 import LoadingDots from "@/components/loading/loadingSkeletons";
+
+const EMPTY_LIST = [];
+
+function useIsClient() {
+  return useSyncExternalStore(
+    () => () => {},
+    () => true,
+    () => false,
+  );
+}
 
 function taskToItem(task, reason) {
   if (!task?.id) return null;
@@ -58,12 +68,12 @@ export default function DashboardPage() {
     canViewAll && viewScope === "all" ? "/dashboard?view=all" : "/dashboard";
 
   const actions = data?.ok ? data.actions || {} : {};
-  const overdueFollowUps = actions.overdueFollowUps || [];
-  const dueToday = actions.dueToday || [];
-  const invoicesDue = actions.invoicesDue || [];
-  const estimatesAwaiting = actions.estimatesAwaiting || [];
-  const staleLeads = actions.staleLeads || [];
-  const blockedJobs = actions.blockedJobs || [];
+  const overdueFollowUps = actions.overdueFollowUps || EMPTY_LIST;
+  const dueToday = actions.dueToday || EMPTY_LIST;
+  const invoicesDue = actions.invoicesDue || EMPTY_LIST;
+  const estimatesAwaiting = actions.estimatesAwaiting || EMPTY_LIST;
+  const staleLeads = actions.staleLeads || EMPTY_LIST;
+  const blockedJobs = actions.blockedJobs || EMPTY_LIST;
 
   const workItems = useMemo(() => {
     return mergeActions(
@@ -201,6 +211,11 @@ export default function DashboardPage() {
   ];
 
   const greeting = greetingFor(user?.first_name);
+  const isClient = useIsClient();
+  // Time-of-day copy must wait for the client so SSR text matches hydration
+  // (and so QA's pinned clock is what the user actually sees).
+  const shellTitle = isClient ? greeting : "Dashboard";
+  const shellDescription = isClient ? todayLabel() : "";
 
   async function refreshDashboardSections({
     initial = false,
@@ -308,12 +323,14 @@ export default function DashboardPage() {
     return () => {
       alive = false;
     };
+    // Re-fetch when scope changes; loaders are stable for this mount cycle.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [viewScope]);
 
   return (
     <AppShell
-      title={greeting}
-      description={todayLabel()}
+      title={shellTitle}
+      description={shellDescription}
       right={
         <div className="flex flex-wrap items-center gap-2">
           {canViewAll ? (

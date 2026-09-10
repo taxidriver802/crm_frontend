@@ -422,7 +422,6 @@ function TasksPageInner() {
     if (!isCreateOpen) return;
     loadLeads();
     loadJobs();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isCreateOpen]);
 
   function syncActionsMenuPosition(taskId) {

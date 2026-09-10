@@ -38,8 +38,9 @@ export default function LoginPage() {
   return (
     <AuthFrame title="Sign in" description="Access your CRM workspace.">
       <form onSubmit={handleSubmit} className="space-y-4">
-        <Field label="Email" required>
+        <Field label="Email" htmlFor="login-email" required>
           <input
+            id="login-email"
             type="email"
             placeholder="you@example.com"
             className="input"
@@ -50,8 +51,9 @@ export default function LoginPage() {
           />
         </Field>
 
-        <Field label="Password" required>
+        <Field label="Password" htmlFor="login-password" required>
           <input
+            id="login-password"
             type="password"
             placeholder="Enter your password"
             className="input"

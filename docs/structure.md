@@ -1,6 +1,3 @@
-- **.cursor/**
-  - **rules/**
-    - visual-overhaul.mdc
 - **docs/**
   - command-palette-expansion.md
   - crm-design-language.md
