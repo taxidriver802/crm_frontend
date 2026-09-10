@@ -104,10 +104,18 @@ export function ReturnBackButton({ back }) {
   const pathname = usePathname();
   const router = useRouter();
   const parsed = useReturnTo();
-  const stackEntry = useSyncExternalStore(
+  // sessionStorage is client-only; read after mount. Cache with useMemo so the
+  // peeked entry keeps a stable identity (useSyncExternalStore + a fresh object
+  // from peekReturnStack each call caused React error #185 / max update depth
+  // when navigating here via ReturnLink from the dashboard).
+  const isClient = useSyncExternalStore(
     () => () => {},
-    () => peekReturnStack(pathname),
-    () => null,
+    () => true,
+    () => false,
+  );
+  const stackEntry = useMemo(
+    () => (isClient ? peekReturnStack(pathname) : null),
+    [isClient, pathname],
   );
 
   const resolved = resolveReturnBack(back, parsed, stackEntry);
