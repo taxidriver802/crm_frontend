@@ -18,9 +18,10 @@ function formatCurrency(num) {
   });
 }
 
-function InvoiceRow({ invoice, onOpen }) {
+function InvoiceRow({ invoice, onOpen, variant = "card" }) {
   return (
     <EntityListRow
+      variant={variant}
       ariaLabel={`Invoice ${invoice.invoice_number}, status ${invoice.status}`}
       onOpen={() => onOpen(invoice.id)}
     >
@@ -53,15 +54,30 @@ function InvoiceRow({ invoice, onOpen }) {
   );
 }
 
-export function InvoicesList({ invoices, loading, onOpen }) {
+export function InvoicesList({
+  invoices,
+  loading,
+  onOpen,
+  layout = "stack",
+  emptyDescription = "Try adjusting filters or create a new invoice.",
+}) {
+  const rowVariant = layout === "flush" ? "flush" : "card";
+
   return (
     <EntityList
+      layout={layout}
       loading={loading}
-      emptyTitle="No invoices match the current filters"
+      emptyTitle="No invoices found"
+      emptyDescription={emptyDescription}
       skeletonRows={5}
     >
       {invoices.map((invoice) => (
-        <InvoiceRow key={invoice.id} invoice={invoice} onOpen={onOpen} />
+        <InvoiceRow
+          key={invoice.id}
+          invoice={invoice}
+          onOpen={onOpen}
+          variant={rowVariant}
+        />
       ))}
     </EntityList>
   );

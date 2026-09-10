@@ -9,6 +9,7 @@ import { Skeleton, StatCardSkeleton } from "@/components/loading/loadingSkeleton
 import { StatCard } from "@/components/ui/stat-card";
 import { SectionCard } from "@/components/ui/section-card";
 import { GroupedVerticalBars, HorizontalBars } from "@/components/ui/chart";
+import { PageToolbar } from "@/components/page-toolbar";
 import { Icon } from "@/components/icons";
 
 export default function ReportsPage() {
@@ -23,41 +24,36 @@ export default function ReportsPage() {
   const [jobPipeline, setJobPipeline] = useState([]);
   const [trends, setTrends] = useState({ leads: [], estimates: [] });
 
-  useEffect(() => {
-    let alive = true;
-    async function load() {
-      setLoading(true);
-      setError("");
-      try {
-        const [leadRes, estimateRes, jobRes, trendsRes] = await Promise.all([
-          api("/reports/lead-funnel"),
-          api("/reports/estimate-outcomes"),
-          api("/reports/job-pipeline"),
-          api("/reports/trends?period=monthly"),
-        ]);
-        if (!alive) return;
-        setLeadFunnel(leadRes.data || []);
-        setEstimateOutcomes({
-          byStatus: estimateRes.byStatus || [],
-          approvedRevenue: estimateRes.approvedRevenue || 0,
-          approvedRate: estimateRes.approvedRate || 0,
-        });
-        setJobPipeline(jobRes.data || []);
-        setTrends({
-          leads: trendsRes.leads || [],
-          estimates: trendsRes.estimates || [],
-        });
-      } catch (e) {
-        if (!alive) return;
-        setError(e?.message || "Failed to load reports");
-      } finally {
-        if (alive) setLoading(false);
-      }
+  async function loadReports() {
+    setLoading(true);
+    setError("");
+    try {
+      const [leadRes, estimateRes, jobRes, trendsRes] = await Promise.all([
+        api("/reports/lead-funnel"),
+        api("/reports/estimate-outcomes"),
+        api("/reports/job-pipeline"),
+        api("/reports/trends?period=monthly"),
+      ]);
+      setLeadFunnel(leadRes.data || []);
+      setEstimateOutcomes({
+        byStatus: estimateRes.byStatus || [],
+        approvedRevenue: estimateRes.approvedRevenue || 0,
+        approvedRate: estimateRes.approvedRate || 0,
+      });
+      setJobPipeline(jobRes.data || []);
+      setTrends({
+        leads: trendsRes.leads || [],
+        estimates: trendsRes.estimates || [],
+      });
+    } catch (e) {
+      setError(e?.message || "Failed to load reports");
+    } finally {
+      setLoading(false);
     }
-    load();
-    return () => {
-      alive = false;
-    };
+  }
+
+  useEffect(() => {
+    loadReports();
   }, []);
 
   const trendSeries = useMemo(() => {
@@ -85,14 +81,30 @@ export default function ReportsPage() {
   return (
     <AppShell
       title="Reports"
+      description={loading ? "Loading…" : "Pipeline, estimates, and trends"}
       right={
         <Link href="/reports/product" className="btn px-3 py-2 text-xs">
-          Product Metrics
+          Product metrics
         </Link>
       }
     >
       <div className="space-y-6">
         {error ? <PageError message={error} /> : null}
+
+        <PageToolbar
+          refresh={
+            <button
+              type="button"
+              className="icon-btn"
+              onClick={loadReports}
+              disabled={loading}
+              title="Refresh"
+              aria-label="Refresh"
+            >
+              <Icon name="refreshCcw" className="h-4 w-4" />
+            </button>
+          }
+        />
 
         {loading ? (
           <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">

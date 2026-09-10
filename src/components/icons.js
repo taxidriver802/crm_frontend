@@ -164,6 +164,13 @@ const ICONS = {
       <path d="M4 13h4l2 2h4l2-2h4" />
     </>
   ),
+  moreHorizontal: (
+    <>
+      <circle cx="5" cy="12" r="1.25" fill="currentColor" stroke="none" />
+      <circle cx="12" cy="12" r="1.25" fill="currentColor" stroke="none" />
+      <circle cx="19" cy="12" r="1.25" fill="currentColor" stroke="none" />
+    </>
+  ),
 };
 
 export function Icon({ name, className = "h-4 w-4", strokeWidth = 1.75 }) {

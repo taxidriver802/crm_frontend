@@ -36,12 +36,12 @@ export const slate = {
     "--overlay-strong": "rgb(15 20 23 / 0.72)",
     "--on-overlay": "#ffffff",
 
-    "--chrome": "#10161a",
-    "--chrome-elevated": "#171e23",
-    "--chrome-border": "#273036",
+    "--chrome": "#2a3338",
+    "--chrome-elevated": "#343e44",
+    "--chrome-border": "#445056",
     "--chrome-text": "#f2f5f6",
-    "--chrome-muted": "#8f9aa1",
-    "--chrome-hover": "color-mix(in srgb, #ffffff 8%, transparent)",
+    "--chrome-muted": "#a0abb2",
+    "--chrome-hover": "color-mix(in srgb, #ffffff 10%, transparent)",
 
     "--chart-1": "var(--accent)",
     "--chart-2": "var(--success)",

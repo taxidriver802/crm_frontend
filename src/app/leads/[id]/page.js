@@ -5,7 +5,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import { AppShell } from "@/components/app-shell";
-import { ReturnLink, useReturnTo } from "@/components/return-to";
+import { ReturnLink } from "@/components/return-to";
 import { api } from "@/lib/api";
 import {
   buildFileUrl,
@@ -19,13 +19,12 @@ import {
 } from "@/lib/helper";
 import { FilePreviewModal } from "@/components/modals/file-preview-modal";
 import { useConfirmModal } from "@/components/modals/confirm-modal";
-import { CollapsibleSection } from "@/components/forms/collapsible-section";
 import { DetailMoreMenu, DetailMoreMenuItem } from "@/components/detail-more-menu";
 import { Skeleton } from "@/components/loading/loadingSkeletons";
 import { NotesSection } from "@/components/notes-section";
-import { StatCard } from "@/components/ui/stat-card";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { DetailHeader } from "@/components/ui/detail-header";
+import { SectionCard } from "@/components/ui/section-card";
 import { MetaItem } from "@/components/ui/meta";
 
 function isCompletedTask(task) {
@@ -39,7 +38,6 @@ function isOverdueTask(task) {
 export default function LeadDetailPage() {
   const { id } = useParams();
   const router = useRouter();
-  const returnTo = useReturnTo();
   const { askConfirm, confirmModal } = useConfirmModal();
 
   const [jobs, setJobs] = useState([]);
@@ -254,19 +252,15 @@ export default function LeadDetailPage() {
     [tasks],
   );
 
-  const overdueOpenTasks = useMemo(
-    () => openTasks.filter((task) => isOverdueTask(task)),
-    [openTasks],
-  );
+  const leadName = lead
+    ? `${lead.first_name || ""} ${lead.last_name || ""}`.trim() || `Lead #${id}`
+    : `Lead #${id}`;
+  const leadContact = lead
+    ? [lead.email, lead.phone].filter(Boolean).join(" • ")
+    : "";
 
   return (
-    <AppShell
-      title={
-        lead
-          ? `${lead.first_name || ""} ${lead.last_name || ""}`.trim() || `Lead #${id}`
-          : `Lead #${id}`
-      }
-    >
+    <AppShell title={leadName} description={leadContact || undefined}>
       <div className="min-w-0 space-y-6">
         {error ? <Alert variant="inline">{error}</Alert> : null}
         {success ? <Alert variant="inline" tone="success">{success}</Alert> : null}
@@ -284,11 +278,12 @@ export default function LeadDetailPage() {
             </div>
           </section>
         ) : !lead ? (
-          <DetailHeader title="Lead not found" />
+          <section className="card p-4">
+            <p className="text-muted text-sm">Lead not found.</p>
+          </section>
         ) : (
           <DetailHeader
-            title={`${lead.first_name} ${lead.last_name}`.trim() || `Lead #${id}`}
-            subtitle={(lead.email ?? "—") + (lead.phone ? ` • ${lead.phone}` : "")}
+            subtitle={leadContact || "No contact on file"}
             badges={
               <>
                 <StatusBadge kind="lead" status={lead.status ?? "—"} />
@@ -314,15 +309,6 @@ export default function LeadDetailPage() {
             }
             actions={
               <>
-                {returnTo ? null : (
-                  <button
-                    type="button"
-                    className="btn"
-                    onClick={() => router.push("/leads")}
-                  >
-                    Back to Leads
-                  </button>
-                )}
                 <Link href={`/leads/${id}/edit`} className="btn btn-sm">
                   Edit
                 </Link>
@@ -360,49 +346,28 @@ export default function LeadDetailPage() {
           </DetailHeader>
         )}
 
-        {loading ? (
-          <div className="grid gap-4 sm:grid-cols-3">
-            {Array.from({ length: 3 }).map((_, i) => (
-              <div key={i} className="card space-y-2 p-4">
-                <Skeleton className="h-3 w-20" />
-                <Skeleton className="h-6 w-12" />
-              </div>
-            ))}
-          </div>
-        ) : (
-          <section className="grid gap-4 sm:grid-cols-3">
-            <StatCard size="metric" label="Open Tasks" value={openTasks.length} />
-            <StatCard size="metric" label="Overdue" value={overdueOpenTasks.length} />
-            <StatCard size="metric" label="Files" value={files.length} />
-          </section>
-        )}
-
-        <CollapsibleSection
+        <SectionCard
+          size="lg"
           title="Communication"
           description="Call notes, decisions, and context for this lead."
-          syncKey={id}
-          ready={notesLoadState.ready}
-          empty={notesLoadState.empty}
         >
           <NotesSection
             entityType="lead"
             entityId={id}
             onLoadState={setNotesLoadState}
           />
-        </CollapsibleSection>
+        </SectionCard>
 
-        <CollapsibleSection
+        <SectionCard
+          size="lg"
           title="Jobs"
-          description="Workspaces tied to this lead."
-          syncKey={id}
-          ready={!loadingJobs}
-          empty={jobs.length === 0}
-          actions={
+          description="Workspaces tied to this lead"
+          right={
             <Link
               href={`/jobs?lead_id=${id}&open=create`}
-              className="btn px-3 py-2 text-xs"
+              className="btn btn-primary btn-sm"
             >
-              + New Job
+              New job
             </Link>
           }
         >
@@ -434,201 +399,158 @@ export default function LeadDetailPage() {
                       <div className="font-medium">{job.title}</div>
                       <div className="text-muted text-sm">{job.address ?? "—"}</div>
                     </div>
-
-                    <span className="inline-flex items-center rounded-full border px-2 py-0.5 text-xs">
-                      {job.status}
-                    </span>
+                    <StatusBadge kind="job" status={job.status} />
                   </div>
                 </ReturnLink>
               ))}
             </div>
           )}
-        </CollapsibleSection>
+        </SectionCard>
 
-        <section className="grid gap-4 xl:grid-cols-[1.2fr_0.8fr]">
-          <CollapsibleSection
-            title="Lead Tasks"
-            description="Open and completed work tied to this lead."
-            syncKey={id}
-            ready={!loadingTasks}
-            empty={tasks.length === 0}
-            actions={
-              <Link href={`/tasks/new?lead_id=${id}`} className="btn px-3 py-2 text-xs">
-                + New Task
-              </Link>
-            }
-          >
-            {tasksError ? (
-              <Alert variant="inline">{tasksError}</Alert>
-            ) : loadingTasks ? (
-              <div className="space-y-3">
-                {Array.from({ length: 4 }).map((_, i) => (
-                  <div key={i} className="list-row space-y-2">
-                    <Skeleton className="h-4 w-48" />
-                    <Skeleton className="h-3 w-32" />
-                  </div>
-                ))}
-              </div>
-            ) : tasks.length === 0 ? (
-              <div className="text-muted rounded-lg border border-dashed p-4 text-sm">
-                No tasks for this lead yet.
-              </div>
-            ) : (
-              <div className="space-y-6">
-                <div className="space-y-3">
-                  <div className="text-sm font-medium">Open</div>
-
-                  {openTasks.length === 0 ? (
-                    <div className="text-muted text-sm">No open tasks.</div>
-                  ) : (
-                    openTasks.map((task) => (
-                      <ReturnLink
-                        key={task.id}
-                        href={`/tasks/${task.id}`}
-                        className="list-row list-row-interactive block"
-                      >
-                        <div className="flex items-start justify-between gap-3">
-                          <div className="min-w-0">
-                            <div className="font-medium">{task.title}</div>
-                            <div className="text-muted mt-1 text-sm">
-                              Due: {formatDateTime(task.due_date)}
-                            </div>
-                          </div>
-
-                          <div className="flex shrink-0 flex-col items-end gap-2">
-                            <StatusBadge kind="task" status={task.status} />
-
-                            {isOverdueTask(task) ? (
-                              <span className="text-xs text-danger">Overdue</span>
-                            ) : null}
-                          </div>
-                        </div>
-                      </ReturnLink>
-                    ))
-                  )}
+        <SectionCard
+          size="lg"
+          title="Tasks"
+          description="Follow-ups and appointments for this lead"
+          right={
+            <Link href={`/tasks/new?lead_id=${id}`} className="btn btn-primary btn-sm">
+              New task
+            </Link>
+          }
+        >
+          {tasksError ? (
+            <Alert variant="inline">{tasksError}</Alert>
+          ) : loadingTasks ? (
+            <div className="space-y-3">
+              {Array.from({ length: 4 }).map((_, i) => (
+                <div key={i} className="list-row space-y-2">
+                  <Skeleton className="h-4 w-48" />
+                  <Skeleton className="h-3 w-32" />
                 </div>
-
-                <div className="space-y-3">
-                  <div className="text-sm font-medium">Completed</div>
-
-                  {completedTasks.length === 0 ? (
-                    <div className="text-muted text-sm">No completed tasks yet.</div>
-                  ) : (
-                    completedTasks.map((task) => (
-                      <ReturnLink
-                        key={task.id}
-                        href={`/tasks/${task.id}`}
-                        className="list-row list-row-interactive block opacity-85"
-                      >
-                        <div className="flex items-start justify-between gap-3">
-                          <div className="min-w-0">
-                            <div className="font-medium">{task.title}</div>
-                            <div className="text-muted mt-1 text-sm">
-                              Due: {formatDateTime(task.due_date)}
-                            </div>
-                          </div>
-
-                          <StatusBadge kind="task" status={task.status} />
-                        </div>
-                      </ReturnLink>
-                    ))
-                  )}
-                </div>
-              </div>
-            )}
-          </CollapsibleSection>
-
-          <CollapsibleSection
-            title="Attached Files"
-            description="Files uploaded directly to this lead."
-            syncKey={id}
-            ready={!loadingFiles}
-            empty={files.length === 0}
-            actions={
-              canManageFiles ? (
-                <label className="btn cursor-pointer px-3 py-2 text-xs">
-                  {uploading ? "Uploading…" : "Upload File"}
-                  <input
-                    type="file"
-                    className="hidden"
-                    onChange={handleFileUpload}
-                    disabled={uploading}
-                  />
-                </label>
-              ) : null
-            }
-          >
-            {filesError ? (
-              <Alert variant="inline" className="mb-3">{filesError}</Alert>
-            ) : null}
-
-            {loadingFiles ? (
-              <div className="space-y-3">
-                {Array.from({ length: 3 }).map((_, i) => (
-                  <div key={i} className="list-row space-y-2">
-                    <Skeleton className="h-4 w-52" />
-                    <Skeleton className="h-3 w-40" />
-                  </div>
-                ))}
-              </div>
-            ) : files.length === 0 ? (
-              <div className="text-muted rounded-lg border border-dashed p-4 text-sm">
-                No files attached to this lead yet.
-              </div>
-            ) : (
-              <div className="space-y-3">
-                {files.map((file) => (
-                  <div
-                    key={file.id}
-                    className="list-row list-row-split"
-                  >
+              ))}
+            </div>
+          ) : tasks.length === 0 ? (
+            <div className="text-muted rounded-lg border border-dashed p-4 text-sm">
+              No tasks for this lead yet.
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {[...openTasks, ...completedTasks].map((task) => (
+                <ReturnLink
+                  key={task.id}
+                  href={`/tasks/${task.id}`}
+                  className={`list-row list-row-interactive block ${
+                    isCompletedTask(task) ? "opacity-85" : ""
+                  }`}
+                >
+                  <div className="flex items-start justify-between gap-3">
                     <div className="min-w-0">
-                      <div className="truncate font-medium">{file.original_name}</div>
-                      <div className="text-muted mt-1 text-xs">
-                        {file.mime_type || "Unknown type"} •{" "}
-                        {formatBytes(file.size_bytes)}
-                      </div>
-                      <div className="text-muted mt-1 text-xs">
-                        Uploaded: {formatDate(file.created_at)}
+                      <div className="font-medium">{task.title}</div>
+                      <div className="text-muted mt-1 text-sm">
+                        Due: {formatDateTime(task.due_date)}
                       </div>
                     </div>
-
-                    <div className="flex shrink-0 flex-wrap items-center gap-2">
-                      {isPreviewableFile(file) ? (
-                        <button
-                          type="button"
-                          onClick={() => setPreviewFile(file)}
-                          className="btn px-3 py-1.5 text-xs"
-                        >
-                          Preview
-                        </button>
-                      ) : (
-                        <a
-                          href={buildFileUrl(file)}
-                          target="_blank"
-                          rel="noreferrer"
-                          className="btn px-3 py-1.5 text-xs"
-                        >
-                          Open
-                        </a>
-                      )}
-
-                      {canManageFiles ? (
-                        <button
-                          onClick={() => handleDeleteFile(file.id)}
-                          disabled={busyFileId === file.id}
-                          className="btn btn-danger px-3 py-1.5 text-xs"
-                        >
-                          {busyFileId === file.id ? "Deleting..." : "Delete"}
-                        </button>
+                    <div className="flex shrink-0 flex-col items-end gap-2">
+                      <StatusBadge kind="task" status={task.status} />
+                      {isOverdueTask(task) ? (
+                        <span className="text-xs text-danger">Overdue</span>
                       ) : null}
                     </div>
                   </div>
-                ))}
-              </div>
-            )}
-          </CollapsibleSection>
-        </section>
+                </ReturnLink>
+              ))}
+            </div>
+          )}
+        </SectionCard>
+
+        <SectionCard
+          id="section-files"
+          size="lg"
+          title="Attached Files"
+          description="Files uploaded directly to this lead"
+          right={
+            canManageFiles ? (
+              <label className="btn cursor-pointer px-3 py-2 text-xs">
+                {uploading ? "Uploading…" : "Upload files"}
+                <input
+                  type="file"
+                  className="hidden"
+                  onChange={handleFileUpload}
+                  disabled={uploading}
+                />
+              </label>
+            ) : null
+          }
+        >
+          {filesError ? (
+            <Alert variant="inline" className="mb-3">{filesError}</Alert>
+          ) : null}
+
+          {loadingFiles ? (
+            <div className="space-y-3">
+              {Array.from({ length: 3 }).map((_, i) => (
+                <div key={i} className="list-row space-y-2">
+                  <Skeleton className="h-4 w-52" />
+                  <Skeleton className="h-3 w-40" />
+                </div>
+              ))}
+            </div>
+          ) : files.length === 0 ? (
+            <div className="text-muted rounded-lg border border-dashed p-4 text-sm">
+              No files attached to this lead yet.
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {files.map((file) => (
+                <div
+                  key={file.id}
+                  className="list-row list-row-split"
+                >
+                  <div className="min-w-0">
+                    <div className="truncate font-medium">{file.original_name}</div>
+                    <div className="text-muted mt-1 text-xs">
+                      {file.mime_type || "Unknown type"} •{" "}
+                      {formatBytes(file.size_bytes)}
+                    </div>
+                    <div className="text-muted mt-1 text-xs">
+                      Uploaded: {formatDate(file.created_at)}
+                    </div>
+                  </div>
+
+                  <div className="flex shrink-0 flex-wrap items-center gap-2">
+                    {isPreviewableFile(file) ? (
+                      <button
+                        type="button"
+                        onClick={() => setPreviewFile(file)}
+                        className="btn px-3 py-1.5 text-xs"
+                      >
+                        Preview
+                      </button>
+                    ) : (
+                      <a
+                        href={buildFileUrl(file)}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="btn px-3 py-1.5 text-xs"
+                      >
+                        Open
+                      </a>
+                    )}
+
+                    {canManageFiles ? (
+                      <button
+                        onClick={() => handleDeleteFile(file.id)}
+                        disabled={busyFileId === file.id}
+                        className="btn btn-danger px-3 py-1.5 text-xs"
+                      >
+                        {busyFileId === file.id ? "Deleting..." : "Delete"}
+                      </button>
+                    ) : null}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </SectionCard>
       </div>
 
       <FilePreviewModal

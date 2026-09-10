@@ -13,20 +13,16 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { AppShell } from "@/components/app-shell";
 import { useReturnPush } from "@/components/return-to";
-import { ToggleFormSection } from "@/components/toggle-form-section";
 import { TaskForm, createEmptyTaskForm, buildTaskApiPayload } from "@/components/forms/task-form";
 import { api } from "@/lib/api";
-import { CollapsibleSection } from "@/components/forms/collapsible-section";
-import { Skeleton } from "@/components/loading/loadingSkeletons";
 import { TaskCalendar } from "@/components/calendar/task-calendar";
-import { ListToolbar } from "@/components/list-toolbar";
 import { SavedViewsControls } from "@/components/saved-views-controls";
-import { StatCard } from "@/components/ui/stat-card";
-import { Field } from "@/components/ui/field";
-import { FilterBar } from "@/components/ui/filter-bar";
+import { AttentionStrip } from "@/components/dashboard/attention-strip";
+import { PageToolbar } from "@/components/page-toolbar";
 import { Segmented } from "@/components/ui/segmented";
 import { Icon } from "@/components/icons";
 import { TasksList } from "@/components/lists/tasks-list";
+import { useScrollIntoViewOnChange } from "@/lib/use-scroll-into-view-on-change";
 
 /** 12rem — matches `min-w-[12rem]` menus */
 const TABLE_DROPDOWN_MENU_WIDTH_PX = 192;
@@ -66,6 +62,8 @@ function TasksPageInner() {
   const prefillLeadId = searchParams.get("lead_id") || "";
   const prefillJobId = searchParams.get("job_id") || "";
   const shouldOpenCreate = searchParams.get("open") === "create";
+  const assignedParam = searchParams.get("assignedTo") || "";
+  const statusParam = searchParams.get("status") || "";
 
   const [summary, setSummary] = useState(null);
   const [tasks, setTasks] = useState([]);
@@ -74,15 +72,15 @@ function TasksPageInner() {
   const [error, setError] = useState("");
 
   const [title, setTitle] = useState("");
-  const [status, setStatus] = useState("");
+  const [status, setStatus] = useState(() => statusParam);
   const [linkedFilter, setLinkedFilter] = useState("");
   const [leadId, setLeadId] = useState("");
   const [jobId, setJobId] = useState("");
 
   const [leads, setLeads] = useState([]);
   const [jobs, setJobs] = useState([]);
-  const [loadingLeads, setLoadingLeads] = useState(true);
-  const [loadingJobs, setLoadingJobs] = useState(true);
+  const [loadingLeads, setLoadingLeads] = useState(false);
+  const [loadingJobs, setLoadingJobs] = useState(false);
 
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [creatingTask, setCreatingTask] = useState(false);
@@ -90,14 +88,15 @@ function TasksPageInner() {
   const [currentUser, setCurrentUser] = useState(null);
   const [teamUsers, setTeamUsers] = useState([]);
   const [viewScope, setViewScope] = useState("mine");
-  const [assignedFilter, setAssignedFilter] = useState("");
+  const [assignedFilter, setAssignedFilter] = useState(() => assignedParam);
 
   const [contextType, setContextType] = useState(prefillJobId ? "job" : "lead");
   const [viewMode, setViewMode] = useState("list");
   const [calendarRange, setCalendarRange] = useState({ dateFrom: "", dateTo: "" });
+  const [viewFocusToken, setViewFocusToken] = useState(0);
+  const viewContentRef = useScrollIntoViewOnChange(viewFocusToken);
   const [unscheduledCount, setUnscheduledCount] = useState(0);
   const [openActionsTaskId, setOpenActionsTaskId] = useState(null);
-  /** Viewport-fixed placement so the menu does not expand `overflow-x-auto` scroll height */
   const [actionsMenuPosition, setActionsMenuPosition] = useState(null);
   const [taskForm, setTaskForm] = useState(
     createEmptyTaskForm({
@@ -106,10 +105,16 @@ function TasksPageInner() {
     }),
   );
 
-  const isInitialLoading = loadingSummary && loadingTasks;
   const canViewAll = currentUser?.role === "owner" || currentUser?.role === "admin";
-
   const duePreset = useMemo(() => parseDuePresetFromSearch(searchParams), [searchParams]);
+  const summaryPath =
+    canViewAll && viewScope === "all" ? "/tasks/summary?view=all" : "/tasks/summary";
+  const newTaskHref = prefillJobId
+    ? `/tasks/new?job_id=${prefillJobId}`
+    : prefillLeadId
+      ? `/tasks/new?lead_id=${prefillLeadId}`
+      : "/tasks/new";
+
   const currentFiltersForSave = useMemo(
     () => ({
       title,
@@ -134,6 +139,14 @@ function TasksPageInner() {
       duePreset,
     ],
   );
+
+  useEffect(() => {
+    setAssignedFilter(assignedParam);
+  }, [assignedParam]);
+
+  useEffect(() => {
+    setStatus(statusParam);
+  }, [statusParam]);
 
   useEffect(() => {
     const saved = window.localStorage.getItem("tasks:view-mode");
@@ -190,7 +203,11 @@ function TasksPageInner() {
     p.delete("due");
     p.delete("range");
     const qs = p.toString();
-    router.replace(qs ? `/tasks?${qs}` : "/tasks");
+    router.replace(qs ? `/tasks?${qs}` : "/tasks", { scroll: false });
+  }
+
+  function handleMetricFocus(id) {
+    replaceDuePresetInUrl(id === "all" ? "" : id);
   }
 
   useEffect(() => {
@@ -319,7 +336,7 @@ function TasksPageInner() {
   async function loadSummary() {
     setLoadingSummary(true);
     try {
-      const data = await api("/tasks/summary");
+      const data = await api(summaryPath);
       setSummary(data);
     } catch (e) {
       setError(e.message || "Failed to load task summary");
@@ -342,6 +359,8 @@ function TasksPageInner() {
         if (leadId.trim()) unscheduledParams.set("leadId", leadId.trim());
         if (jobId.trim()) unscheduledParams.set("jobId", jobId.trim());
         if (title.trim()) unscheduledParams.set("q", title.trim());
+        if (canViewAll && viewScope === "all") unscheduledParams.set("view", "all");
+        if (assignedFilter) unscheduledParams.set("assignedTo", assignedFilter);
         unscheduledParams.set("limit", "200");
         unscheduledParams.set("offset", "0");
 
@@ -382,18 +401,29 @@ function TasksPageInner() {
 
   async function refreshAll() {
     setError("");
-    await Promise.all([loadSummary(), loadTasks(), loadLeads(), loadJobs()]);
+    await Promise.all([
+      loadSummary(),
+      loadTasks(),
+      isCreateOpen ? Promise.all([loadLeads(), loadJobs()]) : Promise.resolve(),
+    ]);
   }
 
   useEffect(() => {
-    refreshAll();
+    loadSummary();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [summaryPath]);
 
   useEffect(() => {
     loadTasks();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [queryString]);
+
+  useEffect(() => {
+    if (!isCreateOpen) return;
+    loadLeads();
+    loadJobs();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isCreateOpen]);
 
   function syncActionsMenuPosition(taskId) {
     if (taskId == null) {
@@ -510,68 +540,98 @@ function TasksPageInner() {
     }
   }
 
-  const overdueCount = summary?.counts?.overdue ?? summary?.overdueTasks?.length ?? 0;
-  const dueTodayCount = summary?.counts?.due_today ?? summary?.dueTodayTasks?.length ?? 0;
-  const nextUpCount = summary?.counts?.next_7_days ?? summary?.nextUp?.length ?? 0;
-  const taskTitle = (
-    <div>
-      {loadingTasks
-        ? "Loading…"
-        : tasks.length === 0
-          ? "No tasks yet"
-          : `${tasks.length} task${tasks.length === 1 ? "" : "s"}`}
-    </div>
-  );
+  const overdueCount = summary?.counts?.overdue ?? 0;
+  const dueTodayCount = summary?.counts?.due_today ?? 0;
+  const nextUpCount = summary?.counts?.next_7_days ?? 0;
+
+  const metrics = [
+    {
+      id: "overdue",
+      label: "Overdue",
+      value: String(overdueCount),
+      sub: overdueCount ? "Needs you now" : "Nothing overdue",
+      tone: overdueCount > 0 ? "danger" : "neutral",
+    },
+    {
+      id: "due_today",
+      label: "Due today",
+      value: String(dueTodayCount),
+      sub: "Follow-ups for today",
+    },
+    {
+      id: "next_7_days",
+      label: "Next 7 days",
+      value: String(nextUpCount),
+      sub: "Upcoming tasks",
+    },
+  ];
+
+  const statusOptions = [
+    { value: "", label: "All" },
+    { value: "Pending", label: "Pending", short: "Open" },
+    { value: "Completed", label: "Completed", short: "Done" },
+  ];
 
   return (
-    <AppShell title="Tasks">
-      {isInitialLoading ? (
-        <div className="space-y-6">
-          <div className="card space-y-3 p-4">
-            <Skeleton className="h-4 w-40" />
-            <Skeleton className="h-5 w-[20rem]" />
-          </div>
-
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-            {[...Array(3)].map((_, i) => (
-              <div key={i} className="card space-y-2 px-4 py-8">
-                <Skeleton className="h-3 w-20" />
-                <Skeleton className="h-6 w-12" />
-              </div>
-            ))}
-          </div>
-
-          <div className="card space-y-3 p-4">
-            <Skeleton className="h-4 w-40" />
-            <Skeleton className="h-10 w-full" />
-          </div>
-
-          <div className="card space-y-3 p-4">
-            {[...Array(5)].map((_, i) => (
-              <Skeleton key={i} className="h-10 w-full" />
-            ))}
-          </div>
+    <AppShell
+      title="Tasks"
+      description={
+        loadingTasks ? "Loading…" : `${tasks.length} in this view`
+      }
+      right={
+        <div className="flex flex-wrap items-center gap-2">
+          {canViewAll ? (
+            <Segmented
+              aria-label="Task scope"
+              value={viewScope}
+              onChange={setViewScope}
+              options={[
+                { value: "mine", label: "Mine", short: "Mine" },
+                { value: "all", label: "Team", short: "Team" },
+              ]}
+            />
+          ) : null}
+          <Segmented
+            aria-label="Task layout"
+            value={viewMode}
+            onChange={(next) => {
+              setViewMode(next);
+              setViewFocusToken((token) => token + 1);
+            }}
+            options={[
+              { value: "list", label: "List" },
+              { value: "calendar", label: "Calendar", short: "Cal" },
+            ]}
+          />
         </div>
-      ) : (
-        <div className="space-y-6">
-          {error ? <Alert variant="inline">{error}</Alert> : null}
+      }
+    >
+      <div className="space-y-6">
+        {error ? <Alert variant="inline">{error}</Alert> : null}
 
-          <ToggleFormSection
-            title="Create Task"
-            description="Quickly add a task tied to a lead or job without leaving the page."
-            isOpen={isCreateOpen}
-            onToggle={() => setIsCreateOpen((prev) => !prev)}
-            openLabel="+ New Task"
-            closeLabel="Hide Form"
-            fullFormUrl={
-              prefillJobId
-                ? `/tasks/new?job_id=${prefillJobId}`
-                : prefillLeadId
-                  ? `/tasks/new?lead_id=${prefillLeadId}`
-                  : "/tasks/new"
-            }
-            fullFormLabel="Full Form"
-          >
+        {isCreateOpen ? (
+          <section className="card p-4">
+            <div className="mb-4 flex min-w-0 flex-wrap items-start justify-between gap-3">
+              <div className="min-w-0">
+                <div className="text-sm font-medium">New task</div>
+                <p className="text-muted mt-0.5 text-xs">
+                  Add a follow-up tied to a lead or job.
+                </p>
+              </div>
+              <div className="flex shrink-0 flex-wrap gap-2">
+                <Link href={newTaskHref} className="btn btn-sm">
+                  Full form
+                </Link>
+                <button
+                  type="button"
+                  className="btn btn-sm"
+                  onClick={() => setIsCreateOpen(false)}
+                  disabled={creatingTask}
+                >
+                  Hide
+                </button>
+              </div>
+            </div>
             <TaskForm
               form={taskForm}
               onChange={setTaskForm}
@@ -599,212 +659,171 @@ function TasksPageInner() {
               isContextLocked={false}
               layout="compact"
             />
-          </ToggleFormSection>
-
-          <section className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-            <StatCard
-              href="/tasks?duePreset=overdue"
-              label="Overdue"
-              value={loadingSummary ? "…" : String(overdueCount)}
-              sub="Needs attention"
-            />
-            <StatCard
-              href="/tasks?duePreset=due_today"
-              label="Due Today"
-              value={loadingSummary ? "…" : String(dueTodayCount)}
-              sub="Due this day"
-            />
-            <StatCard
-              href="/tasks?duePreset=next_7_days"
-              label="Next Up"
-              value={loadingSummary ? "…" : String(nextUpCount)}
-              sub="Next 7 days"
-            />
           </section>
+        ) : null}
 
-          <FilterBar>
-            <Field label="Due window" className="w-full lg:w-44">
-              <select
-                className="input"
-                value={duePreset}
-                onChange={(e) => replaceDuePresetInUrl(e.target.value)}
-              >
-                <option value="">All tasks</option>
-                <option value="overdue">Overdue</option>
-                <option value="due_today">Due today</option>
-                <option value="next_7_days">Next 7 days</option>
-              </select>
-            </Field>
+        <AttentionStrip
+          metrics={metrics}
+          focus={duePreset || "all"}
+          onFocus={handleMetricFocus}
+          loading={loadingSummary && !summary}
+        />
 
-            <Field label="Status" className="w-full lg:w-44">
-              <select
-                className="input"
-                value={status}
-                onChange={(e) => setStatus(e.target.value)}
-              >
-                <option value="">All</option>
-                <option value="Pending">Pending</option>
-                <option value="Completed">Completed</option>
-              </select>
-            </Field>
+        <Segmented
+          className="w-full min-w-0"
+          aria-label="Task status"
+          value={status}
+          onChange={setStatus}
+          options={statusOptions}
+        />
 
-            <Field label="Linked To" className="w-full lg:w-44">
-              <select
-                className="input"
-                value={linkedFilter}
-                onChange={(e) => setLinkedFilter(e.target.value)}
-              >
-                <option value="">All</option>
-                <option value="job">Job</option>
-                <option value="lead">Lead</option>
-              </select>
-            </Field>
-
-            <Field label="Assigned To" className="w-full lg:w-44">
-              <select
-                className="input"
-                value={assignedFilter}
-                onChange={(e) => setAssignedFilter(e.target.value)}
-              >
-                <option value="">All</option>
-                <option value="unassigned">Unassigned</option>
-                {teamUsers.map((user) => (
-                  <option key={user.id} value={user.id}>
-                    {user.first_name} {user.last_name}
-                  </option>
-                ))}
-              </select>
-            </Field>
-
-            <Field label="Title" className="min-w-0 flex-1">
-              <input
-                className="input"
-                placeholder="Filter by title"
-                value={title}
-                onChange={(e) => setTitle(e.target.value)}
-              />
-            </Field>
-          </FilterBar>
-          <ListToolbar
-            left={
-              <>
-                {canViewAll ? (
-                  <Segmented
-                    aria-label="Task scope"
-                    value={viewScope}
-                    onChange={setViewScope}
-                    options={[
-                      { value: "mine", label: "My Tasks" },
-                      { value: "all", label: "Team" },
-                    ]}
-                  />
-                ) : null}
-
-                <Segmented
-                  aria-label="Task layout"
-                  value={viewMode}
-                  onChange={setViewMode}
-                  options={[
-                    { value: "list", label: "List" },
-                    { value: "calendar", label: "Calendar" },
-                  ]}
-                />
-              </>
-            }
-            right={
-              <SavedViewsControls
-                entityType="tasks"
-                currentFilters={currentFiltersForSave}
-                onApplyFilters={(filters) => {
-                  setTitle(String(filters?.title || ""));
-                  setStatus(String(filters?.status || ""));
-                  setLinkedFilter(String(filters?.linkedFilter || ""));
-                  setLeadId(String(filters?.leadId || ""));
-                  setJobId(String(filters?.jobId || ""));
-                  setAssignedFilter(String(filters?.assignedFilter || ""));
-                  setViewScope(String(filters?.viewScope || "mine"));
-                  setViewMode(
-                    filters?.viewMode === "calendar" || filters?.viewMode === "list"
-                      ? filters.viewMode
-                      : "list",
-                  );
-                  replaceDuePresetInUrl(String(filters?.duePreset || ""));
-                }}
-              />
-            }
-          />
-
-          <CollapsibleSection
-            title={taskTitle}
-            defaultOpen={true}
-            actions={
+        <PageToolbar
+          search={
+            <input
+              className="input min-w-0 w-full flex-1 basis-48"
+              placeholder="Search title…"
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+            />
+          }
+          refresh={
+            <button
+              type="button"
+              className="icon-btn"
+              onClick={refreshAll}
+              disabled={loadingSummary || loadingTasks}
+              title="Refresh"
+              aria-label="Refresh"
+            >
+              <Icon name="refreshCcw" className="h-4 w-4" />
+            </button>
+          }
+          create={
+            isCreateOpen ? null : (
               <button
                 type="button"
-                className="icon-btn"
-                onClick={refreshAll}
-                disabled={loadingSummary || loadingTasks || loadingLeads || loadingJobs}
-                title="Refresh"
-                aria-label="Refresh"
+                className="btn btn-primary"
+                onClick={() => setIsCreateOpen(true)}
+                disabled={creatingTask}
               >
-                <Icon name="refreshCcw" className="h-4 w-4" />
+                New task
               </button>
-            }
+            )
+          }
+          savedViews={
+            <SavedViewsControls
+              entityType="tasks"
+              currentFilters={currentFiltersForSave}
+              onApplyFilters={(filters) => {
+                setTitle(String(filters?.title || ""));
+                setStatus(String(filters?.status || ""));
+                setLinkedFilter(String(filters?.linkedFilter || ""));
+                setLeadId(String(filters?.leadId || ""));
+                setJobId(String(filters?.jobId || ""));
+                setAssignedFilter(String(filters?.assignedFilter || ""));
+                setViewScope(String(filters?.viewScope || "mine"));
+                setViewMode(
+                  filters?.viewMode === "calendar" || filters?.viewMode === "list"
+                    ? filters.viewMode
+                    : "list",
+                );
+                replaceDuePresetInUrl(String(filters?.duePreset || ""));
+              }}
+            />
+          }
+        >
+          <select
+            className="input min-w-0 w-full sm:w-40"
+            value={linkedFilter}
+            onChange={(e) => setLinkedFilter(e.target.value)}
+            aria-label="Linked to"
           >
-            {viewMode === "calendar" ? (
-              <div className="space-y-3">
-                <div className="text-muted text-xs">
-                  {unscheduledCount > 0
-                    ? `${unscheduledCount} task${unscheduledCount === 1 ? "" : "s"} without a due date are not shown on calendar.`
-                    : "All visible tasks have due dates."}
-                </div>
-                <TaskCalendar
-                  tasks={tasks}
-                  onRangeChange={handleCalendarRangeChange}
-                  onTaskClick={(task) => push(`/tasks/${task.id}`)}
-                  onDayCreate={(day) => {
-                    const yyyy = day.getFullYear();
-                    const mm = String(day.getMonth() + 1).padStart(2, "0");
-                    const dd = String(day.getDate()).padStart(2, "0");
-                    setTaskForm((prev) => ({
-                      ...prev,
-                      due_date: `${yyyy}-${mm}-${dd}T09:00`,
-                    }));
-                    setIsCreateOpen(true);
-                  }}
-                />
-              </div>
-            ) : (
-              <TasksList
+            <option value="">Any link</option>
+            <option value="job">Job</option>
+            <option value="lead">Lead</option>
+          </select>
+          <select
+            className="input min-w-0 w-full sm:w-48"
+            value={assignedFilter}
+            onChange={(e) => setAssignedFilter(e.target.value)}
+            aria-label="Assigned to"
+          >
+            <option value="">Anyone</option>
+            <option value="unassigned">Unassigned</option>
+            {teamUsers.map((user) => (
+              <option key={user.id} value={user.id}>
+                {user.first_name} {user.last_name}
+              </option>
+            ))}
+          </select>
+        </PageToolbar>
+
+        <div
+          ref={viewContentRef}
+          id="tasks-view"
+          className="scroll-mt-20"
+        >
+          {viewMode === "calendar" ? (
+            <div className="space-y-3">
+              {duePreset ? (
+                <p className="text-muted text-xs">
+                  Due window is saved for List. Calendar shows the visible month
+                  instead.
+                </p>
+              ) : null}
+              <p className="text-muted text-xs">
+                {unscheduledCount > 0
+                  ? `${unscheduledCount} task${unscheduledCount === 1 ? "" : "s"} without a due date are not shown on calendar.`
+                  : "All visible tasks have due dates."}
+              </p>
+              <TaskCalendar
                 tasks={tasks}
-                loading={!isInitialLoading && loadingTasks}
-                canViewAll={canViewAll}
-                teamUsers={teamUsers}
-                onOpen={(taskId) => push(`/tasks/${taskId}`)}
-                onAssign={handleAssignTask}
-                openActionsTaskId={openActionsTaskId}
-                actionsMenuPosition={actionsMenuPosition}
-                onToggleActions={(taskId, triggerEl) => {
-                  if (openActionsTaskId === taskId) {
-                    setOpenActionsTaskId(null);
-                    setActionsMenuPosition(null);
-                    return;
-                  }
-                  const wrap = triggerEl.closest("[data-task-actions-menu]");
-                  if (wrap) {
-                    setActionsMenuPosition(getTableDropdownMenuPosition(wrap));
-                  }
-                  setOpenActionsTaskId(taskId);
+                onRangeChange={handleCalendarRangeChange}
+                onTaskClick={(task) => push(`/tasks/${task.id}`)}
+                onDayCreate={(day) => {
+                  const yyyy = day.getFullYear();
+                  const mm = String(day.getMonth() + 1).padStart(2, "0");
+                  const dd = String(day.getDate()).padStart(2, "0");
+                  setTaskForm((prev) => ({
+                    ...prev,
+                    due_date: `${yyyy}-${mm}-${dd}T09:00`,
+                  }));
+                  setIsCreateOpen(true);
                 }}
-                onCloseActions={() => {
+              />
+            </div>
+          ) : (
+            <TasksList
+              layout="flush"
+              tasks={tasks}
+              loading={loadingTasks}
+              canViewAll={canViewAll}
+              teamUsers={teamUsers}
+              onOpen={(taskId) => push(`/tasks/${taskId}`)}
+              onAssign={handleAssignTask}
+              openActionsTaskId={openActionsTaskId}
+              actionsMenuPosition={actionsMenuPosition}
+              onToggleActions={(taskId, triggerEl) => {
+                if (openActionsTaskId === taskId) {
                   setOpenActionsTaskId(null);
                   setActionsMenuPosition(null);
-                }}
-                onSetStatus={setTaskStatus}
-              />
-            )}
-          </CollapsibleSection>
+                  return;
+                }
+                const wrap = triggerEl.closest("[data-task-actions-menu]");
+                if (wrap) {
+                  setActionsMenuPosition(getTableDropdownMenuPosition(wrap));
+                }
+                setOpenActionsTaskId(taskId);
+              }}
+              onCloseActions={() => {
+                setOpenActionsTaskId(null);
+                setActionsMenuPosition(null);
+              }}
+              onSetStatus={setTaskStatus}
+            />
+          )}
         </div>
-      )}
+      </div>
     </AppShell>
   );
 }

@@ -15,9 +15,15 @@ export function AttentionStrip({
   const [showMore, setShowMore] = useState(false);
 
   if (loading) {
+    const count = metrics.length === 3 ? 3 : 4;
     return (
-      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-        {Array.from({ length: 4 }).map((_, i) => (
+      <div
+        className={cx(
+          "grid gap-3",
+          count === 3 ? "grid-cols-1 sm:grid-cols-3" : "grid-cols-2 lg:grid-cols-4",
+        )}
+      >
+        {Array.from({ length: count }).map((_, i) => (
           <StatCardSkeleton key={i} />
         ))}
       </div>
@@ -26,7 +32,14 @@ export function AttentionStrip({
 
   return (
     <div className="space-y-2">
-      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+      <div
+        className={cx(
+          "grid gap-3",
+          metrics.length === 3
+            ? "grid-cols-1 sm:grid-cols-3"
+            : "grid-cols-2 lg:grid-cols-4",
+        )}
+      >
         {metrics.map((metric) => {
           const active = focus === metric.id;
           const alert = metric.tone === "danger" && Number(metric.value) > 0;

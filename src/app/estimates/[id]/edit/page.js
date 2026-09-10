@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { AppShell } from "@/components/app-shell";
 import { useConfirmModal } from "@/components/modals/confirm-modal";
@@ -168,12 +168,11 @@ export default function EditEstimatePage() {
     });
   }
 
-  const title = useMemo(() => {
-    return estimate?.title ? `Edit ${estimate.title}` : `Edit Estimate #${id}`;
-  }, [estimate, id]);
-
   return (
-    <AppShell title={title}>
+    <AppShell
+      title="Edit estimate"
+      description={estimate?.title || undefined}
+    >
       <section className="card p-4">
         {loadingEstimate ? (
           <EstimateFormSkeleton onCancel={() => router.back()} />
@@ -184,7 +183,7 @@ export default function EditEstimatePage() {
             onSubmit={onSubmit}
             saving={saving}
             error={error}
-            submitLabel="Update Estimate"
+            submitLabel="Save changes"
             cancelLabel="Cancel"
             onCancel={() => router.back()}
             jobs={jobs}

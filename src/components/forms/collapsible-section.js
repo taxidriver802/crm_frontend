@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { cx } from "@/lib/cx";
 
 export function CollapsibleSection({
+  id,
   title,
   description,
   actions,
@@ -33,7 +34,7 @@ export function CollapsibleSection({
   }
 
   return (
-    <section className="card min-w-0">
+    <section id={id} className="card min-w-0">
       <div
         className={cx(
           "flex min-w-0 flex-wrap items-start justify-between gap-3 p-4",

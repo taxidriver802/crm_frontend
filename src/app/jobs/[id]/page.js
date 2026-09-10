@@ -21,6 +21,7 @@ import { useConfirmModal } from "@/components/modals/confirm-modal";
 import { FilePreviewModal } from "@/components/modals/file-preview-modal";
 import { TaskForm, createEmptyTaskForm, buildTaskApiPayload } from "@/components/forms/task-form";
 import { CollapsibleSection } from "@/components/forms/collapsible-section";
+import { DetailMoreMenu, DetailMoreMenuItem } from "@/components/detail-more-menu";
 import { ActivityList } from "@/components/activity-list";
 import { NotesSection } from "@/components/notes-section";
 import {
@@ -35,10 +36,10 @@ import {
   Skeleton,
 } from "@/components/loading/loadingSkeletons";
 import { SectionCard } from "@/components/ui/section-card";
+import { DetailHeader } from "@/components/ui/detail-header";
 import { PageError } from "@/components/error-boundary";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { HealthBadge } from "@/components/ui/health-badge";
-import { MetaList, MetaItem } from "@/components/ui/meta";
 import { Field, FormActions } from "@/components/ui/field";
 import { EmptyState } from "@/components/error-boundary";
 
@@ -713,46 +714,33 @@ export default function JobDetailPage() {
   );
 
   const isInitialLoading = loading && !job;
+  const leadName = lead
+    ? `${lead.first_name} ${lead.last_name}`.trim()
+    : job?.lead_id
+      ? `Lead #${job.lead_id}`
+      : "";
+  const daysInStatus = job ? formatDaysInStatus(job.status_changed_at) : "";
 
   return (
-    <AppShell title={job ? job.title : "Job"}>
+    <AppShell
+      title={job ? job.title : "Job"}
+      description={job && leadName ? leadName : undefined}
+    >
       <div className="min-w-0 space-y-6">
         {isInitialLoading ? (
           <div className="space-y-6">
             <div className="card space-y-3 p-4">
-              <Skeleton className="h-6 w-48" />
+              <Skeleton className="h-5 w-40" />
               <Skeleton className="h-4 w-64" />
               <Skeleton className="h-16 w-full" />
             </div>
-
-            <div className="grid gap-6 lg:grid-cols-3">
-              <div className="space-y-6 lg:col-span-2">
-                <div className="card space-y-3 p-4">
-                  <Skeleton className="h-5 w-32" />
-                  <Skeleton className="h-4 w-full" />
-                  <Skeleton className="h-20 w-full" />
-                </div>
-
-                <div className="card space-y-3 p-4">
-                  <Skeleton className="h-5 w-24" />
-                  <Skeleton className="h-24 w-full" />
-                </div>
-              </div>
-
-              <div className="space-y-6">
-                <div className="card space-y-3 p-4">
-                  <Skeleton className="h-5 w-20" />
-                  <Skeleton className="h-4 w-32" />
-                  <Skeleton className="h-4 w-24" />
-                  <Skeleton className="h-4 w-28" />
-                </div>
-                <div className="card space-y-3 p-4">
-                  <Skeleton className="h-5 w-20" />
-                  <Skeleton className="h-4 w-32" />
-                  <Skeleton className="h-4 w-24" />
-                  <Skeleton className="h-4 w-28" />
-                </div>
-              </div>
+            <div className="card space-y-3 p-4">
+              <Skeleton className="h-5 w-32" />
+              <Skeleton className="h-20 w-full" />
+            </div>
+            <div className="card space-y-3 p-4">
+              <Skeleton className="h-5 w-24" />
+              <Skeleton className="h-24 w-full" />
             </div>
           </div>
         ) : null}
@@ -760,78 +748,80 @@ export default function JobDetailPage() {
         {error ? <PageError message={error} /> : null}
 
         {!isInitialLoading && job ? (
-          <div className="grid min-w-0 gap-6 lg:grid-cols-3">
-            <div className="min-w-0 space-y-6 lg:col-span-2">
-              <SectionCard size="lg" title="Job Overview" description="Overview and current status">
-                <div className="space-y-4">
-                  <div className="detail-toolbar">
-                    <div className="detail-meta space-y-2">
-                      {job.lead_id ? (
-                        <div className="text-sm">
-                          <span className="text-muted">Lead: </span>
-                          <ReturnLink
-                            href={`/leads/${job.lead_id}`}
-                            className="underline underline-offset-4 hover:opacity-80"
-                          >
-                            {lead
-                              ? `${lead.first_name} ${lead.last_name}`
-                              : `Lead #${job.lead_id}`}
-                          </ReturnLink>
-                        </div>
-                      ) : null}
-                      <div>
-                        <JobStatusBadge status={job.status} />
-                      </div>
-                    </div>
-
-                    <div className="detail-actions">
-                      <button
+          <div className="min-w-0 space-y-6">
+              <DetailHeader
+                subtitle={
+                  job.lead_id ? (
+                    <>
+                      Lead:{" "}
+                      <ReturnLink
+                        href={`/leads/${job.lead_id}`}
+                        className="underline underline-offset-4 hover:opacity-80"
+                      >
+                        {leadName || `Lead #${job.lead_id}`}
+                      </ReturnLink>
+                    </>
+                  ) : (
+                    "No lead linked"
+                  )
+                }
+                badges={
+                  <>
+                    <JobStatusBadge status={job.status} />
+                    <HealthBadge health={job.health} />
+                    {daysInStatus ? <StatusBadge>{daysInStatus}</StatusBadge> : null}
+                  </>
+                }
+                actions={
+                  <>
+                    <Link href={`/jobs/${id}/edit`} className="btn btn-sm">
+                      Edit
+                    </Link>
+                    <DetailMoreMenu label="More">
+                      <DetailMoreMenuItem
                         type="button"
-                        className="btn px-3 py-2 text-xs"
-                        onClick={handleGeneratePortalLink}
                         disabled={portalBusy}
+                        onClick={handleGeneratePortalLink}
                       >
-                        {portalBusy ? "Link…" : "Customer Portal"}
-                      </button>
-                      <button
+                        {portalBusy ? "Link…" : "Customer portal"}
+                      </DetailMoreMenuItem>
+                      <DetailMoreMenuItem
                         type="button"
-                        className="btn px-3 py-2 text-xs"
-                        onClick={handleCopyPortalMessage}
                         disabled={portalMessageBusy}
+                        onClick={handleCopyPortalMessage}
                       >
-                        {portalMessageBusy ? "Message…" : "Copy message"}
-                      </button>
-                      <Link href={`/jobs/${id}/edit`} className="btn px-3 py-2 text-xs">
-                        Edit
-                      </Link>
-                    </div>
-                  </div>
+                        {portalMessageBusy ? "Message…" : "Copy portal message"}
+                      </DetailMoreMenuItem>
+                    </DetailMoreMenu>
+                  </>
+                }
+              >
+                {portalHint || job.description || job.address ? (
+                  <>
+                    {portalHint ? (
+                      <p className="text-muted text-sm">{portalHint}</p>
+                    ) : null}
+                    {job.description ? (
+                      <p className="text-muted text-sm leading-6">{job.description}</p>
+                    ) : null}
+                    {job.address ? (
+                      <p className="text-muted text-sm">{job.address}</p>
+                    ) : null}
+                  </>
+                ) : null}
+              </DetailHeader>
 
-                  {portalHint ? (
-                    <div className="text-muted text-sm">{portalHint}</div>
-                  ) : null}
-
-                  <div className="border-base border-t pt-4">
-                    <p className="text-muted text-sm leading-6">
-                      {job.description || "No description provided."}
-                    </p>
-                  </div>
-                </div>
-              </SectionCard>
-
-              <CollapsibleSection
+              <SectionCard
+                size="lg"
                 title="Communication"
                 description="Capture conversations and decisions for this job."
-                syncKey={id}
-                ready={notesLoadState.ready}
-                empty={notesLoadState.empty}
               >
                 <NotesSection
                   entityType="job"
                   entityId={id}
                   onLoadState={setNotesLoadState}
                 />
-              </CollapsibleSection>
+              </SectionCard>
 
               <SectionCard size="lg"
                 title="Pipeline"
@@ -879,18 +869,16 @@ export default function JobDetailPage() {
                   })}
                 </div>
               </SectionCard>
-              <CollapsibleSection
+              <SectionCard
+                size="lg"
                 title="Estimates"
                 description="Pricing and scope tied to this job"
-                syncKey={id}
-                ready={!loadingEstimates}
-                empty={estimates.length === 0}
-                actions={
+                right={
                   <Link
                     href={`/estimates/new?job_id=${id}`}
-                    className="btn px-3 py-2 text-xs"
+                    className="btn btn-primary btn-sm"
                   >
-                    + New Estimate
+                    New estimate
                   </Link>
                 }
               >
@@ -946,20 +934,18 @@ export default function JobDetailPage() {
                     ))}
                   </div>
                 )}
-              </CollapsibleSection>
+              </SectionCard>
 
-              <CollapsibleSection
+              <SectionCard
+                size="lg"
                 title="Invoices"
                 description="Billing tied to this job"
-                syncKey={id}
-                ready={!loadingInvoices}
-                empty={invoices.length === 0}
-                actions={
+                right={
                   <Link
                     href={`/invoices/new?job_id=${id}`}
-                    className="btn px-3 py-2 text-xs"
+                    className="btn btn-primary btn-sm"
                   >
-                    + New Invoice
+                    New invoice
                   </Link>
                 }
               >
@@ -1007,7 +993,7 @@ export default function JobDetailPage() {
                       ))}
                   </div>
                 )}
-              </CollapsibleSection>
+              </SectionCard>
 
               <CollapsibleSection
                 title="Measurements"
@@ -1140,62 +1126,52 @@ export default function JobDetailPage() {
                 ) : null}
               </CollapsibleSection>
 
-              <CollapsibleSection
+              <SectionCard
+                size="lg"
                 title="Tasks"
-                description="Create and manage tasks tied directly to this job"
-                syncKey={id}
-                ready={!loadingTasks}
-                empty={tasks.length === 0}
+                description="Follow-ups and appointments for this job"
+                right={
+                  <div className="flex min-w-0 max-w-full flex-wrap items-center justify-end gap-2">
+                    <ReturnLink
+                      href={`/tasks/new?job_id=${id}`}
+                      className="btn btn-sm"
+                    >
+                      Full form
+                    </ReturnLink>
+                    <button
+                      type="button"
+                      className="btn btn-primary btn-sm"
+                      onClick={() => {
+                        if (isTaskFormOpen && taskForm.kind !== "appointment") {
+                          setIsTaskFormOpen(false);
+                          return;
+                        }
+                        openNewTaskForm();
+                      }}
+                    >
+                      {isTaskFormOpen && taskForm.kind !== "appointment"
+                        ? "Hide"
+                        : "New task"}
+                    </button>
+                    <button
+                      type="button"
+                      className="btn btn-sm"
+                      onClick={() => {
+                        if (isTaskFormOpen && taskForm.kind === "appointment") {
+                          setIsTaskFormOpen(false);
+                          return;
+                        }
+                        openScheduleAppointmentForm();
+                      }}
+                    >
+                      {isTaskFormOpen && taskForm.kind === "appointment"
+                        ? "Hide"
+                        : "Schedule"}
+                    </button>
+                  </div>
+                }
               >
                 <div className="space-y-4">
-                  <section className="card p-4">
-                    <div className="mb-4 flex min-w-0 flex-wrap items-start justify-between gap-3">
-                      <div className="min-w-0">
-                        <h3 className="section-heading">Tasks</h3>
-                        <p className="text-muted mt-1 text-xs">
-                          Create tasks or schedule a site appointment for this job
-                        </p>
-                      </div>
-                      <div className="flex shrink-0 flex-wrap items-center justify-end gap-2">
-                        <ReturnLink
-                          href={`/tasks/new?job_id=${id}`}
-                          className="btn btn-sm"
-                        >
-                          Full Form
-                        </ReturnLink>
-                        <button
-                          type="button"
-                          className="btn btn-sm"
-                          onClick={() => {
-                            if (isTaskFormOpen && taskForm.kind !== "appointment") {
-                              setIsTaskFormOpen(false);
-                              return;
-                            }
-                            openNewTaskForm();
-                          }}
-                        >
-                          {isTaskFormOpen && taskForm.kind !== "appointment"
-                            ? "Hide Task Form"
-                            : "+ New Task"}
-                        </button>
-                        <button
-                          type="button"
-                          className="btn btn-sm"
-                          onClick={() => {
-                            if (isTaskFormOpen && taskForm.kind === "appointment") {
-                              setIsTaskFormOpen(false);
-                              return;
-                            }
-                            openScheduleAppointmentForm();
-                          }}
-                        >
-                          {isTaskFormOpen && taskForm.kind === "appointment"
-                            ? "Hide Appointment Form"
-                            : "Schedule appointment"}
-                        </button>
-                      </div>
-                    </div>
-
                     {isTaskFormOpen ? (
                       <div className="space-y-3">
                         <TaskForm
@@ -1247,7 +1223,6 @@ export default function JobDetailPage() {
                         ) : null}
                       </div>
                     ) : null}
-                  </section>
 
                   {!loadingTasks && tasks.length > DEFAULT_VISIBLE_TASKS ? (
                     <div className="flex items-center justify-between gap-3">
@@ -1326,82 +1301,11 @@ export default function JobDetailPage() {
                     </div>
                   )}
                 </div>
-              </CollapsibleSection>
-            </div>
-
-            <div className="min-w-0 space-y-6">
-              <SectionCard size="lg" title="Details">
-                <MetaList>
-                  <MetaItem label="Address">{job.address || "—"}</MetaItem>
-                  <MetaItem label="Current status">
-                    <div className="flex flex-wrap items-center gap-2">
-                      <span>{job.status}</span>
-                      <HealthBadge health={job.health} />
-                    </div>
-                  </MetaItem>
-                  <MetaItem label="In this status">
-                    {formatDaysInStatus(job.status_changed_at) || "—"}
-                  </MetaItem>
-                  <MetaItem label="Created">{formatDate(job.created_at)}</MetaItem>
-                </MetaList>
               </SectionCard>
 
-              <section className="card transition hover:bg-accent">
-                <ReturnLink href={`/leads/${job.lead_id}`} className="block p-4">
-                  <div className="mb-3">
-                    <h2 className="section-heading">Lead Snapshot</h2>
-                    <p className="text-muted mt-1 text-sm">
-                      Quick context for the lead tied to this job.
-                    </p>
-                  </div>
-
-                  {!job?.lead_id ? (
-                    <div className="text-muted text-sm">No lead linked to this job.</div>
-                  ) : !isInitialLoading && loadingLead ? (
-                    <div className="space-y-3">
-                      <Skeleton className="h-4 w-40" />
-                      <Skeleton className="h-4 w-52" />
-                      <div className="flex gap-2">
-                        <Skeleton className="h-5 w-20 rounded-full" />
-                        <Skeleton className="h-5 w-24 rounded-full" />
-                      </div>
-                    </div>
-                  ) : leadError ? (
-                    <Alert variant="inline">{leadError}</Alert>
-                  ) : !lead ? (
-                    <div className="text-muted text-sm">Lead details unavailable.</div>
-                  ) : (
-                    <div className="space-y-3 text-sm">
-                      <MetaItem label="Name">
-                        <span className="font-medium">
-                          {lead.first_name} {lead.last_name}
-                        </span>
-                      </MetaItem>
-
-                      <MetaItem label="Contact">
-                        {lead.email || "—"}
-                        {lead.phone ? ` • ${lead.phone}` : ""}
-                      </MetaItem>
-
-                      <div className="flex flex-wrap gap-2 pt-1">
-                        <StatusBadge kind="lead" status={lead.status ?? "—"} />
-
-                        {lead.source ? (
-                          <StatusBadge>Source: {lead.source}</StatusBadge>
-                        ) : null}
-                      </div>
-
-                      {lead.notes ? (
-                        <MetaItem label="Notes">
-                          <span className="whitespace-pre-wrap">{lead.notes}</span>
-                        </MetaItem>
-                      ) : null}
-                    </div>
-                  )}
-                </ReturnLink>
-              </section>
-
-              <SectionCard size="lg"
+              <SectionCard
+                id="section-files"
+                size="lg"
                 title="Attached Files"
                 description="Drop photos here or choose files. Tag before/after and hide internal shots from the portal."
                 right={
@@ -1565,17 +1469,16 @@ export default function JobDetailPage() {
                     ))}
                   </div>
                 )}
-              </SectionCard>
-              <SectionCard size="lg"
-                title="Photo Gallery"
-                description="Quick visual scan of photos attached to this job."
-              >
-                <PhotoGallery
-                  files={files}
-                  loading={loadingFiles && files.length === 0}
-                />
+
+                <div className="border-base mt-4 border-t pt-4">
+                  <PhotoGallery
+                    files={files}
+                    loading={loadingFiles && files.length === 0}
+                  />
+                </div>
               </SectionCard>
               <CollapsibleSection
+                id="section-activity"
                 title="Activity"
                 description="Recent changes and actions on this job"
                 syncKey={id}
@@ -1615,7 +1518,6 @@ export default function JobDetailPage() {
                   </>
                 )}
               </CollapsibleSection>
-            </div>
           </div>
         ) : null}
       </div>

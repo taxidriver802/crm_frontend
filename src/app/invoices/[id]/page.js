@@ -7,13 +7,14 @@ import { ReturnLink } from "@/components/return-to";
 import { useConfirmModal } from "@/components/modals/confirm-modal";
 import { api } from "@/lib/api";
 import { CollapsibleSection } from "@/components/forms/collapsible-section";
-import { ToggleFormSection } from "@/components/toggle-form-section";
+import { DetailMoreMenu, DetailMoreMenuItem } from "@/components/detail-more-menu";
 import { DetailSkeleton } from "@/components/loading/loadingSkeletons";
 import { PageError } from "@/components/error-boundary";
 import { API_BASE, formatDate } from "@/lib/helper";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { Field, FormActions } from "@/components/ui/field";
 import { DetailHeader } from "@/components/ui/detail-header";
+import { SectionCard } from "@/components/ui/section-card";
 import { MetaItem } from "@/components/ui/meta";
 import { ListRow } from "@/components/ui/list-row";
 import {
@@ -361,24 +362,34 @@ export default function InvoiceDetailPage() {
   }
 
   return (
-    <AppShell title={invoice?.invoice_number || `Invoice #${id}`}>
+    <AppShell
+      title={invoice?.invoice_number || `Invoice #${id}`}
+      description={invoice?.job?.title || invoice?.job?.lead_name || undefined}
+    >
       <div className="space-y-6">
         {error ? <PageError message={error} onRetry={loadPage} /> : null}
 
         {!invoice ? (
-          <DetailHeader title="Invoice not found" />
+          <section className="card p-4">
+            <p className="text-muted text-sm">Invoice not found.</p>
+          </section>
         ) : (
           <DetailHeader
-            title={invoice.invoice_number}
             subtitle={
               <>
-                <ReturnLink href={`/jobs/${invoice.job_id}`} className="underline">
+                <ReturnLink
+                  href={`/jobs/${invoice.job_id}`}
+                  className="underline underline-offset-4 hover:opacity-80"
+                >
                   {invoice.job?.title ?? `Job #${invoice.job_id}`}
                 </ReturnLink>
                 {invoice.estimate_id ? (
                   <div className="mt-1 text-xs">
                     From{" "}
-                    <ReturnLink href={`/estimates/${invoice.estimate_id}`} className="underline">
+                    <ReturnLink
+                      href={`/estimates/${invoice.estimate_id}`}
+                      className="underline underline-offset-4 hover:opacity-80"
+                    >
                       Estimate #{invoice.estimate_id}
                     </ReturnLink>
                   </div>
@@ -387,47 +398,43 @@ export default function InvoiceDetailPage() {
             }
             badges={<StatusBadge kind="invoice" status={invoice.status} />}
             actions={
-              <>
-                <button
+              <DetailMoreMenu label="More">
+                <DetailMoreMenuItem
                   type="button"
-                  className="btn btn-ghost btn-sm"
                   disabled={pdfBusy}
                   onClick={downloadPdf}
                 >
                   {pdfBusy ? "PDF…" : "Download PDF"}
-                </button>
-                <button
+                </DetailMoreMenuItem>
+                <DetailMoreMenuItem
                   type="button"
-                  className="btn btn-ghost btn-sm"
                   disabled={shareBusy}
                   onClick={createShareLink}
                 >
                   {shareBusy ? "Link…" : "Copy share link"}
-                </button>
-                <button
+                </DetailMoreMenuItem>
+                <DetailMoreMenuItem
                   type="button"
-                  className="btn btn-ghost btn-sm"
                   disabled={messageBusy}
                   onClick={copyMessage}
                 >
                   {messageBusy ? "Message…" : "Copy message"}
-                </button>
-                <button
+                </DetailMoreMenuItem>
+                <DetailMoreMenuItem
                   type="button"
-                  className="btn btn-ghost btn-sm"
                   disabled={qbBusy}
                   onClick={handleSyncToQB}
                 >
                   {qbBusy ? "Syncing…" : "Sync to QuickBooks"}
-                </button>
-                <button
+                </DetailMoreMenuItem>
+                <DetailMoreMenuItem
                   type="button"
-                  className="btn btn-ghost btn-danger btn-sm"
+                  className="text-danger"
                   onClick={handleDeleteInvoice}
                 >
-                  Delete
-                </button>
-              </>
+                  Delete invoice
+                </DetailMoreMenuItem>
+              </DetailMoreMenu>
             }
           >
             {shareHint ? <div className="text-muted text-sm">{shareHint}</div> : null}
@@ -454,92 +461,107 @@ export default function InvoiceDetailPage() {
                 <span className="whitespace-pre-wrap">{invoice.notes}</span>
               </MetaItem>
             ) : null}
-
-            <div className="border-base border-t pt-4">
-              <div className="kv-label mb-2 font-medium">Update status</div>
-              <div className="flex flex-wrap gap-2">
-                {INVOICE_STATUSES.map((s) => (
-                  <button
-                    key={s}
-                    type="button"
-                    disabled={statusBusy || s === invoice.status}
-                    onClick={() => handleStatusChange(s)}
-                    className={`choice-chip ${s === invoice.status ? "choice-chip-active" : ""}`}
-                  >
-                    {s}
-                  </button>
-                ))}
-              </div>
-            </div>
           </DetailHeader>
         )}
 
-        <ToggleFormSection
-          title={editingLineItem ? "Edit Line Item" : "Add Line Item"}
-          description={
-            editingLineItem ? "Update this line item." : "Add items to this invoice."
-          }
-          isOpen={isCreateOpen}
-          onToggle={() => setIsCreateOpen((prev) => !prev)}
-          openLabel="+ New Item"
-          closeLabel="Hide Form"
-        >
-          <InvoiceLineItemForm
-            form={lineItemForm}
-            onChange={setLineItemForm}
-            onSubmit={handleSubmitLineItem}
-            saving={savingItem}
-            onCancel={() => {
-              setLineItemForm(createEmptyLineItem());
-              setEditingLineItem(null);
-              setIsCreateOpen(false);
-            }}
-            submitLabel={editingLineItem ? "Update Item" : "Add Item"}
-            deleteButton={!!editingLineItem}
-            onDelete={handleDeleteLineItem}
-          />
-        </ToggleFormSection>
-
-        <CollapsibleSection
-          title="Line Items"
-          description="Breakdown of charges."
-          syncKey={id}
-          ready={!loading}
-          empty={lineItems.length === 0}
-        >
-          {loading ? (
-            <div className="text-muted text-sm">Loading items…</div>
-          ) : lineItems.length === 0 ? (
-            <div className="empty-state text-sm">No line items yet.</div>
-          ) : (
-            <div className="space-y-2">
-              {lineItems.map((item) => (
-                <ListRow
-                  key={item.id}
-                  as="button"
+        {invoice ? (
+          <SectionCard
+            size="lg"
+            title="Status"
+            description="Track where this invoice is in the workflow"
+          >
+            <div className="flex flex-wrap gap-2">
+              {INVOICE_STATUSES.map((s) => (
+                <button
+                  key={s}
                   type="button"
-                  interactive
-                  className="flex w-full items-start justify-between text-left"
-                  onClick={() => handleEditLineItem(item)}
+                  disabled={statusBusy || s === invoice.status}
+                  onClick={() => handleStatusChange(s)}
+                  className={`choice-chip ${s === invoice.status ? "choice-chip-active" : ""}`}
                 >
-                  <div>
-                    <div className="font-medium">{item.name}</div>
-                    {item.description ? (
-                      <div className="text-muted mt-1 text-sm">{item.description}</div>
-                    ) : null}
-                    <div className="text-muted mt-1 text-xs">
-                      {Number(item.quantity).toLocaleString("en-US")} × $
-                      {formatCurrency(item.unit_price)}
-                    </div>
-                  </div>
-                  <div className="font-semibold">${formatCurrency(item.line_total)}</div>
-                </ListRow>
+                  {s}
+                </button>
               ))}
             </div>
-          )}
-        </CollapsibleSection>
+          </SectionCard>
+        ) : null}
 
-        <section className="card p-4">
+        <SectionCard
+          size="lg"
+          title="Line items"
+          description="Breakdown of charges"
+          right={
+            <button
+              type="button"
+              className="btn btn-primary btn-sm"
+              onClick={() => {
+                if (isCreateOpen && !editingLineItem) {
+                  setIsCreateOpen(false);
+                  return;
+                }
+                setEditingLineItem(null);
+                setLineItemForm(createEmptyLineItem());
+                setIsCreateOpen(true);
+              }}
+            >
+              {isCreateOpen && !editingLineItem ? "Hide" : "New item"}
+            </button>
+          }
+        >
+          <div className="space-y-4">
+            {isCreateOpen ? (
+              <InvoiceLineItemForm
+                form={lineItemForm}
+                onChange={setLineItemForm}
+                onSubmit={handleSubmitLineItem}
+                saving={savingItem}
+                onCancel={() => {
+                  setLineItemForm(createEmptyLineItem());
+                  setEditingLineItem(null);
+                  setIsCreateOpen(false);
+                }}
+                submitLabel={editingLineItem ? "Update Item" : "Add Item"}
+                deleteButton={!!editingLineItem}
+                onDelete={handleDeleteLineItem}
+              />
+            ) : null}
+
+            {loading ? (
+              <div className="text-muted text-sm">Loading items…</div>
+            ) : lineItems.length === 0 ? (
+              <div className="text-muted rounded-lg border border-dashed p-4 text-sm">
+                No line items yet.
+              </div>
+            ) : (
+              <div className="space-y-2">
+                {lineItems.map((item) => (
+                  <ListRow
+                    key={item.id}
+                    as="button"
+                    type="button"
+                    interactive
+                    className="flex w-full items-start justify-between text-left"
+                    onClick={() => handleEditLineItem(item)}
+                  >
+                    <div>
+                      <div className="font-medium">{item.name}</div>
+                      {item.description ? (
+                        <div className="text-muted mt-1 text-sm">{item.description}</div>
+                      ) : null}
+                      <div className="text-muted mt-1 text-xs">
+                        {Number(item.quantity).toLocaleString("en-US")} × $
+                        {formatCurrency(item.unit_price)}
+                      </div>
+                    </div>
+                    <div className="font-semibold">${formatCurrency(item.line_total)}</div>
+                  </ListRow>
+                ))}
+              </div>
+            )}
+          </div>
+        </SectionCard>
+
+        <SectionCard title="Totals">
           <div className="space-y-2 text-sm">
             <div className="flex justify-between">
               <span className="text-muted">Subtotal</span>
@@ -558,11 +580,17 @@ export default function InvoiceDetailPage() {
               <span>${formatCurrency(invoice?.grand_total)}</span>
             </div>
           </div>
-        </section>
+        </SectionCard>
 
         {invoice ? (
-          <section className="card p-4">
-            <div className="mb-3 font-medium">Invoice Timeline</div>
+          <CollapsibleSection
+            id="section-timeline"
+            title="Timeline"
+            description="Created, sent, due, and paid"
+            syncKey={id}
+            ready
+            empty={false}
+          >
             <div className="relative space-y-0 pl-6">
               {[
                 { label: "Created", date: invoice.created_at, done: true },
@@ -612,7 +640,7 @@ export default function InvoiceDetailPage() {
                 </div>
               ))}
             </div>
-          </section>
+          </CollapsibleSection>
         ) : null}
       </div>
       {confirmModal}

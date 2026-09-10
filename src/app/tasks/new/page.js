@@ -1,6 +1,6 @@
 "use client";
 
-import { Suspense, useEffect, useMemo, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { AppShell } from "@/components/app-shell";
 import { TaskForm, createEmptyTaskForm, buildTaskApiPayload } from "@/components/forms/task-form";
@@ -12,6 +12,7 @@ function NewTaskPageInner() {
 
   const prefillLeadId = params.get("lead_id") || "";
   const prefillJobId = params.get("job_id") || "";
+  const prefillTitle = params.get("title") || params.get("q") || "";
 
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
@@ -27,6 +28,7 @@ function NewTaskPageInner() {
     createEmptyTaskForm({
       lead_id: prefillLeadId,
       job_id: prefillJobId,
+      title: prefillTitle,
     }),
   );
 
@@ -92,6 +94,12 @@ function NewTaskPageInner() {
     }
   }, [prefillJobId]);
 
+  useEffect(() => {
+    if (prefillTitle) {
+      setForm((prev) => ({ ...prev, title: prefillTitle }));
+    }
+  }, [prefillTitle]);
+
   async function onSubmit(e) {
     e.preventDefault();
     setError("");
@@ -134,20 +142,16 @@ function NewTaskPageInner() {
 
   const isContextLocked = !!prefillLeadId || !!prefillJobId;
 
-  const title = useMemo(() => {
-    if (contextType === "lead" && form.lead_id) {
-      return `New Task for Lead #${form.lead_id}`;
-    }
-
-    if (contextType === "job" && form.job_id) {
-      return `New Task for Job #${form.job_id}`;
-    }
-
-    return "New Task";
-  }, [contextType, form.lead_id, form.job_id]);
+  const relatedLead = leads.find((lead) => String(lead.id) === String(prefillLeadId));
+  const relatedJob = jobs.find((job) => String(job.id) === String(prefillJobId));
+  const relatedName = relatedJob
+    ? relatedJob.title || `Job #${relatedJob.id}`
+    : relatedLead
+      ? `${relatedLead.first_name || ""} ${relatedLead.last_name || ""}`.trim()
+      : "";
 
   return (
-    <AppShell title={title}>
+    <AppShell title="New task" description={relatedName || undefined}>
       <section className="card p-4">
         <TaskForm
           form={form}
@@ -175,7 +179,7 @@ export default function NewTaskPage() {
   return (
     <Suspense
       fallback={
-        <AppShell title="New Task">
+        <AppShell title="New task">
           <section className="card p-4">
             <div className="text-muted text-sm">Loading…</div>
           </section>

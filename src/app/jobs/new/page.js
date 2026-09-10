@@ -91,10 +91,13 @@ function NewJobPageInner() {
     }
   }
 
-  const pageTitle = prefillLeadId ? `New Job for Lead #${prefillLeadId}` : "New Job";
+  const relatedLead = leads.find((lead) => String(lead.id) === String(prefillLeadId));
+  const relatedLeadName = relatedLead
+    ? `${relatedLead.first_name || ""} ${relatedLead.last_name || ""}`.trim()
+    : "";
 
   return (
-    <AppShell title={pageTitle}>
+    <AppShell title="New job" description={relatedLeadName || undefined}>
       <section className="card p-4">
         <JobForm
           form={form}
@@ -102,7 +105,7 @@ function NewJobPageInner() {
           onSubmit={handleSubmit}
           saving={saving}
           error={error}
-          submitLabel="Create Job"
+          submitLabel="Create job"
           cancelLabel="Cancel"
           onCancel={() => router.back()}
           leads={leads}
@@ -117,7 +120,7 @@ export default function NewJobPage() {
   return (
     <Suspense
       fallback={
-        <AppShell title="New Job">
+        <AppShell title="New job">
           <section className="card p-4">
             <div className="text-muted text-sm">Loading…</div>
           </section>

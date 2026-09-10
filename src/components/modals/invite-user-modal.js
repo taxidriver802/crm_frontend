@@ -95,11 +95,10 @@ export function InviteUserModal({ open, onClose }) {
   if (!open) return null;
 
   return (
-    <ModalFrame open={open} onClose={onClose} label="Invite User">
-        {/* HEADER */}
+    <ModalFrame open={open} onClose={onClose} label="Invite user">
         <div className="border-base flex items-start justify-between gap-4 border-b p-4">
           <div>
-            <h2 className="section-heading">Invite User</h2>
+            <h2 className="section-heading">Invite user</h2>
             <p className="text-muted mt-1 text-sm">
               Create an invited account and generate a one-time invite link.
             </p>
@@ -110,7 +109,6 @@ export function InviteUserModal({ open, onClose }) {
           </button>
         </div>
 
-        {/* CONTENT */}
         <div className="p-4">
           {!successUser ? (
             <form onSubmit={handleSubmit} className="space-y-4">
@@ -164,7 +162,7 @@ export function InviteUserModal({ open, onClose }) {
                 </select>
               </Field>
 
-              {error ? <Alert>{error}</Alert> : null}
+              {error ? <Alert variant="inline">{error}</Alert> : null}
 
               <FormActions className="justify-end pt-2">
                 <button type="button" onClick={onClose} className="btn">
@@ -172,7 +170,7 @@ export function InviteUserModal({ open, onClose }) {
                 </button>
 
                 <button type="submit" disabled={submitting} className="btn btn-primary">
-                  {submitting ? "Creating..." : "Create Invite"}
+                  {submitting ? "Creating…" : "Create invite"}
                 </button>
               </FormActions>
             </form>
@@ -210,12 +208,12 @@ export function InviteUserModal({ open, onClose }) {
                 )}
               </div>
 
-              {error ? <Alert>{error}</Alert> : null}
+              {error ? <Alert variant="inline">{error}</Alert> : null}
 
               <div className="flex items-center justify-end gap-2">
                 {!emailSent && (
                   <button onClick={handleCopy} className="btn">
-                    {hasCopied ? "Copied!" : "Copy Link"}
+                    {hasCopied ? "Copied" : "Copy link"}
                   </button>
                 )}
 

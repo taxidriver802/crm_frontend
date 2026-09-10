@@ -17,20 +17,13 @@ import {
   isPreviewableFile,
   API_BASE,
 } from "@/lib/helper";
-import { CollapsibleSection } from "@/components/forms/collapsible-section";
-import {
-  FilterBarSkeleton,
-  Skeleton,
-  StatCardSkeleton,
-  TableRowSkeleton,
-} from "@/components/loading/loadingSkeletons";
+import { TableRowSkeleton } from "@/components/loading/loadingSkeletons";
 import { Alert } from "@/components/ui/alert";
-import { StatCard } from "@/components/ui/stat-card";
 import { StatusBadge } from "@/components/ui/status-badge";
-import { Field } from "@/components/ui/field";
-import { FilterBar } from "@/components/ui/filter-bar";
 import { DataTable, Td } from "@/components/ui/data-table";
 import { EmptyState } from "@/components/error-boundary";
+import { PageToolbar } from "@/components/page-toolbar";
+import { Icon } from "@/components/icons";
 
 function ScopeBadge({ file }) {
   const push = useReturnPush();
@@ -76,8 +69,6 @@ export default function FilesPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [typeFilter, setTypeFilter] = useState("all");
   const [scopeFilter, setScopeFilter] = useState("all");
-
-  const isInitialLoading = loadingFiles && files.length === 0;
 
   async function loadCurrentUser() {
     const res = await fetch("/api/auth/me", {
@@ -130,15 +121,6 @@ export default function FilesPage() {
   }, [router]);
 
   const canManageFiles = currentUser?.role === "owner" || currentUser?.role === "admin";
-
-  const counts = useMemo(() => {
-    return {
-      total: files.length,
-      general: files.filter((f) => !f.lead_id && !f.job_id).length,
-      leadLinked: files.filter((f) => !!f.lead_id).length,
-      jobLinked: files.filter((f) => !!f.job_id).length,
-    };
-  }, [files]);
 
   const filteredFiles = useMemo(() => {
     return files.filter((file) => {
@@ -263,121 +245,90 @@ export default function FilesPage() {
 
   if (loadingUser) {
     return (
-      <AppShell title="Files">
-        <div className="space-y-6">
-          <section className="grid grid-cols-2 gap-4 lg:grid-cols-4">
-            {Array.from({ length: 4 }).map((_, i) => (
-              <StatCardSkeleton key={i} />
-            ))}
-          </section>
-
-          <FilterBarSkeleton />
-
-          <div className="card p-4">
-            <div className="space-y-3">
-              {Array.from({ length: 5 }).map((_, i) => (
-                <Skeleton key={i} className="h-10 w-full" />
-              ))}
-            </div>
-          </div>
+      <AppShell title="Files" description="Loading…">
+        <div className="card p-4">
+          <div className="text-muted text-sm">Loading…</div>
         </div>
       </AppShell>
     );
   }
 
-  const fileTitle = (
-    <div>
-      {loadingFiles
-        ? "Loading…"
-        : filteredFiles.length === 0
-          ? "No files yet"
-          : `${filteredFiles.length} file${filteredFiles.length === 1 ? "" : "s"}`}
-    </div>
-  );
-
   return (
     <AppShell
       title="Files"
-      right={
-        canManageFiles ? (
-          <label className="btn cursor-pointer">
-            <input
-              type="file"
-              className="hidden"
-              onChange={handleUpload}
-              disabled={uploading}
-            />
-            {uploading ? "Uploading..." : "Upload File"}
-          </label>
-        ) : null
+      description={
+        loadingFiles ? "Loading…" : `${filteredFiles.length} in this view`
       }
     >
       <div className="space-y-6">
-        <section className="grid grid-cols-2 gap-4 lg:grid-cols-4">
-          {isInitialLoading ? (
-            Array.from({ length: 4 }).map((_, i) => <StatCardSkeleton key={i} />)
-          ) : (
-            <>
-              <StatCard label="Total Files" value={counts.total} />
-              <StatCard label="General" value={counts.general} />
-              <StatCard label="Lead Files" value={counts.leadLinked} />
-              <StatCard label="Job Files" value={counts.jobLinked} />
-            </>
-          )}
-        </section>
-
-        {error ? <Alert className="px-4 py-3">{error}</Alert> : null}
+        {error ? <Alert variant="inline">{error}</Alert> : null}
 
         {success ? (
-          <Alert tone="success" className="px-4 py-3">
+          <Alert variant="inline" tone="success">
             {success}
           </Alert>
         ) : null}
 
-        {isInitialLoading ? (
-          <FilterBarSkeleton />
-        ) : (
-          <FilterBar>
-            <Field label="Search" className="min-w-0 flex-1">
-              <input
-                type="text"
-                placeholder="Search files, types, or uploader..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="input"
-              />
-            </Field>
+        <PageToolbar
+          search={
+            <input
+              className="input min-w-0 w-full flex-1 basis-48"
+              placeholder="Search files, types, or uploader…"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+            />
+          }
+          refresh={
+            <button
+              type="button"
+              className="icon-btn"
+              onClick={loadFiles}
+              disabled={loadingFiles}
+              title="Refresh"
+              aria-label="Refresh"
+            >
+              <Icon name="refreshCcw" className="h-4 w-4" />
+            </button>
+          }
+          create={
+            canManageFiles ? (
+              <label className="btn btn-primary cursor-pointer">
+                <input
+                  type="file"
+                  className="hidden"
+                  onChange={handleUpload}
+                  disabled={uploading}
+                />
+                {uploading ? "Uploading…" : "Upload file"}
+              </label>
+            ) : null
+          }
+        >
+          <select
+            className="input min-w-0 w-full sm:w-40"
+            value={scopeFilter}
+            onChange={(e) => setScopeFilter(e.target.value)}
+            aria-label="Scope"
+          >
+            <option value="all">All scopes</option>
+            <option value="general">General</option>
+            <option value="lead">Lead</option>
+            <option value="job">Job</option>
+          </select>
+          <select
+            className="input min-w-0 w-full sm:w-36"
+            value={typeFilter}
+            onChange={(e) => setTypeFilter(e.target.value)}
+            aria-label="Type"
+          >
+            <option value="all">All types</option>
+            <option value="pdf">PDF</option>
+            <option value="image">Image</option>
+            <option value="other">Other</option>
+          </select>
+        </PageToolbar>
 
-            <Field label="Scope" className="w-full lg:w-44">
-              <select
-                value={scopeFilter}
-                onChange={(e) => setScopeFilter(e.target.value)}
-                className="input"
-              >
-                <option value="all">All Scopes</option>
-                <option value="general">General</option>
-                <option value="lead">Lead Attached</option>
-                <option value="job">Job Attached</option>
-              </select>
-            </Field>
-
-            <Field label="Type" className="w-full lg:w-40">
-              <select
-                value={typeFilter}
-                onChange={(e) => setTypeFilter(e.target.value)}
-                className="input"
-              >
-                <option value="all">All Types</option>
-                <option value="pdf">PDF</option>
-                <option value="image">Image</option>
-                <option value="other">Other</option>
-              </select>
-            </Field>
-          </FilterBar>
-        )}
-
-        <CollapsibleSection title={fileTitle} defaultOpen={true}>
-          {loadingFiles ? (
+        {loadingFiles ? (
             <DataTable>
                 <thead>
                   <tr>
@@ -491,7 +442,6 @@ export default function FilesPage() {
                 </tbody>
             </DataTable>
           )}
-        </CollapsibleSection>
       </div>
 
       <FilePreviewModal

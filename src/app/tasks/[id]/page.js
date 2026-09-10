@@ -1,7 +1,7 @@
 "use client";
 
 import { Alert } from "@/components/ui/alert";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { AppShell } from "@/components/app-shell";
@@ -18,11 +18,11 @@ import {
 } from "@/lib/helper";
 import { FilePreviewModal } from "@/components/modals/file-preview-modal";
 import { useConfirmModal } from "@/components/modals/confirm-modal";
-import { CollapsibleSection } from "@/components/forms/collapsible-section";
 import { DetailMoreMenu, DetailMoreMenuItem } from "@/components/detail-more-menu";
 import { SectionSkeleton, Skeleton } from "@/components/loading/loadingSkeletons";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { DetailHeader } from "@/components/ui/detail-header";
+import { SectionCard } from "@/components/ui/section-card";
 import { MetaItem } from "@/components/ui/meta";
 
 function isCompleted(task) {
@@ -58,15 +58,6 @@ function TaskStatusBadge({ task }) {
   return <StatusBadge kind="task" status={task?.status ?? "Pending"} />;
 }
 
-function InfoCard({ title, children, className = "" }) {
-  return (
-    <section className={`card min-w-0 p-4 ${className}`}>
-      <h2 className="section-heading">{title}</h2>
-      <div className="mt-3 min-w-0">{children}</div>
-    </section>
-  );
-}
-
 export default function TaskDetailPage() {
   const params = useParams();
   const id = params?.id;
@@ -74,18 +65,15 @@ export default function TaskDetailPage() {
   const { askConfirm, confirmModal } = useConfirmModal();
 
   const [task, setTask] = useState(null);
-  const [lead, setLead] = useState(null);
   const [files, setFiles] = useState([]);
 
   const [loadingTask, setLoadingTask] = useState(true);
-  const [loadingLead, setLoadingLead] = useState(false);
   const [loadingFiles, setLoadingFiles] = useState(false);
 
   const [busyFileId, setBusyFileId] = useState(null);
   const [busy, setBusy] = useState(false);
 
   const [error, setError] = useState("");
-  const [leadError, setLeadError] = useState("");
   const [filesError, setFilesError] = useState("");
   const [success, setSuccess] = useState("");
 
@@ -153,41 +141,6 @@ export default function TaskDetailPage() {
       cancelled = true;
     };
   }, [id]);
-
-  useEffect(() => {
-    let cancelled = false;
-
-    async function loadLead() {
-      if (!task?.lead_id) {
-        setLead(null);
-        setLeadError("");
-        return;
-      }
-
-      try {
-        setLoadingLead(true);
-        setLeadError("");
-
-        const res = await api(`/leads/${task.lead_id}`);
-        if (cancelled) return;
-
-        setLead(res?.lead ?? res ?? null);
-      } catch (e) {
-        if (cancelled) return;
-        console.error("Failed to load related lead", e);
-        setLead(null);
-        setLeadError(e?.message || "Failed to load related lead");
-      } finally {
-        if (!cancelled) setLoadingLead(false);
-      }
-    }
-
-    loadLead();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [task?.lead_id]);
 
   useEffect(() => {
     let cancelled = false;
@@ -332,12 +285,14 @@ export default function TaskDetailPage() {
     });
   }
 
-  const recentFiles = useMemo(() => files.slice(0, 5), [files]);
   const canManageFiles = currentUser?.role === "owner" || currentUser?.role === "admin";
   const linked = getLinkedEntity(task);
 
   return (
-    <AppShell title={task?.title || `Task #${id}`}>
+    <AppShell
+      title={task?.title || `Task #${id}`}
+      description={linked?.label || undefined}
+    >
       <div className="space-y-6">
         {error ? <Alert variant="inline">{error}</Alert> : null}
         {success ? <Alert variant="inline" tone="success">{success}</Alert> : null}
@@ -355,10 +310,11 @@ export default function TaskDetailPage() {
             </div>
           </section>
         ) : !task ? (
-          <DetailHeader title="Task not found" />
+          <section className="card p-4">
+            <p className="text-muted text-sm">Task not found.</p>
+          </section>
         ) : (
           <DetailHeader
-            title={task.title}
             subtitle={
               linked.href ? (
                 <>
@@ -390,8 +346,8 @@ export default function TaskDetailPage() {
             }
             actions={
               <>
-                <Link href={`/tasks/${id}/edit`} className="btn">
-                  Edit Task
+                <Link href={`/tasks/${id}/edit`} className="btn btn-sm">
+                  Edit
                 </Link>
                 <button
                   type="button"
@@ -399,29 +355,11 @@ export default function TaskDetailPage() {
                     updateStatus(isCompleted(task) ? "Pending" : "Completed")
                   }
                   disabled={busy}
-                  className="btn"
+                  className="btn btn-sm"
                 >
-                  {isCompleted(task) ? "Reopen Task" : "Mark Complete"}
+                  {isCompleted(task) ? "Reopen" : "Mark complete"}
                 </button>
-                <DetailMoreMenu label="More"> 
-                  {task.lead_id ? (
-                    <DetailMoreMenuItem
-                      as={ReturnLink}
-                      href={`/leads/${task.lead_id}`}
-                      className="text-main"
-                    >
-                      View Related Lead
-                    </DetailMoreMenuItem>
-                  ) : task.job_id ? (
-                    <DetailMoreMenuItem
-                      as={ReturnLink}
-                      href={`/jobs/${task.job_id}`}
-                      className="text-main"
-                    >
-                      View Related Job
-                    </DetailMoreMenuItem>
-                  ) : null}
-
+                <DetailMoreMenu label="More">
                   {!isCompleted(task) ? (
                     <>
                       <DetailMoreMenuItem
@@ -473,181 +411,73 @@ export default function TaskDetailPage() {
             </MetaItem>
           </DetailHeader>
         )}
-        {loadingTask ? (
-          <div className="grid gap-4 xl:grid-cols-[0.95fr_1.05fr]">
-            <section className="card p-4">
-              <div className="space-y-3">
-                <Skeleton className="h-4 w-40" />
-                <Skeleton className="h-4 w-52" />
-                <Skeleton className="h-4 w-32" />
-              </div>
-            </section>
 
-            <section className="card p-4">
-              <div className="space-y-3">
-                <Skeleton className="h-4 w-40" />
-                <Skeleton className="h-4 w-52" />
-                <Skeleton className="h-4 w-32" />
-              </div>
-            </section>
-          </div>
-        ) : null}
         {task ? (
-          <section className="grid min-w-0 gap-4 xl:grid-cols-[0.95fr_1.05fr]">
-            {task?.lead ? (
-              <InfoCard title="Lead Snapshot">
-                {!task?.lead_id ? (
-                  <div className="text-muted text-sm">No lead linked to this task.</div>
-                ) : loadingLead ? (
-                  <div className="space-y-3">
-                    <Skeleton className="h-4 w-40" />
-                    <Skeleton className="h-4 w-52" />
-                    <Skeleton className="h-4 w-32" />
-                  </div>
-                ) : leadError ? (
-                  <Alert variant="inline">{leadError}</Alert>
-                ) : !lead ? (
-                  <div className="text-muted text-sm">Lead details unavailable.</div>
-                ) : (
-                  <div className="space-y-3 text-sm">
-                    <MetaItem label="Name">
-                      <span className="font-medium">
-                        {lead.first_name} {lead.last_name}
-                      </span>
-                    </MetaItem>
+          <SectionCard
+            size="lg"
+            title="Attached Files"
+            description="Files connected to this task"
+          >
+            {loadingFiles ? (
+              <SectionSkeleton rows={3} />
+            ) : filesError ? (
+              <Alert variant="inline">{filesError}</Alert>
+            ) : files.length === 0 ? (
+              <div className="text-muted rounded-lg border border-dashed p-4 text-sm">
+                No files available for this task yet.
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {files.map((file) => (
+                  <div
+                    key={file.id}
+                    className="list-row list-row-split"
+                  >
+                    <div className="min-w-0">
+                      <div className="truncate font-medium">{file.original_name}</div>
+                      <div className="text-muted mt-1 text-xs">
+                        {file.mime_type || "Unknown type"} •{" "}
+                        {formatBytes(file.size_bytes)}
+                      </div>
+                      <div className="text-muted mt-1 text-xs">
+                        Uploaded: {formatDate(file.created_at)}
+                      </div>
+                    </div>
+                    <div className="flex shrink-0 flex-wrap items-center gap-2">
+                      {isPreviewableFile(file) ? (
+                        <button
+                          type="button"
+                          onClick={() => setPreviewFile(file)}
+                          className="btn px-3 py-1.5 text-xs"
+                        >
+                          Preview
+                        </button>
+                      ) : (
+                        <a
+                          href={buildFileUrl(file)}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="btn px-3 py-1.5 text-xs"
+                        >
+                          Open
+                        </a>
+                      )}
 
-                    <MetaItem label="Contact">
-                      {lead.email || "—"}
-                      {lead.phone ? ` • ${lead.phone}` : ""}
-                    </MetaItem>
-
-                    <div className="flex flex-wrap gap-2 pt-1">
-                      <StatusBadge kind="lead" status={lead.status ?? "—"} />
-
-                      {lead.source ? (
-                        <StatusBadge>Source: {lead.source}</StatusBadge>
+                      {canManageFiles ? (
+                        <button
+                          onClick={() => handleDeleteFile(file.id)}
+                          disabled={busyFileId === file.id}
+                          className="btn btn-danger px-3 py-1.5 text-xs"
+                        >
+                          {busyFileId === file.id ? "Deleting..." : "Delete"}
+                        </button>
                       ) : null}
                     </div>
-
-                    {lead.notes ? (
-                      <div>
-                        <div className="kv-label">Notes</div>
-                        <div className="mt-1 whitespace-pre-wrap text-sm">
-                          {lead.notes}
-                        </div>
-                      </div>
-                    ) : null}
                   </div>
-                )}
-              </InfoCard>
-            ) : null}
-
-            {task?.job ? (
-              <InfoCard title="Job Snapshot">
-                <div className="space-y-3 text-sm">
-                  <MetaItem label="Title">
-                    <span className="font-medium">{task.job.title}</span>
-                  </MetaItem>
-
-                  {task.job.address ? (
-                    <MetaItem label="Address">{task.job.address}</MetaItem>
-                  ) : null}
-
-                  {task.job.status ? (
-                    <MetaItem label="Status">
-                      <StatusBadge kind="job" status={task.job.status} />
-                    </MetaItem>
-                  ) : null}
-                </div>
-              </InfoCard>
-            ) : null}
-
-            <CollapsibleSection
-              title="Related Files"
-              description="Recent files connected to this task."
-              syncKey={id}
-              ready={!loadingFiles}
-              empty={recentFiles.length === 0}
-              actions={
-                <>
-                  {task?.lead ? (
-                    <ReturnLink
-                      href={`/leads/${task.lead.id}`}
-                      className="btn px-3 py-2 text-xs"
-                    >
-                      Open lead
-                    </ReturnLink>
-                  ) : null}
-
-                  {task?.job ? (
-                    <ReturnLink href={`/jobs/${task.job.id}`} className="btn px-3 py-2 text-xs">
-                      Open job
-                    </ReturnLink>
-                  ) : null}
-                </>
-              }
-            >
-              {loadingFiles ? (
-                <SectionSkeleton rows={3} />
-              ) : filesError ? (
-                <Alert variant="inline">{filesError}</Alert>
-              ) : recentFiles.length === 0 ? (
-                <div className="text-muted rounded-lg border border-dashed p-4 text-sm">
-                  No files available for this task yet.
-                </div>
-              ) : (
-                <div className="space-y-3">
-                  {recentFiles.map((file) => (
-                    <div
-                      key={file.id}
-                      className="list-row list-row-split"
-                    >
-                      <div className="min-w-0">
-                        <div className="truncate font-medium">{file.original_name}</div>
-                        <div className="text-muted mt-1 text-xs">
-                          {file.mime_type || "Unknown type"} •{" "}
-                          {formatBytes(file.size_bytes)}
-                        </div>
-                        <div className="text-muted mt-1 text-xs">
-                          Uploaded: {formatDate(file.created_at)}
-                        </div>
-                      </div>
-                      <div className="flex shrink-0 flex-wrap items-center gap-2">
-                        {isPreviewableFile(file) ? (
-                          <button
-                            type="button"
-                            onClick={() => setPreviewFile(file)}
-                            className="btn px-3 py-1.5 text-xs"
-                          >
-                            Preview
-                          </button>
-                        ) : (
-                          <a
-                            href={buildFileUrl(file)}
-                            target="_blank"
-                            rel="noreferrer"
-                            className="btn px-3 py-1.5 text-xs"
-                          >
-                            Open
-                          </a>
-                        )}
-
-                        {canManageFiles ? (
-                          <button
-                            onClick={() => handleDeleteFile(file.id)}
-                            disabled={busyFileId === file.id}
-                            className="btn btn-danger px-3 py-1.5 text-xs"
-                          >
-                            {busyFileId === file.id ? "Deleting..." : "Delete"}
-                          </button>
-                        ) : null}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </CollapsibleSection>
-          </section>
+                ))}
+              </div>
+            )}
+          </SectionCard>
         ) : null}
       </div>
 

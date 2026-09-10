@@ -154,11 +154,15 @@ export default function EditTaskPage() {
   }
 
   return (
-    <AppShell title={`Edit Task #${id}`}>
+    <AppShell title="Edit task" description={!loading && task?.title ? task.title : undefined}>
       {loading ? (
-        <div className="text-muted text-sm">Loading…</div>
+        <section className="card p-4">
+          <div className="text-muted text-sm">Loading…</div>
+        </section>
       ) : !task ? (
-        <div className="text-muted text-sm">Task not found.</div>
+        <section className="card p-4">
+          <div className="text-muted text-sm">Task not found.</div>
+        </section>
       ) : (
         <section className="card p-4">
           <TaskForm
@@ -167,7 +171,7 @@ export default function EditTaskPage() {
             onSubmit={onSubmit}
             saving={saving}
             error={error}
-            submitLabel="Save Changes"
+            submitLabel="Save changes"
             cancelLabel="Cancel"
             onCancel={() => router.push(`/tasks/${id}`)}
             contextType={contextType}

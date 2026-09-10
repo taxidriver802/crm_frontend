@@ -31,7 +31,7 @@ export function EstimateForm({
   onSubmit,
   saving = false,
   error = "",
-  submitLabel = "Create Estimate",
+  submitLabel = "Create estimate",
   cancelLabel,
   onCancel,
   jobs = [],
@@ -134,11 +134,7 @@ export function EstimateForm({
       <div className="flex flex-row justify-between">
         <FormActions>
           <button type="submit" disabled={saving || loadingJobs} className="btn btn-primary">
-            {saving
-              ? submitLabel == "Create Estimate"
-                ? "Creating..."
-                : "Updating..."
-              : submitLabel}
+            {saving ? "Saving…" : submitLabel}
           </button>
 
           {onCancel ? (

@@ -13,6 +13,7 @@ import { Overlay } from "@/components/ui/overlay";
 import { Icon } from "@/components/icons";
 import { ReturnBackButton, ReturnToProvider } from "@/components/return-to";
 import { clearReturnStack } from "@/lib/return-to";
+import { recordRecentFromPathname, parseEntityContext } from "@/lib/search-recents";
 import { cx } from "@/lib/cx";
 
 import MainLogo from "@/assets/mainlogo.svg";
@@ -174,6 +175,29 @@ function getNotificationHref(notification) {
   return null;
 }
 
+function getNotificationIconName(notification) {
+  if (!notification) return "bell";
+
+  switch (notification.entity_type) {
+    case "task":
+      return "checklist";
+    case "lead":
+      return "users";
+    case "job":
+      return "briefcase";
+    case "estimate":
+    case "invoice":
+      return "invoice";
+    case "invite":
+      return "userPlus";
+    default:
+      break;
+  }
+
+  if (notification.type === "FILE_UPLOADED") return "folder";
+  return "bell";
+}
+
 export function AppShell({ children, title, description, right, back }) {
   const pathname = usePathname();
   const router = useRouter();
@@ -191,6 +215,10 @@ export function AppShell({ children, title, description, right, back }) {
   const [inviteModalOpen, setInviteModalOpen] = useState(false);
   const [logoutConfirmOpen, setLogoutConfirmOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [searchSurface, setSearchSurface] = useState("palette");
+  const topbarSearchRef = useRef(null);
+  const searchKeyDownRef = useRef(null);
 
   const notificationsOpenRef = useRef(false);
   const prevNotificationsRef = useRef([]);
@@ -206,6 +234,7 @@ export function AppShell({ children, title, description, right, back }) {
   useEffect(() => {
     setMobileMenuOpen(false);
     setNotificationsOpen(false);
+    recordRecentFromPathname(pathname);
   }, [pathname]);
 
   useEffect(() => {
@@ -223,12 +252,35 @@ export function AppShell({ children, title, description, right, back }) {
       const isMeta = event.metaKey || event.ctrlKey;
       if (!isK || !isMeta) return;
       event.preventDefault();
+      const useTopbar =
+        typeof window !== "undefined" &&
+        window.matchMedia("(min-width: 1024px)").matches;
+      setSearchSurface(useTopbar ? "topbar" : "palette");
       setSearchOpen(true);
+      if (useTopbar) {
+        requestAnimationFrame(() => topbarSearchRef.current?.focus());
+      }
     }
 
     window.addEventListener("keydown", onShortcut);
     return () => window.removeEventListener("keydown", onShortcut);
   }, []);
+
+  function closeSearch() {
+    setSearchOpen(false);
+    setSearchQuery("");
+    setSearchSurface("palette");
+  }
+
+  function openSearchFromTopbar() {
+    setSearchSurface("topbar");
+    setSearchOpen(true);
+  }
+
+  function openSearchFromIcon() {
+    setSearchSurface("palette");
+    setSearchOpen(true);
+  }
 
   useEffect(() => {
     function handleClick(e) {
@@ -254,6 +306,7 @@ export function AppShell({ children, title, description, right, back }) {
   }, []);
 
   const isAdminUser = user?.role === "owner" || user?.role === "admin";
+  const entityContext = useMemo(() => parseEntityContext(pathname), [pathname]);
 
   const navItems = useMemo(() => {
     const systemNav = [
@@ -389,16 +442,6 @@ export function AppShell({ children, title, description, right, back }) {
     } catch (err) {
       console.error("Failed to load unread notification count", err);
     }
-  }
-
-  function getNotificationActionLabel(notification) {
-    if (!notification) return null;
-    if (notification.entity_type === "task") return "Open task";
-    if (notification.entity_type === "lead") return "Open lead";
-    if (notification.entity_type === "job") return "Open job";
-    if (notification.entity_type === "estimate") return "Open estimate";
-    if (notification.entity_type === "invoice") return "Open invoice";
-    return null;
   }
 
   async function loadNotifications(options = {}) {
@@ -562,13 +605,17 @@ export function AppShell({ children, title, description, right, back }) {
           "lg:w-[min(22rem,calc(100vw-2rem))]",
         )}
       >
-        <div className="border-base flex flex-col gap-2 border-b px-3 py-2.5 sm:flex-row sm:items-start sm:justify-between sm:gap-3 sm:px-4 sm:py-3">
-          <div className="min-w-0">
-            <p className="text-sm font-semibold">Notifications</p>
-            <p className="text-muted text-xs">Recent activity and reminders</p>
+        <div className="border-base flex items-center justify-between gap-3 border-b px-3 py-2.5 sm:px-3.5">
+          <div className="flex min-w-0 items-center gap-2">
+            <p className="text-sm font-semibold tracking-tight">Notifications</p>
+            {unreadCount > 0 ? (
+              <span className="bg-accent-solid text-on-accent inline-flex min-h-[1.15rem] min-w-[1.15rem] items-center justify-center rounded-full px-1.5 text-[10px] font-semibold">
+                {unreadCount > 99 ? "99+" : unreadCount}
+              </span>
+            ) : null}
           </div>
 
-          <div className="flex shrink-0 flex-wrap items-center gap-x-3 gap-y-1">
+          <div className="flex shrink-0 items-center gap-x-2.5">
             <button
               type="button"
               onClick={handleMarkAllRead}
@@ -578,86 +625,88 @@ export function AppShell({ children, title, description, right, back }) {
                 (markingAllRead || unreadCount === 0) && "cursor-not-allowed opacity-50",
               )}
             >
-              {markingAllRead ? "Saving..." : "Mark all read"}
+              {markingAllRead ? "Saving..." : "Mark all"}
             </button>
 
-            {hasReadNotifications && (
+            {hasReadNotifications ? (
               <button
                 type="button"
                 onClick={handleClearRead}
                 className="text-muted hover:text-main text-xs transition"
               >
-                Clear read
+                Clear
               </button>
-            )}
+            ) : null}
           </div>
         </div>
 
-        <div className="scrollbar-theme min-h-0 flex-1 overflow-y-auto">
+        <div className="scrollbar-theme min-h-0 flex-1 overflow-y-auto py-1">
           {notificationsLoading ? (
-            <div className="text-muted px-4 py-6 text-center text-sm">
-              Loading notifications...
+            <div className="text-muted flex flex-col items-center gap-2 px-4 py-10 text-center text-sm">
+              <Icon name="bell" className="text-soft h-5 w-5" />
+              Loading…
             </div>
           ) : notifications.length === 0 ? (
-            <div className="text-muted px-4 py-6 text-center text-sm">
+            <div className="text-muted flex flex-col items-center gap-2 px-4 py-10 text-center text-sm">
+              <Icon name="inbox" className="text-soft h-5 w-5" />
               You’re all caught up.
             </div>
           ) : (
             notifications.map((notification) => {
               const unread = !notification.read_at;
-              const href = getNotificationHref(notification);
+              const iconName = getNotificationIconName(notification);
 
               return (
-                <div
+                <button
                   key={notification.id}
+                  type="button"
+                  onClick={() => handleNotificationClick(notification)}
                   className={cx(
-                    "border-base border-b last:border-b-0",
-                    unread && "bg-accent/60",
+                    "hover:bg-accent group relative flex w-full items-start gap-2.5 px-3 py-2.5 text-left transition sm:px-3.5",
+                    !unread && "opacity-60 hover:opacity-100",
                   )}
                 >
-                  <button
-                    type="button"
-                    onClick={() => handleNotificationClick(notification)}
-                    className="hover:bg-accent block w-full px-4 py-3 text-left transition"
+                  <span
+                    aria-hidden
+                    className={cx(
+                      "bg-accent-solid absolute bottom-1.5 left-0 top-1.5 w-0.5 rounded-full transition-opacity",
+                      unread ? "opacity-100" : "opacity-0",
+                    )}
+                  />
+
+                  <span
+                    className={cx(
+                      "mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-theme-md",
+                      unread ? "bg-surface text-muted" : "bg-surface text-soft",
+                    )}
                   >
-                    <div className="flex items-start gap-3">
-                      <span
+                    <Icon name={iconName} className="h-3.5 w-3.5" />
+                  </span>
+
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-baseline justify-between gap-2">
+                      <p
                         className={cx(
-                          "bg-accent-solid mt-1.5 h-2 w-2 shrink-0 rounded-full transition-opacity",
-                          unread ? "opacity-100" : "opacity-0",
+                          "truncate text-sm leading-snug",
+                          unread ? "text-main font-semibold" : "text-muted font-medium",
                         )}
-                      />
-                      <div className="min-w-0 flex-1 text-left">
-                        <div className="flex items-center justify-between gap-3">
-                          <p className="truncate text-sm font-medium">
-                            {notification.title}
-                          </p>
-                          <span className="text-muted shrink-0 text-xs">
-                            {formatNotificationTime(notification.created_at)}
-                          </span>
-                        </div>
-
-                        <p className="text-muted mt-1 text-sm">{notification.message}</p>
-
-                        {href ? (
-                          <p className="text-main mt-1 text-xs">
-                            {getNotificationActionLabel(notification)}
-                          </p>
-                        ) : null}
-                      </div>
+                      >
+                        {notification.title}
+                      </p>
+                      <span className="text-soft shrink-0 text-[11px] tabular-nums">
+                        {formatNotificationTime(notification.created_at)}
+                      </span>
                     </div>
-                  </button>
-
-                  {unread && (
-                    <button
-                      type="button"
-                      onClick={() => handleMarkNotificationRead(notification.id)}
-                      className="text-muted hover:text-main px-4 pb-3 text-xs hover:underline"
+                    <p
+                      className={cx(
+                        "mt-0.5 line-clamp-2 text-xs leading-relaxed",
+                        unread ? "text-muted" : "text-soft",
+                      )}
                     >
-                      Mark read
-                    </button>
-                  )}
-                </div>
+                      {notification.message}
+                    </p>
+                  </div>
+                </button>
               );
             })
           )}
@@ -721,7 +770,10 @@ export function AppShell({ children, title, description, right, back }) {
       {/* MAIN */}
       <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
         {/* TOPBAR */}
-        <header className="border-base bg-surface-elevated relative sticky top-0 z-10 flex shrink-0 items-center justify-between gap-4 border-b px-4 py-2.5 sm:px-6">
+        <header className={cx(
+          "border-base bg-surface-elevated relative sticky top-0 z-10 flex shrink-0 items-center justify-between gap-4 border-b px-4 py-2.5 sm:px-6",
+          searchOpen && searchSurface === "topbar" && "z-[85]",
+        )}>
           <div
             className={cx(
               "flex h-full min-w-0 flex-row gap-2",
@@ -768,23 +820,52 @@ export function AppShell({ children, title, description, right, back }) {
               </div>
             ) : null}
 
-            <div className="notifications-menu relative">
+            <div className="notifications-menu relative flex items-center gap-1.5">
               <button
                 type="button"
-                onClick={() => setSearchOpen(true)}
+                onClick={openSearchFromIcon}
                 aria-label="Open search"
-                className="icon-btn"
                 title="Search (Ctrl/Cmd + K)"
+                className="icon-btn lg:hidden"
               >
                 <Icon name="search" className="h-4 w-4" />
               </button>
+
+              <label
+                className={cx(
+                  "border-base bg-surface focus-within:border-strong hidden items-center gap-2 rounded-theme-md border px-2.5 transition lg:inline-flex",
+                  "h-9 min-w-[12.5rem] max-w-[16rem]",
+                  searchOpen && searchSurface === "topbar" && "border-strong bg-accent",
+                )}
+              >
+                <Icon name="search" className="text-muted h-3.5 w-3.5 shrink-0" />
+                <input
+                  ref={topbarSearchRef}
+                  type="search"
+                  value={searchQuery}
+                  placeholder="Search…"
+                  aria-label="Search workspace"
+                  className="placeholder:text-soft min-w-0 flex-1 border-0 bg-transparent text-sm outline-none"
+                  onFocus={openSearchFromTopbar}
+                  onChange={(event) => {
+                    setSearchQuery(event.target.value);
+                    openSearchFromTopbar();
+                  }}
+                  onKeyDown={(event) => {
+                    searchKeyDownRef.current?.(event);
+                  }}
+                />
+                <kbd className="border-base text-soft rounded-theme-sm border px-1.5 py-0.5 text-[10px] font-medium">
+                  ⌘K
+                </kbd>
+              </label>
 
               <button
                 type="button"
                 onClick={handleToggleNotifications}
                 aria-label="Open notifications"
                 aria-expanded={notificationsOpen}
-                className="icon-btn relative ml-1.5"
+                className="icon-btn relative"
               >
                 <Icon name="bell" className="h-4 w-4" />
                 {unreadCount > 0 && (
@@ -937,7 +1018,19 @@ export function AppShell({ children, title, description, right, back }) {
         cancelLabel="Cancel"
         tone="danger"
       />
-      <CommandPalette open={searchOpen} onClose={() => setSearchOpen(false)} />
+      <CommandPalette
+        open={searchOpen}
+        onClose={closeSearch}
+        query={searchQuery}
+        onQueryChange={setSearchQuery}
+        autoFocus={searchSurface === "palette"}
+        showInput={searchSurface === "palette"}
+        externalKeyDownRef={searchSurface === "topbar" ? searchKeyDownRef : null}
+        entityContext={entityContext}
+        isAdminUser={isAdminUser}
+        onInviteUser={() => setInviteModalOpen(true)}
+        onMarkAllNotificationsRead={handleMarkAllRead}
+      />
       </div>
     </ReturnToProvider>
   );

@@ -36,12 +36,12 @@ export const sand = {
     "--overlay-strong": "rgb(28 22 16 / 0.72)",
     "--on-overlay": "#ffffff",
 
-    "--chrome": "#1a1510",
-    "--chrome-elevated": "#241e16",
-    "--chrome-border": "#3a2c20",
+    "--chrome": "#3a342c",
+    "--chrome-elevated": "#443e34",
+    "--chrome-border": "#564c40",
     "--chrome-text": "#f6f1e8",
-    "--chrome-muted": "#b5a48c",
-    "--chrome-hover": "color-mix(in srgb, #ffffff 8%, transparent)",
+    "--chrome-muted": "#c4b49c",
+    "--chrome-hover": "color-mix(in srgb, #ffffff 10%, transparent)",
 
     "--chart-1": "var(--accent)",
     "--chart-2": "var(--success)",

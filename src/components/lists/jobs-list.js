@@ -14,11 +14,20 @@ import {
 } from "@/components/ui/entity-list";
 import { formatDate, formatDaysInStatus } from "@/lib/helper";
 
-function JobRow({ job, canViewAll, teamUsers, onOpen, onAssign, onShowAddress }) {
+function JobRow({
+  job,
+  canViewAll,
+  teamUsers,
+  onOpen,
+  onAssign,
+  onShowAddress,
+  variant = "card",
+}) {
   const daysInStatus = formatDaysInStatus(job.status_changed_at);
 
   return (
     <EntityListRow
+      variant={variant}
       ariaLabel={`${job.title}${job.lead?.name ? `, lead ${job.lead.name}` : ""}, status ${job.status}`}
       onOpen={() => onOpen(job.id)}
     >
@@ -89,9 +98,12 @@ export function JobsList({
   onOpen,
   onAssign,
   onShowAddress,
+  layout = "stack",
 }) {
+  const rowVariant = layout === "flush" ? "flush" : "card";
+
   return (
-    <EntityList loading={loading} emptyTitle="No jobs found">
+    <EntityList layout={layout} loading={loading} emptyTitle="No jobs found">
       {jobs.map((job) => (
         <JobRow
           key={job.id}
@@ -101,6 +113,7 @@ export function JobsList({
           onOpen={onOpen}
           onAssign={onAssign}
           onShowAddress={onShowAddress}
+          variant={rowVariant}
         />
       ))}
     </EntityList>

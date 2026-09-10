@@ -8,7 +8,6 @@ import { Segmented } from "@/components/ui/segmented";
 import { AttentionStrip } from "@/components/dashboard/attention-strip";
 import { WorkQueue } from "@/components/dashboard/work-queue";
 import { ContextRail } from "@/components/dashboard/context-rail";
-import { LayoutCompareLink } from "@/components/layout-compare";
 import {
   actionKey,
   greetingFor,
@@ -365,8 +364,6 @@ export default function DashboardPage() {
             loadingActivity={loadingActivity}
           />
         </div>
-
-        <LayoutCompareLink href="/dashboard/classic" label="Compare the previous dashboard" />
       </div>
     </AppShell>
   );

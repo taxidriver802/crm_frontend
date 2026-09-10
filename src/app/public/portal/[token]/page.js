@@ -60,8 +60,8 @@ export default function CustomerPortalPage() {
 
   if (loading) {
     return (
-      <PublicFrame eyebrow="Customer Project Portal" title="Your project">
-        <SectionCard title="Project Status">
+      <PublicFrame eyebrow="Customer portal" title="Your project">
+        <SectionCard title="Project status">
           <div className="space-y-3">
             <Skeleton className="h-4 w-2/3" />
             <Skeleton className="h-4 w-1/2" />
@@ -74,7 +74,7 @@ export default function CustomerPortalPage() {
 
   if (error || !data) {
     return (
-      <PublicFrame eyebrow="Customer Project Portal" title="Portal unavailable">
+      <PublicFrame eyebrow="Customer portal" title="Portal unavailable">
         <EmptyState
           title="This portal is unavailable"
           description={error || "This link is invalid or has expired."}
@@ -87,13 +87,13 @@ export default function CustomerPortalPage() {
 
   return (
     <PublicFrame
-      eyebrow="Customer Project Portal"
+      eyebrow="Customer portal"
       title={job.title}
       description={job.address || undefined}
       footer="This portal was generated for your convenience. Contact your project manager for questions."
     >
       <SectionCard
-        title="Project Status"
+        title="Project status"
         right={<StatusBadge kind="job" status={job.status} />}
       >
         {job.description ? (
@@ -182,7 +182,7 @@ export default function CustomerPortalPage() {
         </SectionCard>
       ) : null}
 
-      <SectionCard title="Project Photos">
+      <SectionCard title="Project photos">
           <PhotoGallery
             files={files}
             loading={false}

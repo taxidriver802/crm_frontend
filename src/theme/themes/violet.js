@@ -36,12 +36,12 @@ export const violet = {
     "--overlay-strong": "rgb(22 17 28 / 0.72)",
     "--on-overlay": "#ffffff",
 
-    "--chrome": "#16111c",
-    "--chrome-elevated": "#1f1828",
-    "--chrome-border": "#32264a",
+    "--chrome": "#322a3a",
+    "--chrome-elevated": "#3c3448",
+    "--chrome-border": "#4e4460",
     "--chrome-text": "#f4f1f8",
-    "--chrome-muted": "#a89ab8",
-    "--chrome-hover": "color-mix(in srgb, #ffffff 8%, transparent)",
+    "--chrome-muted": "#b4a8c4",
+    "--chrome-hover": "color-mix(in srgb, #ffffff 10%, transparent)",
 
     "--chart-1": "var(--accent)",
     "--chart-2": "var(--success)",

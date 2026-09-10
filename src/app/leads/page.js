@@ -15,7 +15,8 @@ import { Segmented } from "@/components/ui/segmented";
 import { EmptyState } from "@/components/error-boundary";
 import { Icon } from "@/components/icons";
 import { LeadsList } from "@/components/lists/leads-list";
-import { LayoutCompareLink } from "@/components/layout-compare";
+import { PageToolbar } from "@/components/page-toolbar";
+import { useScrollIntoViewOnChange } from "@/lib/use-scroll-into-view-on-change";
 
 const LEAD_PIPELINE_COLUMNS = ["New", "Contacted", "Qualified", "Closed", "Inactive"];
 
@@ -37,6 +38,8 @@ function LeadsPageInner() {
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [leadForm, setLeadForm] = useState(createEmptyLeadForm());
   const [viewMode, setViewMode] = useState("list");
+  const [viewFocusToken, setViewFocusToken] = useState(0);
+  const viewContentRef = useScrollIntoViewOnChange(viewFocusToken);
   const [currentUser, setCurrentUser] = useState(null);
   const [teamUsers, setTeamUsers] = useState([]);
   const [viewScope, setViewScope] = useState("mine");
@@ -347,7 +350,10 @@ function LeadsPageInner() {
           <Segmented
             aria-label="Lead layout"
             value={viewMode}
-            onChange={setViewMode}
+            onChange={(next) => {
+              setViewMode(next);
+              setViewFocusToken((token) => token + 1);
+            }}
             options={[
               { value: "list", label: "List" },
               { value: "board", label: "Board" },
@@ -407,103 +413,111 @@ function LeadsPageInner() {
           options={pipelineOptions}
         />
 
-        <div className="flex min-w-0 flex-col gap-3">
-          <div className="flex min-w-0 flex-wrap items-center gap-2">
+        <PageToolbar
+          search={
             <input
               className="input min-w-0 w-full flex-1 basis-48"
               placeholder="Search name, email, phone…"
               value={q}
               onChange={(e) => setQ(e.target.value)}
             />
-            <select
-              className="input min-w-0 w-full sm:w-48"
-              value={assignedFilter}
-              onChange={(e) => setAssignedFilter(e.target.value)}
-              aria-label="Assigned to"
+          }
+          refresh={
+            <button
+              type="button"
+              className="icon-btn"
+              onClick={refreshAll}
+              disabled={loadingSummary || loadingLeads}
+              title="Refresh"
+              aria-label="Refresh"
             >
-              <option value="">Anyone</option>
-              <option value="unassigned">Unassigned</option>
-              {teamUsers.map((user) => (
-                <option key={user.id} value={user.id}>
-                  {user.first_name} {user.last_name}
-                </option>
-              ))}
-            </select>
-            <div className="flex flex-wrap items-center gap-2">
+              <Icon name="refreshCcw" className="h-4 w-4" />
+            </button>
+          }
+          create={
+            isCreateOpen ? null : (
               <button
                 type="button"
-                className="icon-btn"
-                onClick={refreshAll}
-                disabled={loadingSummary || loadingLeads}
-                title="Refresh"
-                aria-label="Refresh"
+                className="btn btn-primary"
+                onClick={() => setIsCreateOpen(true)}
+                disabled={savingLead}
               >
-                <Icon name="refreshCcw" className="h-4 w-4" />
+                New lead
               </button>
-              {isCreateOpen ? null : (
-                <button
-                  type="button"
-                  className="btn btn-primary"
-                  onClick={() => setIsCreateOpen(true)}
-                  disabled={savingLead}
-                >
-                  New lead
-                </button>
+            )
+          }
+          savedViews={
+            <SavedViewsControls
+              entityType="leads"
+              currentFilters={currentFiltersForSave}
+              onApplyFilters={(filters) => {
+                setQ(String(filters?.q || ""));
+                setStatus(String(filters?.status || ""));
+                setAssignedFilter(String(filters?.assignedFilter || ""));
+                setViewScope(String(filters?.viewScope || "mine"));
+                setViewMode(
+                  filters?.viewMode === "board" || filters?.viewMode === "list"
+                    ? filters.viewMode
+                    : "list",
+                );
+              }}
+            />
+          }
+        >
+          <select
+            className="input min-w-0 w-full sm:w-48"
+            value={assignedFilter}
+            onChange={(e) => setAssignedFilter(e.target.value)}
+            aria-label="Assigned to"
+          >
+            <option value="">Anyone</option>
+            <option value="unassigned">Unassigned</option>
+            {teamUsers.map((user) => (
+              <option key={user.id} value={user.id}>
+                {user.first_name} {user.last_name}
+              </option>
+            ))}
+          </select>
+        </PageToolbar>
+
+        <div
+          ref={viewContentRef}
+          id="leads-view"
+          className="scroll-mt-20"
+        >
+          {viewMode === "board" ? (
+            <section className="card p-4">
+              {loadingLeads ? (
+                <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+                  {Array.from({ length: 6 }).map((_, i) => (
+                    <div key={i} className="list-row">
+                      <Skeleton className="mb-2 h-4 w-28" />
+                      <Skeleton className="h-3 w-full" />
+                    </div>
+                  ))}
+                </div>
+              ) : leads.length === 0 ? (
+                <EmptyState title="No leads found" />
+              ) : (
+                <KanbanBoard
+                  leads={leads}
+                  columns={LEAD_PIPELINE_COLUMNS}
+                  onMove={handleMoveLeadStatus}
+                />
               )}
-            </div>
-          </div>
-
-          <SavedViewsControls
-            entityType="leads"
-            currentFilters={currentFiltersForSave}
-            onApplyFilters={(filters) => {
-              setQ(String(filters?.q || ""));
-              setStatus(String(filters?.status || ""));
-              setAssignedFilter(String(filters?.assignedFilter || ""));
-              setViewScope(String(filters?.viewScope || "mine"));
-              setViewMode(
-                filters?.viewMode === "board" || filters?.viewMode === "list"
-                  ? filters.viewMode
-                  : "list",
-              );
-            }}
-          />
+            </section>
+          ) : (
+            <LeadsList
+              layout="flush"
+              leads={leads}
+              loading={loadingLeads}
+              canViewAll={canViewAll}
+              teamUsers={teamUsers}
+              onOpen={(leadId) => push(`/leads/${leadId}`)}
+              onAssign={handleAssignLead}
+            />
+          )}
         </div>
-
-        {viewMode === "board" ? (
-          <section className="card p-4">
-            {loadingLeads ? (
-              <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
-                {Array.from({ length: 6 }).map((_, i) => (
-                  <div key={i} className="list-row">
-                    <Skeleton className="mb-2 h-4 w-28" />
-                    <Skeleton className="h-3 w-full" />
-                  </div>
-                ))}
-              </div>
-            ) : leads.length === 0 ? (
-              <EmptyState title="No leads found" />
-            ) : (
-              <KanbanBoard
-                leads={leads}
-                columns={LEAD_PIPELINE_COLUMNS}
-                onMove={handleMoveLeadStatus}
-              />
-            )}
-          </section>
-        ) : (
-          <LeadsList
-            layout="flush"
-            leads={leads}
-            loading={loadingLeads}
-            canViewAll={canViewAll}
-            teamUsers={teamUsers}
-            onOpen={(leadId) => push(`/leads/${leadId}`)}
-            onAssign={handleAssignLead}
-          />
-        )}
-
-        <LayoutCompareLink href="/leads/classic" label="Compare the previous layout" />
       </div>
     </AppShell>
   );

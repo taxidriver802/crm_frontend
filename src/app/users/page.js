@@ -7,20 +7,14 @@ import { AppShell } from "@/components/app-shell";
 import { useConfirmModal } from "@/components/modals/confirm-modal";
 import { InviteUserModal } from "@/components/modals/invite-user-modal";
 import { api } from "@/lib/api";
-import { CollapsibleSection } from "@/components/forms/collapsible-section";
-import {
-  FilterBarSkeleton,
-  Skeleton,
-  StatCardSkeleton,
-  TableRowSkeleton,
-} from "@/components/loading/loadingSkeletons";
+import { TableRowSkeleton } from "@/components/loading/loadingSkeletons";
 import { Alert } from "@/components/ui/alert";
-import { StatCard } from "@/components/ui/stat-card";
 import { StatusBadge } from "@/components/ui/status-badge";
-import { Field } from "@/components/ui/field";
-import { FilterBar } from "@/components/ui/filter-bar";
 import { EmptyState } from "@/components/error-boundary";
 import { DataTable, Td } from "@/components/ui/data-table";
+import { PageToolbar } from "@/components/page-toolbar";
+import { Segmented } from "@/components/ui/segmented";
+import { Icon } from "@/components/icons";
 
 /** 12rem — matches `min-w-[12rem]` menus */
 const TABLE_DROPDOWN_MENU_WIDTH_PX = 192;
@@ -61,8 +55,6 @@ export default function UsersPage() {
   const [statusFilter, setStatusFilter] = useState("all");
   const [searchQuery, setSearchQuery] = useState("");
   const [roleFilter, setRoleFilter] = useState("all");
-
-  const isInitialLoading = loadingUsers && users.length === 0;
 
   async function loadCurrentUser() {
     const res = await fetch("/api/auth/me", {
@@ -365,89 +357,51 @@ export default function UsersPage() {
   const isOwner = currentUser?.role === "owner";
   const isAdmin = currentUser?.role === "admin";
 
+  const statusOptions = [
+    {
+      value: "all",
+      label: "All",
+      count: loadingUsers ? undefined : counts.total,
+    },
+    {
+      value: "active",
+      label: "Active",
+      count: loadingUsers ? undefined : counts.active,
+    },
+    {
+      value: "invited",
+      label: "Invited",
+      count: loadingUsers ? undefined : counts.invited,
+    },
+    {
+      value: "disabled",
+      label: "Disabled",
+      count: loadingUsers ? undefined : counts.disabled,
+    },
+  ];
+
   if (loadingUser) {
     return (
-      <AppShell title="Users">
-        <div className="space-y-6">
-          <section className="grid grid-cols-2 gap-4 lg:grid-cols-4">
-            {Array.from({ length: 4 }).map((_, i) => (
-              <StatCardSkeleton key={i} />
-            ))}
-          </section>
-
-          <FilterBarSkeleton />
-
-          <div className="card p-4">
-            <div className="space-y-3">
-              {Array.from({ length: 5 }).map((_, i) => (
-                <Skeleton key={i} className="h-10 w-full" />
-              ))}
-            </div>
-          </div>
+      <AppShell title="Users" description="Loading…">
+        <div className="card p-4">
+          <div className="text-muted text-sm">Loading…</div>
         </div>
       </AppShell>
     );
   }
 
-  const usersTitle = (
-    <div>
-      {loadingUsers
-        ? "Loading…"
-        : filteredUsers.length === 0
-          ? "No users yet"
-          : `${filteredUsers.length} user${filteredUsers.length === 1 ? "" : "s"}`}
-    </div>
-  );
-
   return (
     <AppShell
       title="Users"
-      /* right={
-        isAdmin || isOwner ? (
-          <button onClick={() => setInviteModalOpen(true)} className="btn">
-            Invite User
-          </button>
-        ) : null
-      } */
+      description={
+        loadingUsers ? "Loading…" : `${filteredUsers.length} in this view`
+      }
     >
       <div className="space-y-6">
-        <section className="grid grid-cols-2 gap-4 lg:grid-cols-4">
-          {isInitialLoading ? (
-            Array.from({ length: 4 }).map((_, i) => <StatCardSkeleton key={i} />)
-          ) : (
-            <>
-              <StatCard
-                label="Total"
-                value={counts.total}
-                active={statusFilter === "all"}
-                onClick={() => setStatusFilter("all")}
-              />
-              <StatCard
-                label="Active"
-                value={counts.active}
-                active={statusFilter === "active"}
-                onClick={() => setStatusFilter("active")}
-              />
-              <StatCard
-                label="Invited"
-                value={counts.invited}
-                active={statusFilter === "invited"}
-                onClick={() => setStatusFilter("invited")}
-              />
-              <StatCard
-                label="Disabled"
-                value={counts.disabled}
-                active={statusFilter === "disabled"}
-                onClick={() => setStatusFilter("disabled")}
-              />
-            </>
-          )}
-        </section>
-
-        {error ? <Alert className="px-4 py-3">{error}</Alert> : null}
+        {error ? <Alert variant="inline">{error}</Alert> : null}
 
         {successMessage ? (
-          <Alert tone="success" className="px-4 py-3">
+          <Alert variant="inline" tone="success">
             {successMessage}
           </Alert>
         ) : null}
@@ -459,60 +413,61 @@ export default function UsersPage() {
           </p>
         ) : null}
 
-        {isInitialLoading ? (
-          <FilterBarSkeleton />
-        ) : (
-          <FilterBar>
-            <Field label="Search" className="min-w-0 flex-1">
-              <input
-                type="text"
-                placeholder="Search users..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="input"
-              />
-            </Field>
+        <Segmented
+          className="w-full min-w-0"
+          aria-label="User status"
+          value={statusFilter}
+          onChange={setStatusFilter}
+          options={statusOptions}
+        />
 
-            <Field label="Role" className="w-full lg:w-40">
-              <select
-                value={roleFilter}
-                onChange={(e) => setRoleFilter(e.target.value)}
-                className="input"
-              >
-                <option value="all">All Roles</option>
-                <option value="owner">Owner</option>
-                <option value="admin">Admin</option>
-                <option value="agent">Agent</option>
-              </select>
-            </Field>
-
-            <Field label="Status" className="w-full lg:w-44">
-              <select
-                value={statusFilter}
-                onChange={(e) => setStatusFilter(e.target.value)}
-                className="input"
-              >
-                <option value="all">All Statuses</option>
-                <option value="active">Active</option>
-                <option value="invited">Invited</option>
-                <option value="disabled">Disabled</option>
-              </select>
-            </Field>
-          </FilterBar>
-        )}
-
-        <CollapsibleSection
-          title={usersTitle}
-          defaultOpen={true}
-          actions={
+        <PageToolbar
+          search={
+            <input
+              className="input min-w-0 w-full flex-1 basis-48"
+              placeholder="Search name or email…"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+            />
+          }
+          refresh={
+            <button
+              type="button"
+              className="icon-btn"
+              onClick={loadUsers}
+              disabled={loadingUsers}
+              title="Refresh"
+              aria-label="Refresh"
+            >
+              <Icon name="refreshCcw" className="h-4 w-4" />
+            </button>
+          }
+          create={
             isAdmin || isOwner ? (
-              <button onClick={() => setInviteModalOpen(true)} className="btn">
-                Invite User
+              <button
+                type="button"
+                onClick={() => setInviteModalOpen(true)}
+                className="btn btn-primary"
+              >
+                Invite user
               </button>
             ) : null
           }
         >
-          {loadingUsers ? (
+          <select
+            className="input min-w-0 w-full sm:w-40"
+            value={roleFilter}
+            onChange={(e) => setRoleFilter(e.target.value)}
+            aria-label="Role"
+          >
+            <option value="all">All roles</option>
+            <option value="owner">Owner</option>
+            <option value="admin">Admin</option>
+            <option value="agent">Agent</option>
+          </select>
+        </PageToolbar>
+
+        {loadingUsers ? (
             <DataTable>
                 <thead>
                   <tr>
@@ -904,7 +859,6 @@ export default function UsersPage() {
                 </tbody>
             </DataTable>
           )}
-        </CollapsibleSection>
 
         <InviteUserModal
           open={inviteModalOpen}

@@ -36,12 +36,12 @@ export const azure = {
     "--overlay-strong": "rgb(17 19 24 / 0.72)",
     "--on-overlay": "#ffffff",
 
-    "--chrome": "#14161c",
-    "--chrome-elevated": "#1c1f26",
-    "--chrome-border": "#2a2e38",
+    "--chrome": "#2e323c",
+    "--chrome-elevated": "#383c48",
+    "--chrome-border": "#484e5c",
     "--chrome-text": "#f4f4f5",
-    "--chrome-muted": "#9aa0ab",
-    "--chrome-hover": "color-mix(in srgb, #ffffff 8%, transparent)",
+    "--chrome-muted": "#a8adb8",
+    "--chrome-hover": "color-mix(in srgb, #ffffff 10%, transparent)",
 
     "--chart-1": "var(--accent)",
     "--chart-2": "var(--success)",

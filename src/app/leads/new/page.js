@@ -1,16 +1,35 @@
 "use client";
 
-import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { Suspense, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { AppShell } from "@/components/app-shell";
 import { LeadForm, createEmptyLeadForm } from "@/components/forms/lead-form";
 import { api } from "@/lib/api";
 
-export default function NewLeadPage() {
+/** Split a free-text name query into first / last for the lead form. */
+function splitLeadNamePrefill(value) {
+  const trimmed = String(value || "").trim().replace(/\s+/g, " ");
+  if (!trimmed) return { first_name: "", last_name: "" };
+  const parts = trimmed.split(" ");
+  if (parts.length === 1) {
+    return { first_name: parts[0], last_name: "" };
+  }
+  return {
+    first_name: parts[0],
+    last_name: parts.slice(1).join(" "),
+  };
+}
+
+function NewLeadPageInner() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const namePrefill = searchParams.get("name") || searchParams.get("q") || "";
+
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
-  const [form, setForm] = useState(createEmptyLeadForm());
+  const [form, setForm] = useState(() =>
+    createEmptyLeadForm(splitLeadNamePrefill(namePrefill)),
+  );
 
   async function onSubmit(e) {
     e.preventDefault();
@@ -59,7 +78,7 @@ export default function NewLeadPage() {
   }
 
   return (
-    <AppShell title="New Lead">
+    <AppShell title="New lead">
       <section className="card p-4">
         <LeadForm
           form={form}
@@ -73,5 +92,21 @@ export default function NewLeadPage() {
         />
       </section>
     </AppShell>
+  );
+}
+
+export default function NewLeadPage() {
+  return (
+    <Suspense
+      fallback={
+        <AppShell title="New lead">
+          <section className="card p-4">
+            <p className="text-muted text-sm">Loading…</p>
+          </section>
+        </AppShell>
+      }
+    >
+      <NewLeadPageInner />
+    </Suspense>
   );
 }

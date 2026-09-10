@@ -11,28 +11,74 @@ import { cx } from "@/lib/cx";
  * Prefer this over DataTable for navigable entity lists. Multi-column tables
  * need ~900px before truncating, but the desktop sidebar claims ~256px at `lg`,
  * so the content area is most cramped on laptops — and overflow-x-auto turns
- * that into horizontal scrolling. Rows use flex-wrap meta so narrow containers
- * reflow instead of scrolling sideways.
+ * that into horizontal scrolling. Rows use a main + optional trailing column
+ * so actions stay anchored while meta truncates.
+ *
+ * Composition:
+ *   EntityListRow
+ *     EntityListBody
+ *       EntityListMain — title, context, due
+ *       EntityListTrailing — assignee, actions (optional)
  */
 
-export function EntityListMeta({ label, children, className = "" }) {
+export function EntityListBody({ children, className = "" }) {
   return (
-    <div className={cx("flex min-w-0 items-baseline gap-1.5", className)}>
-      <span className="text-muted shrink-0 text-[0.625rem] font-semibold uppercase tracking-[0.06em]">
-        {label}
-      </span>
-      <div className="min-w-0 truncate text-xs">{children}</div>
+    <div className={cx("flex min-w-0 items-start gap-2.5 sm:gap-3", className)}>
+      {children}
     </div>
   );
 }
 
-export function EntityListPrimary({ title, subtitle = null, badges = null }) {
+export function EntityListMain({ children, className = "" }) {
+  return <div className={cx("min-w-0 flex-1", className)}>{children}</div>;
+}
+
+export function EntityListTrailing({ children, className = "", ...props }) {
   return (
-    <div className="flex flex-wrap items-start justify-between gap-x-3 gap-y-1.5">
-      <div className="min-w-[14rem] flex-1 basis-0">
-        <div className="truncate text-sm font-medium">{title}</div>
+    <div
+      className={cx(
+        "flex shrink-0 items-center gap-1 self-center sm:gap-1.5",
+        className,
+      )}
+      {...props}
+    >
+      {children}
+    </div>
+  );
+}
+
+export function EntityListMeta({ label, children, className = "" }) {
+  return (
+    <div className={cx("flex min-w-0 items-baseline gap-1.5", className)}>
+      <span className="text-muted shrink-0 text-[0.5625rem] font-semibold uppercase tracking-[0.06em] sm:text-[0.625rem]">
+        {label}
+      </span>
+      <div className="min-w-0 truncate text-[0.6875rem] sm:text-xs">
+        {children}
+      </div>
+    </div>
+  );
+}
+
+export function EntityListPrimary({
+  title,
+  subtitle = null,
+  subtitleClassName = "",
+  badges = null,
+}) {
+  return (
+    <div className="flex flex-wrap items-start justify-between gap-x-2.5 gap-y-1 sm:gap-x-3 sm:gap-y-1.5">
+      <div className="min-w-0 flex-1 basis-0">
+        <div className="truncate text-xs font-medium sm:text-sm">{title}</div>
         {subtitle ? (
-          <div className="text-muted mt-0.5 truncate text-xs">{subtitle}</div>
+          <div
+            className={cx(
+              "text-muted mt-0.5 truncate text-[0.6875rem] sm:text-xs",
+              subtitleClassName,
+            )}
+          >
+            {subtitle}
+          </div>
         ) : null}
       </div>
       {badges ? (
@@ -48,7 +94,7 @@ export function EntityListMetaStrip({ children, className = "" }) {
   return (
     <div
       className={cx(
-        "mt-2.5 flex flex-wrap items-center gap-x-5 gap-y-2",
+        "mt-2 flex flex-wrap items-center gap-x-3 gap-y-1.5 sm:mt-2.5 sm:gap-x-5 sm:gap-y-2",
         className,
       )}
     >
@@ -59,6 +105,7 @@ export function EntityListMetaStrip({ children, className = "" }) {
 
 export function EntityListAssignee({
   label = "Assignee",
+  hideLabel = false,
   canEdit,
   value,
   teamUsers = [],
@@ -68,18 +115,15 @@ export function EntityListAssignee({
   className = "",
 }) {
   return (
-    <div
-      className={cx(
-        "flex min-w-0 items-baseline gap-1.5 sm:ml-auto",
-        className,
-      )}
-    >
-      <span className="text-muted shrink-0 text-[0.625rem] font-semibold uppercase tracking-[0.06em]">
-        {label}
-      </span>
+    <div className={cx("flex min-w-0 items-center gap-1.5 sm:ml-auto", className)}>
+      {!hideLabel && label ? (
+        <span className="text-muted shrink-0 text-[0.5625rem] font-semibold uppercase tracking-[0.06em] sm:text-[0.625rem]">
+          {label}
+        </span>
+      ) : null}
       {canEdit ? (
         <select
-          className="input w-auto max-w-[11rem] truncate px-2 py-1 text-xs"
+          className="input w-auto max-w-[7.5rem] truncate px-1.5 py-1 text-[0.6875rem] sm:max-w-[9rem] sm:text-xs lg:max-w-[11rem] lg:px-2"
           value={value || ""}
           onClick={(e) => e.stopPropagation()}
           onKeyDown={(e) => e.stopPropagation()}
@@ -97,7 +141,9 @@ export function EntityListAssignee({
           ))}
         </select>
       ) : (
-        <span className="min-w-0 truncate text-xs">{displayName || "—"}</span>
+        <span className="min-w-0 max-w-[7.5rem] truncate text-[0.6875rem] sm:max-w-[9rem] sm:text-xs lg:max-w-[11rem]">
+          {displayName || "—"}
+        </span>
       )}
     </div>
   );
@@ -107,6 +153,7 @@ export function EntityListRow({
   ariaLabel,
   onOpen,
   variant = "card",
+  signal = null,
   className = "",
   children,
 }) {
@@ -128,9 +175,11 @@ export function EntityListRow({
       onClick={onOpen || undefined}
       onKeyDown={onOpen ? handleKeyDown : undefined}
       className={cx(
+        "relative",
         flush
-          ? "border-base border-t px-4 py-3.5 first:border-t-0"
+          ? "border-base border-t px-3 py-3 first:border-t-0 sm:px-4 sm:py-3.5"
           : "list-row",
+        signal && (flush ? "pr-6 sm:pr-7" : "pr-6"),
         onOpen &&
           (flush
             ? "hover:bg-accent-soft focus-visible:bg-accent-soft cursor-pointer focus:outline-none"
@@ -138,6 +187,15 @@ export function EntityListRow({
         className,
       )}
     >
+      {signal ? (
+        <span
+          className="absolute -right-px -top-[10px] z-[1] p-1.5 sm:p-2"
+          onClick={(e) => e.stopPropagation()}
+          onKeyDown={(e) => e.stopPropagation()}
+        >
+          {signal}
+        </span>
+      ) : null}
       {children}
     </div>
   );
@@ -146,7 +204,7 @@ export function EntityListRow({
 export function EntityListSkeleton({ rows = 3, layout = "stack" }) {
   const flush = layout === "flush";
   const rowClass = flush
-    ? "border-base space-y-2 border-t px-4 py-3.5 first:border-t-0"
+    ? "border-base space-y-2 border-t px-3 py-3 first:border-t-0 sm:px-4 sm:py-3.5"
     : "list-row space-y-3";
 
   const rowsEl = (

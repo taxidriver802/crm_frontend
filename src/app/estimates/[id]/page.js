@@ -8,8 +8,7 @@ import { ReturnLink } from "@/components/return-to";
 import { useConfirmModal } from "@/components/modals/confirm-modal";
 import { api } from "@/lib/api";
 import { Field } from "@/components/ui/field";
-import { CollapsibleSection } from "@/components/forms/collapsible-section";
-import { ToggleFormSection } from "@/components/toggle-form-section";
+import { DetailMoreMenu, DetailMoreMenuItem } from "@/components/detail-more-menu";
 import {
   EstimateLineItemForm,
   createEmptyLineItem,
@@ -18,6 +17,7 @@ import Link from "next/link";
 import { API_BASE } from "@/lib/helper";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { DetailHeader } from "@/components/ui/detail-header";
+import { SectionCard } from "@/components/ui/section-card";
 import { MetaItem } from "@/components/ui/meta";
 import {
   buildEstimateShareMessage,
@@ -39,7 +39,6 @@ export default function EstimateDetailPage() {
   const [lineItemForm, setLineItemForm] = useState(createEmptyLineItem());
   const [savingItem, setSavingItem] = useState(false);
   const [editingLineItem, setEditingLineItem] = useState(null);
-  const [showAllLineItems, setShowAllLineItems] = useState(false);
   const [sortBy, setSortBy] = useState("updated_at");
   const [sortDirection, setSortDirection] = useState("desc");
   const [pdfBusy, setPdfBusy] = useState(false);
@@ -377,73 +376,90 @@ export default function EstimateDetailPage() {
   }
 
   const sortedLineItems = sortLineItems(lineItems, sortBy, sortDirection);
-  const displayedLineItems = showAllLineItems
-    ? sortedLineItems
-    : sortedLineItems.slice(0, 3);
+  const jobTitle = estimate?.job?.title || (estimate?.job_id ? `Job #${estimate.job_id}` : "");
+  const jobHref = `/jobs/${estimate?.job?.id ?? estimate?.job_id}`;
 
   return (
-    <AppShell title={estimate?.title || `Estimate #${id}`}>
+    <AppShell
+      title={estimate?.title || `Estimate #${id}`}
+      description={jobTitle || undefined}
+    >
       <div className="space-y-6">
         {error ? <Alert variant="inline">{error}</Alert> : null}
 
         {loading ? (
-          <DetailHeader title="Loading estimate…" />
+          <section className="card p-4">
+            <div className="text-muted text-sm">Loading estimate…</div>
+          </section>
         ) : !estimate ? (
-          <DetailHeader title="Estimate not found" />
+          <section className="card p-4">
+            <p className="text-muted text-sm">Estimate not found.</p>
+          </section>
         ) : (
           <DetailHeader
-            title={estimate.title}
             subtitle={
-              <ReturnLink
-                href={`/jobs/${estimate.job?.id ?? estimate.job_id}`}
-                className="underline"
-              >
-                Job #{estimate.job_id}
-              </ReturnLink>
+              estimate.job_id || estimate.job?.id ? (
+                <ReturnLink
+                  href={jobHref}
+                  className="underline underline-offset-4 hover:opacity-80"
+                >
+                  {jobTitle}
+                </ReturnLink>
+              ) : (
+                "No job linked"
+              )
             }
             badges={<StatusBadge kind="estimate" status={estimate.status} />}
             actions={
               <>
-                <button
-                  type="button"
-                  className="btn btn-ghost btn-sm"
-                  disabled={pdfBusy}
-                  onClick={downloadPdf}
-                >
-                  {pdfBusy ? "PDF…" : "Download PDF"}
-                </button>
-                <button
-                  type="button"
-                  className="btn btn-ghost btn-sm"
-                  disabled={shareBusy}
-                  onClick={createShareLink}
-                >
-                  {shareBusy ? "Link…" : "Copy share link"}
-                </button>
-                <button
-                  type="button"
-                  className="btn btn-ghost btn-sm"
-                  disabled={messageBusy}
-                  onClick={copyMessage}
-                >
-                  {messageBusy ? "Message…" : "Copy message"}
-                </button>
                 {estimate.status === "Approved" ? (
                   <button
                     type="button"
-                    className="btn btn-sm"
+                    className="btn btn-primary btn-sm"
                     disabled={invoiceBusy}
                     onClick={handleCreateInvoice}
                   >
-                    {invoiceBusy ? "Creating…" : "Create Invoice"}
+                    {invoiceBusy ? "Creating…" : "Create invoice"}
                   </button>
                 ) : null}
                 <Link
-                  className="btn btn-ghost btn-sm"
+                  className="btn btn-sm"
                   href={`/estimates/${estimate.id}/edit`}
                 >
                   Edit
                 </Link>
+                <DetailMoreMenu label="More">
+                  <DetailMoreMenuItem
+                    type="button"
+                    disabled={pdfBusy}
+                    onClick={downloadPdf}
+                  >
+                    {pdfBusy ? "PDF…" : "Download PDF"}
+                  </DetailMoreMenuItem>
+                  <DetailMoreMenuItem
+                    type="button"
+                    disabled={shareBusy}
+                    onClick={createShareLink}
+                  >
+                    {shareBusy ? "Link…" : "Copy share link"}
+                  </DetailMoreMenuItem>
+                  <DetailMoreMenuItem
+                    type="button"
+                    disabled={messageBusy}
+                    onClick={copyMessage}
+                  >
+                    {messageBusy ? "Message…" : "Copy message"}
+                  </DetailMoreMenuItem>
+                  {estimate.status === "Draft" || estimate.status === "Rejected" ? (
+                    <DetailMoreMenuItem
+                      type="button"
+                      disabled={resendBusy}
+                      onClick={resendToClient}
+                    >
+                      {resendBusy ? "Working…" : "Resend to client"}
+                    </DetailMoreMenuItem>
+                  ) : null}
+                </DetailMoreMenu>
               </>
             }
           >
@@ -540,40 +556,12 @@ export default function EstimateDetailPage() {
           </DetailHeader>
         )}
 
-        <ToggleFormSection
-          title={editingLineItem ? "Edit Line Item" : "Create Line Item"}
-          description={
-            editingLineItem ? "Update this estimate item." : "Add items to this estimate."
-          }
-          isOpen={isCreateOpen}
-          onToggle={() => setIsCreateOpen((prev) => !prev)}
-          openLabel="+ New Item"
-          closeLabel="Hide Form"
-        >
-          <EstimateLineItemForm
-            form={lineItemForm}
-            onChange={setLineItemForm}
-            onSubmit={handleSubmitLineItem}
-            saving={savingItem}
-            onCancel={() => {
-              setLineItemForm(createEmptyLineItem());
-              setEditingLineItem(null);
-              setIsCreateOpen(false);
-            }}
-            submitLabel={editingLineItem ? "Update Item" : "Add Item"}
-            deleteButton={!!editingLineItem}
-            onDelete={handleDeleteLineItem}
-          />
-        </ToggleFormSection>
-
         {estimate?.status === "Draft" ? (
-          <section className="card p-4">
-            <div className="mb-3">
-              <h3 className="section-heading">Apply template</h3>
-              <p className="text-muted mt-1 text-xs">
-                Copies package lines onto this draft. Existing lines are kept.
-              </p>
-            </div>
+          <SectionCard
+            size="lg"
+            title="Apply template"
+            description="Copies package lines onto this draft. Existing lines are kept."
+          >
             <div className="flex flex-wrap items-end gap-2">
               <Field label="Template" className="min-w-[12rem] flex-1">
                 <select
@@ -592,125 +580,143 @@ export default function EstimateDetailPage() {
               </Field>
               <button
                 type="button"
-                className="btn btn-primary"
+                className="btn btn-primary btn-sm"
                 disabled={!applyTemplateId || applyBusy}
                 onClick={applyTemplate}
               >
                 {applyBusy ? "Applying…" : "Apply template"}
               </button>
             </div>
-          </section>
+          </SectionCard>
         ) : null}
 
-        {/* LINE ITEMS */}
-        <CollapsibleSection
-          title="Line Items"
-          description="Breakdown of materials and labor."
-          syncKey={id}
-          ready={!loading}
-          empty={lineItems.length === 0}
-          actions={
-            <div className="flex min-w-0 max-w-full flex-1 items-center gap-2">
-              <div className="text-main shrink-0 text-sm">Sort By:</div>
-              <div className="relative min-w-0 flex-1">
-                <div className="scrollbar-theme bg-surface border-base flex min-w-0 touch-pan-x items-center gap-2 overflow-x-auto overscroll-x-contain rounded-theme-md border py-1 pl-1.5 pr-6">
-                  {[
-                    { key: "updated_at", label: "Last updated" },
-                    { key: "created_at", label: "Created at" },
-                    { key: "unit_price", label: "Unit price" },
-                    { key: "quantity", label: "Quantity" },
-                    { key: "line_total", label: "Total price" },
-                  ].map(({ key, label }) => (
-                    <button
-                      key={key}
-                      type="button"
-                      onClick={() => {
-                        if (sortBy === key) {
-                          setSortDirection((prev) => (prev === "asc" ? "desc" : "asc"));
-                        } else {
-                          setSortBy(key);
-                          setSortDirection("desc");
-                        }
-                      }}
-                      className={`btn btn-sm shrink-0 whitespace-nowrap ${
-                        sortBy === key ? "btn-primary" : "btn-ghost"
-                      }`}
-                    >
-                      {label}
-                      {sortBy === key && (sortDirection === "desc" ? " ↓" : " ↑")}
-                    </button>
-                  ))}
-                </div>
-                <div
-                  aria-hidden="true"
-                  className="from-surface pointer-events-none absolute inset-y-px right-px w-8 rounded-r-[calc(var(--radius-md)-1px)] bg-gradient-to-l to-transparent"
-                />
-              </div>
-            </div>
-          }
-          secondaryActions={
-            lineItems.length > 3 && (
-              <button
-                type="button"
-                className="btn btn-ghost text-sm"
-                onClick={() => setShowAllLineItems((prev) => !prev)}
-              >
-                {showAllLineItems ? "Show less" : "Show all"}
-              </button>
-            )
+        <SectionCard
+          size="lg"
+          title="Line items"
+          description="Breakdown of materials and labor"
+          right={
+            <button
+              type="button"
+              className="btn btn-primary btn-sm"
+              onClick={() => {
+                if (isCreateOpen && !editingLineItem) {
+                  setIsCreateOpen(false);
+                  return;
+                }
+                setEditingLineItem(null);
+                setLineItemForm(createEmptyLineItem());
+                setIsCreateOpen(true);
+              }}
+            >
+              {isCreateOpen && !editingLineItem ? "Hide" : "New item"}
+            </button>
           }
         >
-          {loading ? (
-            <div className="text-muted text-sm">Loading items…</div>
-          ) : lineItems.length === 0 ? (
-            <div className="empty-state text-sm">No line items yet.</div>
-          ) : (
-            <div className="space-y-3">
-              {displayedLineItems.map((item) => (
-                <div
-                  key={item.id}
-                  className="list-row list-row-interactive flex w-full items-start justify-between text-left"
-                  onClick={() => handleEditLineItem(item)}
-                >
-                  <div>
-                    <div className="font-medium">{item.name}</div>
+          <div className="space-y-4">
+            {isCreateOpen ? (
+              <EstimateLineItemForm
+                form={lineItemForm}
+                onChange={setLineItemForm}
+                onSubmit={handleSubmitLineItem}
+                saving={savingItem}
+                onCancel={() => {
+                  setLineItemForm(createEmptyLineItem());
+                  setEditingLineItem(null);
+                  setIsCreateOpen(false);
+                }}
+                submitLabel={editingLineItem ? "Update Item" : "Add Item"}
+                deleteButton={!!editingLineItem}
+                onDelete={handleDeleteLineItem}
+              />
+            ) : null}
 
-                    {item.description ? (
-                      <div className="text-muted mt-1 text-sm">{item.description}</div>
-                    ) : null}
-
-                    <div className="text-muted mt-1 text-xs">
-                      {Number(item.quantity).toLocaleString("en-US")} × $
-                      {formatCurrency(item.unit_price)}
-                    </div>
+            {lineItems.length > 0 ? (
+              <div className="flex min-w-0 max-w-full items-center gap-2">
+                <div className="text-muted shrink-0 text-sm">Sort</div>
+                <div className="relative min-w-0 flex-1">
+                  <div className="scrollbar-theme bg-surface border-base flex min-w-0 touch-pan-x items-center gap-2 overflow-x-auto overscroll-x-contain rounded-theme-md border py-1 pl-1.5 pr-6">
+                    {[
+                      { key: "updated_at", label: "Last updated" },
+                      { key: "created_at", label: "Created at" },
+                      { key: "unit_price", label: "Unit price" },
+                      { key: "quantity", label: "Quantity" },
+                      { key: "line_total", label: "Total price" },
+                    ].map(({ key, label }) => (
+                      <button
+                        key={key}
+                        type="button"
+                        onClick={() => {
+                          if (sortBy === key) {
+                            setSortDirection((prev) => (prev === "asc" ? "desc" : "asc"));
+                          } else {
+                            setSortBy(key);
+                            setSortDirection("desc");
+                          }
+                        }}
+                        className={`btn btn-sm shrink-0 whitespace-nowrap ${
+                          sortBy === key ? "btn-primary" : "btn-ghost"
+                        }`}
+                      >
+                        {label}
+                        {sortBy === key && (sortDirection === "desc" ? " ↓" : " ↑")}
+                      </button>
+                    ))}
                   </div>
-
-                  <div className="flex flex-col items-end gap-2 font-semibold">
-                    ${formatCurrency(item.line_total)}
-                    <div className="text-muted text-sm">
-                      {!item ? null : (
-                        <>
-                          {item.updated_at === item.created_at
-                            ? "Created: "
-                            : "Updated: "}
-                          {formatDate(item.updated_at || item.created_at)}
-                        </>
-                      )}
-                    </div>
-                  </div>
+                  <div
+                    aria-hidden="true"
+                    className="from-surface pointer-events-none absolute inset-y-px right-px w-8 rounded-r-[calc(var(--radius-md)-1px)] bg-gradient-to-l to-transparent"
+                  />
                 </div>
-              ))}
-            </div>
-          )}
-        </CollapsibleSection>
+              </div>
+            ) : null}
 
-        {/* TOTAL */}
-        <section className="card p-4">
+            {loading ? (
+              <div className="text-muted text-sm">Loading items…</div>
+            ) : lineItems.length === 0 ? (
+              <div className="text-muted rounded-lg border border-dashed p-4 text-sm">
+                No line items yet.
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {sortedLineItems.map((item) => (
+                  <div
+                    key={item.id}
+                    className="list-row list-row-interactive flex w-full items-start justify-between text-left"
+                    onClick={() => handleEditLineItem(item)}
+                  >
+                    <div>
+                      <div className="font-medium">{item.name}</div>
+
+                      {item.description ? (
+                        <div className="text-muted mt-1 text-sm">{item.description}</div>
+                      ) : null}
+
+                      <div className="text-muted mt-1 text-xs">
+                        {Number(item.quantity).toLocaleString("en-US")} × $
+                        {formatCurrency(item.unit_price)}
+                      </div>
+                    </div>
+
+                    <div className="flex flex-col items-end gap-2 font-semibold">
+                      ${formatCurrency(item.line_total)}
+                      <div className="text-muted text-sm">
+                        {item.updated_at === item.created_at ? "Created: " : "Updated: "}
+                        {formatDate(item.updated_at || item.created_at)}
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </SectionCard>
+
+        <SectionCard title="Total">
           <div className="flex justify-between text-lg font-semibold">
             <span>Total</span>
             <span>${formatCurrency(estimate?.grand_total)}</span>
           </div>
-        </section>
+        </SectionCard>
       </div>
       {confirmModal}
     </AppShell>
