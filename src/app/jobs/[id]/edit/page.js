@@ -119,9 +119,11 @@ export default function EditJobPage() {
   }
 
   return (
-    <AppShell title={`Edit Job #${id}`}>
+    <AppShell title="Edit job" description={!loading && form.title ? form.title : undefined}>
       {loading ? (
-        <div className="text-muted text-sm">Loading…</div>
+        <section className="card p-4">
+          <div className="text-muted text-sm">Loading…</div>
+        </section>
       ) : (
         <section className="card p-4">
           <JobForm
@@ -130,7 +132,7 @@ export default function EditJobPage() {
             onSubmit={onSubmit}
             saving={saving}
             error={error}
-            submitLabel="Save Changes"
+            submitLabel="Save changes"
             cancelLabel="Cancel"
             onCancel={() => router.push(`/jobs/${id}`)}
             leads={leads}

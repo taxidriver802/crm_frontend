@@ -38,7 +38,7 @@ export function JobForm({
   onSubmit,
   saving = false,
   error = "",
-  submitLabel = "Create Job",
+  submitLabel = "Create job",
   cancelLabel,
   onCancel,
   leads = [],
@@ -136,7 +136,7 @@ export function JobForm({
 
       <FormActions>
         <button type="submit" disabled={saving || loadingLeads} className="btn btn-primary">
-          {saving ? "Creating..." : submitLabel}
+          {saving ? "Saving…" : submitLabel}
         </button>
 
         {onCancel ? (

@@ -36,12 +36,12 @@ export const rose = {
     "--overlay-strong": "rgb(26 17 20 / 0.72)",
     "--on-overlay": "#ffffff",
 
-    "--chrome": "#1a1014",
-    "--chrome-elevated": "#24161b",
-    "--chrome-border": "#3a2028",
+    "--chrome": "#3a2c32",
+    "--chrome-elevated": "#443840",
+    "--chrome-border": "#564850",
     "--chrome-text": "#f8f2f3",
-    "--chrome-muted": "#b89aa2",
-    "--chrome-hover": "color-mix(in srgb, #ffffff 8%, transparent)",
+    "--chrome-muted": "#c4a8b0",
+    "--chrome-hover": "color-mix(in srgb, #ffffff 10%, transparent)",
 
     "--chart-1": "var(--accent)",
     "--chart-2": "var(--success)",

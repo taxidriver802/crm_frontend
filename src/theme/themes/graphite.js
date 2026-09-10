@@ -36,12 +36,12 @@ export const graphite = {
     "--overlay-strong": "rgb(9 9 11 / 0.72)",
     "--on-overlay": "#ffffff",
 
-    "--chrome": "#09090b",
-    "--chrome-elevated": "#18181b",
-    "--chrome-border": "#27272a",
+    "--chrome": "#3f3f46",
+    "--chrome-elevated": "#4a4a52",
+    "--chrome-border": "#5a5a64",
     "--chrome-text": "#fafafa",
-    "--chrome-muted": "#a1a1aa",
-    "--chrome-hover": "color-mix(in srgb, #ffffff 8%, transparent)",
+    "--chrome-muted": "#b0b0ba",
+    "--chrome-hover": "color-mix(in srgb, #ffffff 10%, transparent)",
 
     "--chart-1": "var(--accent)",
     "--chart-2": "var(--success)",

@@ -6,6 +6,8 @@ import { AppShell } from "@/components/app-shell";
 import { api } from "@/lib/api";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { SectionCard } from "@/components/ui/section-card";
+import { PageToolbar } from "@/components/page-toolbar";
+import { Icon } from "@/components/icons";
 
 function BoolBadge({ ok }) {
   return <StatusBadge tone={ok ? "success" : "danger"}>{ok ? "Yes" : "No"}</StatusBadge>;
@@ -109,19 +111,32 @@ export default function AbcIntegrationPage() {
   const health = useMemo(() => getIntegrationHealth(data), [data]);
 
   return (
-    <AppShell title="ABC Supply Integration">
+    <AppShell
+      title="ABC Supply"
+      description={loading ? "Loading…" : health.label}
+    >
       <div className="space-y-6">
-        {error ? (
-          <div className="card rounded-lg p-4">
-            <div className="text-sm font-medium">Couldn’t load integration</div>
-            <div className="text-muted mt-1 text-sm">{error}</div>
-          </div>
-        ) : null}
+        {error ? <Alert variant="inline">{error}</Alert> : null}
+
+        <PageToolbar
+          refresh={
+            <button
+              type="button"
+              className="icon-btn"
+              onClick={load}
+              disabled={loading}
+              title="Refresh"
+              aria-label="Refresh"
+            >
+              <Icon name="refreshCcw" className="h-4 w-4" />
+            </button>
+          }
+        />
 
         <section className="grid gap-4 lg:grid-cols-3">
           <div className="lg:col-span-2">
             <SectionCard
-              title="Integration Health"
+              title="Health"
               right={
                 !loading ? (
                   <StatusBadge tone={health.tone}>{health.label}</StatusBadge>
@@ -144,10 +159,6 @@ export default function AbcIntegrationPage() {
           <div className="lg:col-span-1">
             <SectionCard title="Actions">
               <div className="flex flex-wrap gap-2">
-                <button className="btn" onClick={load} disabled={loading}>
-                  Refresh
-                </button>
-
                 <button
                   type="button"
                   className="btn"
@@ -177,7 +188,7 @@ export default function AbcIntegrationPage() {
         </section>
 
         <section className="grid gap-4 lg:grid-cols-2">
-          <SectionCard title="Credentials & Secrets">
+          <SectionCard title="Credentials">
             {loading ? (
               <div className="text-muted text-sm">Loading…</div>
             ) : data ? (
@@ -202,7 +213,7 @@ export default function AbcIntegrationPage() {
             )}
           </SectionCard>
 
-          <SectionCard title="Provider Details">
+          <SectionCard title="Provider">
             {loading ? (
               <div className="text-muted text-sm">Loading…</div>
             ) : data ? (
@@ -217,7 +228,7 @@ export default function AbcIntegrationPage() {
         </section>
 
         {!loading && data && health.tone !== "success" ? (
-          <SectionCard title="Recommended Next Steps">
+          <SectionCard title="Next steps">
             <div className="space-y-2 text-sm">
               {!data.configured ? (
                 <div className="text-muted">

@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { api } from "@/lib/api";
 import { Alert } from "@/components/ui/alert";
+import { Field, FormActions } from "@/components/ui/field";
 import { AuthFrame } from "@/components/auth/auth-frame";
 
 export default function LoginPage() {
@@ -37,35 +38,39 @@ export default function LoginPage() {
   return (
     <AuthFrame title="Sign in" description="Access your CRM workspace.">
       <form onSubmit={handleSubmit} className="space-y-4">
-        <label className="block">
-          <span className="text-sm font-medium">Email</span>
+        <Field label="Email" htmlFor="login-email" required>
           <input
+            id="login-email"
             type="email"
             placeholder="you@example.com"
-            className="input mt-1"
+            className="input"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             required
+            autoComplete="email"
           />
-        </label>
+        </Field>
 
-        <label className="block">
-          <span className="text-sm font-medium">Password</span>
+        <Field label="Password" htmlFor="login-password" required>
           <input
+            id="login-password"
             type="password"
             placeholder="Enter your password"
-            className="input mt-1"
+            className="input"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             required
+            autoComplete="current-password"
           />
-        </label>
+        </Field>
 
-        {error ? <Alert>{error}</Alert> : null}
+        {error ? <Alert variant="inline">{error}</Alert> : null}
 
-        <button type="submit" className="btn btn-primary w-full" disabled={submitting}>
-          {submitting ? "Signing in..." : "Sign in"}
-        </button>
+        <FormActions>
+          <button type="submit" className="btn btn-primary w-full" disabled={submitting}>
+            {submitting ? "Signing in…" : "Sign in"}
+          </button>
+        </FormActions>
       </form>
     </AuthFrame>
   );

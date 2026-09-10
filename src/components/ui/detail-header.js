@@ -13,8 +13,14 @@ export function DetailHeader({
       <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
         <div className="min-w-0">
           {title ? <h1 className="page-title text-xl md:text-2xl">{title}</h1> : null}
-          {subtitle ? <div className="page-subtitle">{subtitle}</div> : null}
-          {badges ? <div className="mt-3 flex flex-wrap gap-2">{badges}</div> : null}
+          {subtitle ? (
+            <div className={cx("page-subtitle", title && "mt-1")}>{subtitle}</div>
+          ) : null}
+          {badges ? (
+            <div className={cx("flex flex-wrap gap-2", (title || subtitle) && "mt-3")}>
+              {badges}
+            </div>
+          ) : null}
         </div>
         {actions ? <div className="page-actions detail-actions">{actions}</div> : null}
       </div>

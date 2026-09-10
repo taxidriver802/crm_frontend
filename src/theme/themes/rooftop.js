@@ -36,12 +36,12 @@ export const rooftop = {
     "--overlay-strong": "rgb(17 19 24 / 0.72)",
     "--on-overlay": "#ffffff",
 
-    "--chrome": "#000000",
-    "--chrome-elevated": "#141414",
-    "--chrome-border": "#2a1c12",
+    "--chrome": "#363a43",
+    "--chrome-elevated": "#40454f",
+    "--chrome-border": "#4e463c",
     "--chrome-text": "#f4f4f5",
-    "--chrome-muted": "#9aa0ab",
-    "--chrome-hover": "color-mix(in srgb, #ffffff 8%, transparent)",
+    "--chrome-muted": "#a8adb8",
+    "--chrome-hover": "color-mix(in srgb, #ffffff 10%, transparent)",
 
     "--chart-1": "var(--accent)",
     "--chart-2": "var(--success)",

@@ -63,7 +63,12 @@ export function StatCard({
 
   if (onClick) {
     return (
-      <button type="button" onClick={onClick} className="block w-full">
+      <button
+        type="button"
+        onClick={onClick}
+        aria-pressed={active}
+        className="block w-full"
+      >
         {inner}
       </button>
     );

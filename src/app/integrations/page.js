@@ -7,6 +7,9 @@ import { api } from "@/lib/api";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { useConfirmModal } from "@/components/modals/confirm-modal";
 import { Alert } from "@/components/ui/alert";
+import { PageToolbar } from "@/components/page-toolbar";
+import { Icon } from "@/components/icons";
+import { SectionCard } from "@/components/ui/section-card";
 
 const INTAKE_URL_STORAGE_KEY = "crm-intake-public-url";
 
@@ -33,7 +36,7 @@ function getIntegrationHealth(data) {
 
 function IntegrationCard({ title, description, href, health, loading, note }) {
   return (
-    <Link href={href} className="card hover:bg-accent block rounded-lg p-4 transition">
+    <Link href={href} className="card hover:bg-accent-soft block rounded-lg p-4 transition">
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
           <div className="font-medium">{title}</div>
@@ -216,35 +219,37 @@ export default function IntegrationsPage() {
   const intakeEnabled = Boolean(intake?.enabled);
 
   return (
-    <AppShell title="Integrations">
+    <AppShell
+      title="Integrations"
+      description={
+        loading ? "Loading…" : "ABC, QuickBooks, and website intake"
+      }
+    >
       {confirmModal}
       <div className="space-y-6">
-        {error ? (
-          <div className="card rounded-lg p-4">
-            <div className="text-sm font-medium">Couldn’t load integrations</div>
-            <div className="text-muted mt-1 text-sm">{error}</div>
-          </div>
-        ) : null}
+        {error ? <Alert variant="inline">{error}</Alert> : null}
 
-        <section className="card rounded-lg p-4">
-          <div className="text-sm font-medium">Connected Systems</div>
-          <div className="text-muted mt-1 text-sm">
-            Manage third-party providers, view setup readiness, and prepare future
-            workflows. Some integrations are still scaffolded rather than fully live.
-          </div>
-        </section>
+        <PageToolbar
+          refresh={
+            <button
+              type="button"
+              className="icon-btn"
+              onClick={load}
+              disabled={loading}
+              title="Refresh"
+              aria-label="Refresh"
+            >
+              <Icon name="refreshCcw" className="h-4 w-4" />
+            </button>
+          }
+        />
 
-        <section className="card rounded-lg p-4">
-          <div className="flex flex-wrap items-start justify-between gap-3">
-            <div className="min-w-0">
-              <div className="font-medium">Website intake link</div>
-              <div className="text-muted mt-1 text-sm">
-                Place this public URL behind a “Request a Quote” or “Get Started”
-                button on the company website. Submissions create a New lead with
-                source Website.
-              </div>
-            </div>
-            {loading ? (
+        <SectionCard
+          title="Website intake"
+          description="Place this public URL behind a Request a quote button on the company website. Submissions create a New lead with source Website."
+          size="lg"
+          right={
+            loading ? (
               <span className="text-muted text-xs">Loading…</span>
             ) : (
               <StatusBadge
@@ -262,13 +267,11 @@ export default function IntegrationsPage() {
                     ? "Active"
                     : "Disabled"}
               </StatusBadge>
-            )}
-          </div>
-
+            )
+          }
+        >
           {intakeHint ? (
-            <Alert variant="inline" className="mt-3">
-              {intakeHint}
-            </Alert>
+            <Alert variant="inline">{intakeHint}</Alert>
           ) : null}
 
           {intakeUrl ? (
@@ -333,7 +336,7 @@ export default function IntegrationsPage() {
               </>
             )}
           </div>
-        </section>
+        </SectionCard>
 
         <section className="grid gap-4 md:grid-cols-2">
           <IntegrationCard

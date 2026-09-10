@@ -1,9 +1,10 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useState } from "react";
 import { cx } from "@/lib/cx";
 
 export function CollapsibleSection({
+  id,
   title,
   description,
   actions,
@@ -15,25 +16,27 @@ export function CollapsibleSection({
   children,
   contentClassName = "",
 }) {
-  const [open, setOpen] = useState(() => (ready && empty ? false : defaultOpen));
-  const userToggledRef = useRef(false);
+  const automaticOpen = !ready ? defaultOpen : empty ? false : defaultOpen;
+  // null = follow automaticOpen; boolean = user has toggled
+  const [userOpen, setUserOpen] = useState(null);
+  const [prevSyncKey, setPrevSyncKey] = useState(syncKey);
 
-  useEffect(() => {
-    userToggledRef.current = false;
-  }, [syncKey]);
+  if (syncKey !== prevSyncKey) {
+    setPrevSyncKey(syncKey);
+    setUserOpen(null);
+  }
 
-  useEffect(() => {
-    if (!ready || userToggledRef.current) return;
-    setOpen(empty ? false : defaultOpen);
-  }, [ready, empty, defaultOpen]);
+  const open = userOpen === null ? automaticOpen : userOpen;
 
   function toggleOpen() {
-    userToggledRef.current = true;
-    setOpen((prev) => !prev);
+    setUserOpen((prev) => {
+      const current = prev === null ? automaticOpen : prev;
+      return !current;
+    });
   }
 
   return (
-    <section className="card min-w-0">
+    <section id={id} className="card min-w-0">
       <div
         className={cx(
           "flex min-w-0 flex-wrap items-start justify-between gap-3 p-4",
@@ -51,8 +54,7 @@ export function CollapsibleSection({
               className="flex min-w-0 max-w-full flex-wrap items-center justify-end gap-2"
               onClickCapture={() => {
                 if (!open) {
-                  userToggledRef.current = true;
-                  setOpen(true);
+                  setUserOpen(true);
                 }
               }}
             >

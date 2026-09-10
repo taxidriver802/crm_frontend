@@ -138,6 +138,10 @@ function ActivityItem({ item }) {
             <div className="text-sm font-medium">{formatted.title}</div>
           </div>
 
+          {formatted.subject ? (
+            <div className="line-clamp-1 text-sm leading-5">{formatted.subject}</div>
+          ) : null}
+
           {formatted.detail ? (
             <div className="text-muted line-clamp-2 text-sm leading-5">
               {formatted.detail}

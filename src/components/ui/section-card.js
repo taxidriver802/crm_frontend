@@ -1,6 +1,7 @@
 import { cx } from "@/lib/cx";
 
 export function SectionCard({
+  id,
   title,
   description,
   right,
@@ -10,7 +11,7 @@ export function SectionCard({
   collapsed = false,
 }) {
   return (
-    <section className={cx("card", className)}>
+    <section id={id} className={cx("card", className)}>
       <div
         className={cx(
           "flex min-w-0 flex-wrap items-start justify-between gap-3 p-4",

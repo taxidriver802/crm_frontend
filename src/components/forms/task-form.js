@@ -432,22 +432,26 @@ function CustomTimePicker({ value, onChange, isOpen, onToggle, onClose }) {
 }
 
 export function CustomDateTimePicker({ value, onChange }) {
-  const [date, setDate] = useState(null);
-  const [time, setTime] = useState("");
+  const parsedFromValue = (() => {
+    if (!value) return { date: null, time: "" };
+    const [d, t] = value.split("T");
+    return {
+      date: d ? parseLocalDate(d) : null,
+      time: t?.slice(0, 5) || "",
+    };
+  })();
+
+  const [date, setDate] = useState(parsedFromValue.date);
+  const [time, setTime] = useState(parsedFromValue.time);
+  const [prevValue, setPrevValue] = useState(value);
   const [openPanel, setOpenPanel] = useState(null);
   const pickerRef = useRef(null);
 
-  useEffect(() => {
-    if (!value) return;
-
-    const [d, t] = value.split("T");
-
-    if (d) {
-      setDate(parseLocalDate(d));
-    }
-
-    setTime(t?.slice(0, 5) || "");
-  }, [value]);
+  if (value !== prevValue) {
+    setPrevValue(value);
+    setDate(parsedFromValue.date);
+    setTime(parsedFromValue.time);
+  }
 
   function updateDateTime(d, t) {
     if (!d) return onChange("");

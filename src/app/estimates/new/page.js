@@ -1,6 +1,6 @@
 "use client";
 
-import { Suspense, useEffect, useMemo, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { AppShell } from "@/components/app-shell";
 import {
@@ -121,14 +121,12 @@ function NewEstimatePageInner() {
   }
 
   const isContextLocked = !!prefillJobId;
-
-  const title = useMemo(() => {
-    if (form.job_id) return `New Estimate for Job #${form.job_id}`;
-    return "New Estimate";
-  }, [form.job_id]);
+  const relatedJob = prefillJobId
+    ? jobs.find((job) => String(job.id) === String(prefillJobId))
+    : null;
 
   return (
-    <AppShell title={title}>
+    <AppShell title="New estimate" description={relatedJob?.title || undefined}>
       <section className="card p-4">
         {loadingJobs ? (
           <EstimateFormSkeleton onCancel={() => router.back()} />
@@ -139,7 +137,7 @@ function NewEstimatePageInner() {
             onSubmit={onSubmit}
             saving={saving}
             error={error}
-            submitLabel="Create Estimate"
+            submitLabel="Create estimate"
             cancelLabel="Cancel"
             onCancel={() => router.back()}
             jobs={jobs}
@@ -178,7 +176,7 @@ export default function NewEstimatePage() {
   return (
     <Suspense
       fallback={
-        <AppShell title="New Estimate">
+        <AppShell title="New estimate">
           <section className="card p-4">
             <EstimateFormSkeleton onCancel={() => {}} />
           </section>

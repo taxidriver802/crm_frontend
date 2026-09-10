@@ -5,7 +5,6 @@ import { useRouter } from "next/navigation";
 import { AppShell } from "@/components/app-shell";
 import { useConfirmModal } from "@/components/modals/confirm-modal";
 import { api } from "@/lib/api";
-import { ToggleFormSection } from "@/components/toggle-form-section";
 import {
   EstimateLineItemForm,
   createEmptyLineItem,
@@ -15,6 +14,8 @@ import { ListRow } from "@/components/ui/list-row";
 import { Alert } from "@/components/ui/alert";
 import { EmptyState } from "@/components/error-boundary";
 import { SectionCard } from "@/components/ui/section-card";
+import { PageToolbar } from "@/components/page-toolbar";
+import { Icon } from "@/components/icons";
 
 function formatCurrency(num) {
   return Number(num || 0).toLocaleString("en-US", {
@@ -86,6 +87,18 @@ export default function EstimateTemplatesPage() {
     }
     boot();
   }, [router]);
+
+  async function refreshAll() {
+    setError("");
+    setLoading(true);
+    try {
+      await loadTemplates();
+    } catch (err) {
+      setError(err?.message || "Failed to load templates");
+    } finally {
+      setLoading(false);
+    }
+  }
 
   useEffect(() => {
     if (!selected) {
@@ -214,54 +227,96 @@ export default function EstimateTemplatesPage() {
   }
 
   return (
-    <AppShell title="Estimate templates">
+    <AppShell
+      title="Templates"
+      description={loading ? "Loading…" : `${templates.length} in this view`}
+    >
       {confirmModal}
       <div className="space-y-6">
         {error ? <Alert variant="inline">{error}</Alert> : null}
 
-        <ToggleFormSection
-          title="New template"
-          description="Instance-wide packages. Applying a template copies lines onto a draft estimate."
-          isOpen={createOpen}
-          onToggle={() => setCreateOpen((prev) => !prev)}
-          openLabel="+ New template"
-          closeLabel="Hide form"
-        >
-          <form onSubmit={handleCreate} className="space-y-3">
-            <Field label="Name" required>
-              <input
-                className="input"
-                value={createForm.name}
-                onChange={(e) =>
-                  setCreateForm((prev) => ({ ...prev, name: e.target.value }))
-                }
-                required
-              />
-            </Field>
-            <Field label="Description">
-              <input
-                className="input"
-                value={createForm.description}
-                onChange={(e) =>
-                  setCreateForm((prev) => ({
-                    ...prev,
-                    description: e.target.value,
-                  }))
-                }
-              />
-            </Field>
-            <FormActions>
-              <button type="submit" className="btn btn-primary" disabled={creating}>
-                {creating ? "Creating…" : "Create template"}
+        <PageToolbar
+          refresh={
+            <button
+              type="button"
+              className="icon-btn"
+              onClick={refreshAll}
+              disabled={loading}
+              title="Refresh"
+              aria-label="Refresh"
+            >
+              <Icon name="refreshCcw" className="h-4 w-4" />
+            </button>
+          }
+          create={
+            createOpen ? null : (
+              <button
+                type="button"
+                className="btn btn-primary"
+                onClick={() => setCreateOpen(true)}
+                disabled={creating}
+              >
+                New template
               </button>
-            </FormActions>
-          </form>
-        </ToggleFormSection>
+            )
+          }
+        />
+
+        {createOpen ? (
+          <section className="card p-4">
+            <div className="mb-4 flex min-w-0 flex-wrap items-start justify-between gap-3">
+              <div className="min-w-0">
+                <div className="text-sm font-medium">New template</div>
+                <p className="text-muted mt-0.5 text-xs">
+                  Instance-wide packages. Applying a template copies lines onto a draft
+                  estimate.
+                </p>
+              </div>
+              <button
+                type="button"
+                className="btn btn-sm"
+                onClick={() => setCreateOpen(false)}
+                disabled={creating}
+              >
+                Hide
+              </button>
+            </div>
+            <form onSubmit={handleCreate} className="space-y-3">
+              <Field label="Name" required>
+                <input
+                  className="input"
+                  value={createForm.name}
+                  onChange={(e) =>
+                    setCreateForm((prev) => ({ ...prev, name: e.target.value }))
+                  }
+                  required
+                />
+              </Field>
+              <Field label="Description">
+                <input
+                  className="input"
+                  value={createForm.description}
+                  onChange={(e) =>
+                    setCreateForm((prev) => ({
+                      ...prev,
+                      description: e.target.value,
+                    }))
+                  }
+                />
+              </Field>
+              <FormActions>
+                <button type="submit" className="btn btn-primary" disabled={creating}>
+                  {creating ? "Creating…" : "Create template"}
+                </button>
+              </FormActions>
+            </form>
+          </section>
+        ) : null}
 
         <div className="grid gap-6 lg:grid-cols-[minmax(0,16rem)_minmax(0,1fr)]">
           <SectionCard title="Templates" size="lg">
             {loading ? (
-              <div className="text-muted text-sm">Loading templates…</div>
+              <div className="text-muted text-sm">Loading…</div>
             ) : templates.length === 0 ? (
               <EmptyState
                 title="No templates yet"
@@ -276,7 +331,7 @@ export default function EstimateTemplatesPage() {
                     type="button"
                     interactive
                     className={`w-full text-left ${
-                      template.id === selectedId ? "border-strong bg-accent" : ""
+                      template.id === selectedId ? "bg-accent-soft" : ""
                     }`}
                     onClick={() => setSelectedId(template.id)}
                   >
@@ -342,85 +397,94 @@ export default function EstimateTemplatesPage() {
                 </form>
               </SectionCard>
 
-              <ToggleFormSection
-                title={editingLineItem ? "Edit line item" : "Add line item"}
-                description="Copied onto draft estimates as manual lines."
-                isOpen={lineFormOpen}
-                onToggle={() => {
-                  setLineFormOpen((prev) => !prev);
-                  if (lineFormOpen) {
-                    setEditingLineItem(null);
-                    setLineItemForm(createEmptyLineItem());
-                  }
-                }}
-                openLabel="+ New item"
-                closeLabel="Hide form"
-              >
-                <EstimateLineItemForm
-                  form={lineItemForm}
-                  onChange={setLineItemForm}
-                  onSubmit={handleSubmitLineItem}
-                  saving={savingLine}
-                  onCancel={() => {
-                    setLineItemForm(createEmptyLineItem());
-                    setEditingLineItem(null);
-                    setLineFormOpen(false);
-                  }}
-                  submitLabel={editingLineItem ? "Update item" : "Add item"}
-                  deleteButton={!!editingLineItem}
-                  onDelete={handleDeleteLineItem}
-                />
-              </ToggleFormSection>
-
               <SectionCard
                 title="Line items"
                 description={`Package total $${formatCurrency(templateSubtotal(selected))}`}
                 size="lg"
+                right={
+                  <button
+                    type="button"
+                    className="btn btn-primary btn-sm"
+                    onClick={() => {
+                      if (lineFormOpen && !editingLineItem) {
+                        setLineFormOpen(false);
+                        return;
+                      }
+                      setEditingLineItem(null);
+                      setLineItemForm(createEmptyLineItem());
+                      setLineFormOpen(true);
+                    }}
+                  >
+                    {lineFormOpen && !editingLineItem ? "Hide" : "New item"}
+                  </button>
+                }
               >
-                {(selected.line_items || []).length === 0 ? (
-                  <div className="text-muted text-sm">No line items yet.</div>
-                ) : (
-                  <div className="space-y-2">
-                    {selected.line_items.map((item) => (
-                      <ListRow
-                        key={item.id}
-                        as="button"
-                        type="button"
-                        interactive
-                        className="flex w-full items-start justify-between text-left"
-                        onClick={() => {
-                          setEditingLineItem(item);
-                          setLineItemForm({
-                            name: item.name || "",
-                            description: item.description || "",
-                            quantity: item.quantity ?? "",
-                            unit_price: item.unit_price ?? "",
-                          });
-                          setLineFormOpen(true);
-                        }}
-                      >
-                        <div>
-                          <div className="font-medium">{item.name}</div>
-                          {item.description ? (
-                            <div className="text-muted mt-1 text-sm">
-                              {item.description}
+                <div className="space-y-4">
+                  {lineFormOpen ? (
+                    <EstimateLineItemForm
+                      form={lineItemForm}
+                      onChange={setLineItemForm}
+                      onSubmit={handleSubmitLineItem}
+                      saving={savingLine}
+                      onCancel={() => {
+                        setLineItemForm(createEmptyLineItem());
+                        setEditingLineItem(null);
+                        setLineFormOpen(false);
+                      }}
+                      submitLabel={editingLineItem ? "Update item" : "Add item"}
+                      deleteButton={!!editingLineItem}
+                      onDelete={handleDeleteLineItem}
+                    />
+                  ) : null}
+
+                  {(selected.line_items || []).length === 0 ? (
+                    <div className="text-muted rounded-lg border border-dashed p-4 text-sm">
+                      No line items yet.
+                    </div>
+                  ) : (
+                    <div className="space-y-2">
+                      {selected.line_items.map((item) => (
+                        <ListRow
+                          key={item.id}
+                          as="button"
+                          type="button"
+                          interactive
+                          className="flex w-full items-start justify-between text-left"
+                          onClick={() => {
+                            setEditingLineItem(item);
+                            setLineItemForm({
+                              name: item.name || "",
+                              description: item.description || "",
+                              quantity: item.quantity ?? "",
+                              unit_price: item.unit_price ?? "",
+                            });
+                            setLineFormOpen(true);
+                          }}
+                        >
+                          <div>
+                            <div className="font-medium">{item.name}</div>
+                            {item.description ? (
+                              <div className="text-muted mt-1 text-sm">
+                                {item.description}
+                              </div>
+                            ) : null}
+                            <div className="text-muted mt-1 text-xs">
+                              {Number(item.quantity).toLocaleString("en-US")} × $
+                              {formatCurrency(item.unit_price)}
                             </div>
-                          ) : null}
-                          <div className="text-muted mt-1 text-xs">
-                            {Number(item.quantity).toLocaleString("en-US")} × $
-                            {formatCurrency(item.unit_price)}
                           </div>
-                        </div>
-                        <div className="font-semibold">
-                          $
-                          {formatCurrency(
-                            Number(item.quantity || 0) * Number(item.unit_price || 0),
-                          )}
-                        </div>
-                      </ListRow>
-                    ))}
-                  </div>
-                )}
+                          <div className="font-semibold">
+                            $
+                            {formatCurrency(
+                              Number(item.quantity || 0) *
+                                Number(item.unit_price || 0),
+                            )}
+                          </div>
+                        </ListRow>
+                      ))}
+                    </div>
+                  )}
+                </div>
               </SectionCard>
             </div>
           ) : !loading ? (

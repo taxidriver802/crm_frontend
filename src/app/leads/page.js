@@ -3,22 +3,20 @@
 import { Alert } from "@/components/ui/alert";
 import { Suspense, useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
+import Link from "next/link";
 import { AppShell } from "@/components/app-shell";
 import { useReturnPush } from "@/components/return-to";
-import { ToggleFormSection } from "@/components/toggle-form-section";
 import { LeadForm, createEmptyLeadForm } from "@/components/forms/lead-form";
 import { api } from "@/lib/api";
-import { CollapsibleSection } from "@/components/forms/collapsible-section";
 import { Skeleton } from "@/components/loading/loadingSkeletons";
 import { KanbanBoard } from "@/components/kanban/kanban-board";
 import { SavedViewsControls } from "@/components/saved-views-controls";
-import { StatusBadge } from "@/components/ui/status-badge";
-import { Field } from "@/components/ui/field";
-import { FilterBar } from "@/components/ui/filter-bar";
 import { Segmented } from "@/components/ui/segmented";
 import { EmptyState } from "@/components/error-boundary";
 import { Icon } from "@/components/icons";
 import { LeadsList } from "@/components/lists/leads-list";
+import { PageToolbar } from "@/components/page-toolbar";
+import { useScrollIntoViewOnChange } from "@/lib/use-scroll-into-view-on-change";
 
 const LEAD_PIPELINE_COLUMNS = ["New", "Contacted", "Qualified", "Closed", "Inactive"];
 
@@ -40,10 +38,21 @@ function LeadsPageInner() {
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [leadForm, setLeadForm] = useState(createEmptyLeadForm());
   const [viewMode, setViewMode] = useState("list");
+  const [viewFocusToken, setViewFocusToken] = useState(0);
+  const viewContentRef = useScrollIntoViewOnChange(viewFocusToken);
   const [currentUser, setCurrentUser] = useState(null);
   const [teamUsers, setTeamUsers] = useState([]);
   const [viewScope, setViewScope] = useState("mine");
-  const [assignedFilter, setAssignedFilter] = useState("");
+  const [assignedFilter, setAssignedFilter] = useState(
+    () => searchParams.get("assignedTo") || "",
+  );
+  const statusParam = searchParams.get("status") || "";
+  const assignedParam = searchParams.get("assignedTo") || "";
+
+  useEffect(() => {
+    setStatus(statusParam);
+    setAssignedFilter(assignedParam);
+  }, [statusParam, assignedParam]);
 
   useEffect(() => {
     const saved = window.localStorage.getItem("leads:view-mode");
@@ -300,79 +309,120 @@ function LeadsPageInner() {
     }
   }
 
-  const leadTitle = (
-    <div>
-      {loadingLeads ? "Loading…" : `${leads.length} lead${leads.length === 1 ? "" : "s"}`}
-    </div>
-  );
+  const byStatus = Array.isArray(summary?.byStatus) ? summary.byStatus : [];
+  const pipelineOptions = [
+    {
+      value: "",
+      label: "All",
+      count: loadingSummary ? undefined : (summary?.total ?? 0),
+    },
+    ...LEAD_PIPELINE_COLUMNS.map((column) => ({
+      value: column,
+      label: column,
+      short: column === "Contacted" ? "Touch" : column === "Qualified" ? "Qual" : column,
+      count: loadingSummary
+        ? undefined
+        : (byStatus.find((row) => row.status === column)?.count ?? 0),
+    })),
+  ];
 
   return (
-    <AppShell title="Leads">
+    <AppShell
+      title="Leads"
+      description={
+        loadingLeads
+          ? "Loading…"
+          : `${leads.length} in this view`
+      }
+      right={
+        <div className="flex flex-wrap items-center gap-2">
+          {canViewAll ? (
+            <Segmented
+              aria-label="Lead scope"
+              value={viewScope}
+              onChange={setViewScope}
+              options={[
+                { value: "mine", label: "Mine", short: "Mine" },
+                { value: "all", label: "Team", short: "Team" },
+              ]}
+            />
+          ) : null}
+          <Segmented
+            aria-label="Lead layout"
+            value={viewMode}
+            onChange={(next) => {
+              setViewMode(next);
+              setViewFocusToken((token) => token + 1);
+            }}
+            options={[
+              { value: "list", label: "List" },
+              { value: "board", label: "Board" },
+            ]}
+          />
+        </div>
+      }
+    >
       <div className="space-y-6">
         {error ? <Alert variant="inline">{error}</Alert> : null}
 
-        <ToggleFormSection
-          title="Create Lead"
-          description="Add a new lead to your pipeline without leaving the page."
-          isOpen={isCreateOpen}
-          onToggle={() => setIsCreateOpen((prev) => !prev)}
-          openLabel="+ New Lead"
-          closeLabel="Hide Form"
-          fullFormUrl="/leads/new"
-          fullFormLabel="Full Form"
-          disabled={savingLead}
-        >
-          <LeadForm
-            form={leadForm}
-            onChange={setLeadForm}
-            onSubmit={handleCreateLead}
-            saving={savingLead}
-            error={createError}
-            submitLabel="Create lead"
-            cancelLabel="Clear"
-            onCancel={() => {
-              setLeadForm(createEmptyLeadForm());
-              setCreateError("");
-            }}
-            layout="compact"
-          />
-        </ToggleFormSection>
-
-        {/* <section className="card p-4">
-          <div className="flex flex-row items-center justify-between gap-3">
-            <div>
-              <div className="text-muted text-sm">Total leads</div>
-              <div className="text-2xl font-semibold tracking-tight">
-                {loadingSummary ? (
-                  <Skeleton className="h-8 w-6" />
-                ) : (
-                  (summary?.total ?? "—")
-                )}
+        {isCreateOpen ? (
+          <section className="card p-4">
+            <div className="mb-4 flex min-w-0 flex-wrap items-start justify-between gap-3">
+              <div className="min-w-0">
+                <div className="text-sm font-medium">New lead</div>
+                <p className="text-muted mt-0.5 text-xs">
+                  Add to the pipeline without leaving this page.
+                </p>
+              </div>
+              <div className="flex shrink-0 flex-wrap gap-2">
+                <Link href="/leads/new" className="btn btn-sm">
+                  Full form
+                </Link>
+                <button
+                  type="button"
+                  className="btn btn-sm"
+                  onClick={() => setIsCreateOpen(false)}
+                  disabled={savingLead}
+                >
+                  Hide
+                </button>
               </div>
             </div>
+            <LeadForm
+              form={leadForm}
+              onChange={setLeadForm}
+              onSubmit={handleCreateLead}
+              saving={savingLead}
+              error={createError}
+              submitLabel="Create lead"
+              cancelLabel="Clear"
+              onCancel={() => {
+                setLeadForm(createEmptyLeadForm());
+                setCreateError("");
+              }}
+              layout="compact"
+            />
+          </section>
+        ) : null}
 
-            <div className="flex flex-wrap gap-2">
-              {loadingSummary ? (
-                <div className="flex gap-2">
-                  {Array.from({ length: 3 }).map((_, i) => (
-                    <Skeleton key={i} className="h-6 w-20 rounded-md" />
-                  ))}
-                </div>
-              ) : summary?.byStatus?.length ? (
-                summary.byStatus.map((x) => (
-                  <StatusBadge key={x.status} kind="lead" status={x.status}>
-                    {x.status}: {x.count}
-                  </StatusBadge>
-                ))
-              ) : (
-                <span className="text-muted text-sm">No summary</span>
-              )}
-            </div>
-          </div>
-        </section> */}
+        <Segmented
+          className="w-full min-w-0"
+          aria-label="Lead status"
+          value={status}
+          onChange={setStatus}
+          options={pipelineOptions}
+        />
 
-        <FilterBar
-          actions={
+        <PageToolbar
+          search={
+            <input
+              className="input min-w-0 w-full flex-1 basis-48"
+              placeholder="Search name, email, phone…"
+              value={q}
+              onChange={(e) => setQ(e.target.value)}
+            />
+          }
+          refresh={
             <button
               type="button"
               className="icon-btn"
@@ -384,113 +434,81 @@ function LeadsPageInner() {
               <Icon name="refreshCcw" className="h-4 w-4" />
             </button>
           }
-          footer={
-            <>
-              <div className="flex min-w-0 flex-wrap items-center gap-2">
-                {canViewAll ? (
-                  <Segmented
-                    aria-label="Lead scope"
-                    value={viewScope}
-                    onChange={setViewScope}
-                    options={[
-                      { value: "mine", label: "My Leads" },
-                      { value: "all", label: "Team" },
-                    ]}
-                  />
-                ) : null}
-
-                <Segmented
-                  aria-label="Lead layout"
-                  value={viewMode}
-                  onChange={setViewMode}
-                  options={[
-                    { value: "list", label: "List" },
-                    { value: "board", label: "Board" },
-                  ]}
-                />
-              </div>
-
-              <SavedViewsControls
-                entityType="leads"
-                currentFilters={currentFiltersForSave}
-                onApplyFilters={(filters) => {
-                  setQ(String(filters?.q || ""));
-                  setStatus(String(filters?.status || ""));
-                  setAssignedFilter(String(filters?.assignedFilter || ""));
-                  setViewScope(String(filters?.viewScope || "mine"));
-                  setViewMode(
-                    filters?.viewMode === "board" || filters?.viewMode === "list"
-                      ? filters.viewMode
-                      : "list",
-                  );
-                }}
-              />
-            </>
+          create={
+            isCreateOpen ? null : (
+              <button
+                type="button"
+                className="btn btn-primary"
+                onClick={() => setIsCreateOpen(true)}
+                disabled={savingLead}
+              >
+                New lead
+              </button>
+            )
+          }
+          savedViews={
+            <SavedViewsControls
+              entityType="leads"
+              currentFilters={currentFiltersForSave}
+              onApplyFilters={(filters) => {
+                setQ(String(filters?.q || ""));
+                setStatus(String(filters?.status || ""));
+                setAssignedFilter(String(filters?.assignedFilter || ""));
+                setViewScope(String(filters?.viewScope || "mine"));
+                setViewMode(
+                  filters?.viewMode === "board" || filters?.viewMode === "list"
+                    ? filters.viewMode
+                    : "list",
+                );
+              }}
+            />
           }
         >
-          <Field label="Search" className="flex-1">
-            <input
-              className="input"
-              placeholder="Search name, email, phone…"
-              value={q}
-              onChange={(e) => setQ(e.target.value)}
-            />
-          </Field>
+          <select
+            className="input min-w-0 w-full sm:w-48"
+            value={assignedFilter}
+            onChange={(e) => setAssignedFilter(e.target.value)}
+            aria-label="Assigned to"
+          >
+            <option value="">Anyone</option>
+            <option value="unassigned">Unassigned</option>
+            {teamUsers.map((user) => (
+              <option key={user.id} value={user.id}>
+                {user.first_name} {user.last_name}
+              </option>
+            ))}
+          </select>
+        </PageToolbar>
 
-          <Field label="Status" className="w-full md:w-56">
-            <select
-              className="input"
-              value={status}
-              onChange={(e) => setStatus(e.target.value)}
-            >
-              <option value="">All</option>
-              <option value="New">New</option>
-              <option value="Contacted">Contacted</option>
-              <option value="Qualified">Qualified</option>
-              <option value="Closed">Closed</option>
-              <option value="Inactive">Inactive</option>
-            </select>
-          </Field>
-
-          <Field label="Assigned To" className="w-full md:w-56">
-            <select
-              className="input"
-              value={assignedFilter}
-              onChange={(e) => setAssignedFilter(e.target.value)}
-            >
-              <option value="">All</option>
-              <option value="unassigned">Unassigned</option>
-              {teamUsers.map((user) => (
-                <option key={user.id} value={user.id}>
-                  {user.first_name} {user.last_name}
-                </option>
-              ))}
-            </select>
-          </Field>
-        </FilterBar>
-
-        <CollapsibleSection title={leadTitle} defaultOpen={true}>
+        <div
+          ref={viewContentRef}
+          id="leads-view"
+          className="scroll-mt-20"
+        >
           {viewMode === "board" ? (
-            loadingLeads ? (
-              <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
-                {Array.from({ length: 6 }).map((_, i) => (
-                  <div key={i} className="list-row">
-                    <Skeleton className="mb-2 h-4 w-28" />
-                    <Skeleton className="h-3 w-full" />
-                  </div>
-                ))}
-              </div>
-            ) : leads.length === 0 ? (
-              <EmptyState title="No leads found" />
-            ) : (
-              <KanbanBoard
-                leads={leads}
-                columns={LEAD_PIPELINE_COLUMNS}
-                onMove={handleMoveLeadStatus}
-              />
-            )
+            <section className="card p-4">
+              {loadingLeads ? (
+                <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+                  {Array.from({ length: 6 }).map((_, i) => (
+                    <div key={i} className="list-row">
+                      <Skeleton className="mb-2 h-4 w-28" />
+                      <Skeleton className="h-3 w-full" />
+                    </div>
+                  ))}
+                </div>
+              ) : leads.length === 0 ? (
+                <EmptyState title="No leads found" />
+              ) : (
+                <KanbanBoard
+                  leads={leads}
+                  columns={LEAD_PIPELINE_COLUMNS}
+                  onMove={handleMoveLeadStatus}
+                />
+              )}
+            </section>
           ) : (
             <LeadsList
+              layout="flush"
               leads={leads}
               loading={loadingLeads}
               canViewAll={canViewAll}
@@ -499,7 +517,7 @@ function LeadsPageInner() {
               onAssign={handleAssignLead}
             />
           )}
-        </CollapsibleSection>
+        </div>
       </div>
     </AppShell>
   );

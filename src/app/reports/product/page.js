@@ -11,12 +11,14 @@ import { SectionCard } from "@/components/ui/section-card";
 import { Segmented } from "@/components/ui/segmented";
 import { ListRow } from "@/components/ui/list-row";
 import { FunnelBars } from "@/components/ui/chart";
+import { PageToolbar } from "@/components/page-toolbar";
+import { Icon } from "@/components/icons";
 
 const FUNNEL_STEPS = [
-  { key: "leads_created", label: "Leads Created", series: 1 },
-  { key: "estimates_approved", label: "Estimates Approved", series: 2 },
-  { key: "invoices_created", label: "Invoices Created", series: 3 },
-  { key: "invoices_paid", label: "Invoices Paid", series: 4 },
+  { key: "leads_created", label: "Leads created", series: 1 },
+  { key: "estimates_approved", label: "Estimates approved", series: 2 },
+  { key: "invoices_created", label: "Invoices created", series: 3 },
+  { key: "invoices_paid", label: "Invoices paid", series: 4 },
 ];
 
 export default function ProductMetricsPage() {
@@ -40,6 +42,7 @@ export default function ProductMetricsPage() {
 
   useEffect(() => {
     loadData();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [days]);
 
   const funnel = data?.funnel || {};
@@ -48,7 +51,7 @@ export default function ProductMetricsPage() {
 
   return (
     <AppShell
-      title="Product Metrics"
+      title="Product metrics"
       description="Internal usage and conversion insights."
       right={
         <Link href="/reports" className="btn px-3 py-2 text-xs">
@@ -70,9 +73,24 @@ export default function ProductMetricsPage() {
 
         {error ? <PageError message={error} onRetry={loadData} /> : null}
 
+        <PageToolbar
+          refresh={
+            <button
+              type="button"
+              className="icon-btn"
+              onClick={loadData}
+              disabled={loading}
+              title="Refresh"
+              aria-label="Refresh"
+            >
+              <Icon name="refreshCcw" className="h-4 w-4" />
+            </button>
+          }
+        />
+
         {loading ? (
           <>
-            <SectionCard title={`Conversion Funnel (${days} days)`}>
+            <SectionCard title={`Conversion funnel (${days} days)`}>
               <Skeleton className="h-40 w-full" />
             </SectionCard>
             <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
@@ -83,7 +101,7 @@ export default function ProductMetricsPage() {
           </>
         ) : (
           <>
-            <SectionCard title={`Conversion Funnel (${days} days)`}>
+            <SectionCard title={`Conversion funnel (${days} days)`}>
               <FunnelBars
                 steps={FUNNEL_STEPS.map((step) => ({
                   label: step.label,
@@ -96,32 +114,32 @@ export default function ProductMetricsPage() {
             <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
               <StatCard
                 size="metric"
-                label="Automation Fires"
+                label="Automation fires"
                 value={automation.triggered || 0}
                 sub={`Last ${days} days`}
               />
               <StatCard
                 size="metric"
-                label="Portal Views"
+                label="Portal views"
                 value={automation.portal_views || 0}
                 sub={`Last ${days} days`}
               />
               <StatCard
                 size="metric"
-                label="QB Sync Success"
+                label="QB sync success"
                 value={automation.qb_success || 0}
                 sub={`Last ${days} days`}
               />
               <StatCard
                 size="metric"
-                label="QB Sync Failed"
+                label="QB sync failed"
                 value={automation.qb_failed || 0}
                 sub={`Last ${days} days`}
               />
             </div>
 
             {counts.length > 0 ? (
-              <SectionCard title={`All Events (${days} days)`}>
+              <SectionCard title={`All events (${days} days)`}>
                 <div className="space-y-2">
                   {counts.map((row) => (
                     <ListRow

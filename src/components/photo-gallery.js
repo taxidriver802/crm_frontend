@@ -99,6 +99,8 @@ export function PhotoGallery({
                       onClick={() => setActiveIndex(index)}
                       title={photoCaption(file)}
                     >
+                      {/* Dynamic authenticated upload URL — next/image not suitable */}
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
                       <img
                         src={buildFileUrl(file)}
                         alt={photoCaption(file)}
@@ -150,6 +152,8 @@ export function PhotoGallery({
           ) : null}
 
           <div className="max-h-[85vh] max-w-[90vw] overflow-hidden rounded-lg">
+            {/* Dynamic authenticated upload URL — next/image not suitable */}
+            {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
               src={buildFileUrl(activePhoto)}
               alt={photoCaption(activePhoto)}

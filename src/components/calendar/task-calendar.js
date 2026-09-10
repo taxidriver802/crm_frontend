@@ -110,14 +110,12 @@ export function TaskCalendar({ tasks, onTaskClick, onRangeChange, onDayCreate })
     return map;
   }, [tasks]);
 
-  useEffect(() => {
+  const effectiveSelectedKey = useMemo(() => {
     const keys = new Set(gridDays.map((day) => formatDayKey(day)));
-    if (keys.has(selectedKey)) return;
-    if (keys.has(todayKey)) {
-      setSelectedKey(todayKey);
-      return;
-    }
-    if (gridDays[0]) setSelectedKey(formatDayKey(gridDays[0]));
+    if (keys.has(selectedKey)) return selectedKey;
+    if (keys.has(todayKey)) return todayKey;
+    if (gridDays[0]) return formatDayKey(gridDays[0]);
+    return selectedKey;
   }, [gridDays, selectedKey, todayKey]);
 
   useEffect(() => {
@@ -157,7 +155,8 @@ export function TaskCalendar({ tasks, onTaskClick, onRangeChange, onDayCreate })
   );
 
   const selectedDay =
-    gridDays.find((day) => formatDayKey(day) === selectedKey) || gridDays[0];
+    gridDays.find((day) => formatDayKey(day) === effectiveSelectedKey) ||
+    gridDays[0];
   const selectedTasks = selectedDay
     ? tasksByDay.get(formatDayKey(selectedDay)) || []
     : [];
@@ -280,7 +279,7 @@ export function TaskCalendar({ tasks, onTaskClick, onRangeChange, onDayCreate })
             const dayTasks = tasksByDay.get(key) || [];
             const isCurrentMonth = day.getMonth() === anchorDate.getMonth();
             const isToday = key === todayKey;
-            const isSelected = key === selectedKey;
+            const isSelected = key === effectiveSelectedKey;
 
             return (
               <button

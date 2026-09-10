@@ -3,6 +3,7 @@
 import { Suspense, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Alert } from "@/components/ui/alert";
+import { Field, FormActions } from "@/components/ui/field";
 import { AuthFrame } from "@/components/auth/auth-frame";
 
 function AcceptInvitePageInner() {
@@ -59,7 +60,7 @@ function AcceptInvitePageInner() {
         return;
       }
 
-      setSuccess("Invite accepted. Redirecting...");
+      setSuccess("Invite accepted. Redirecting…");
       setTimeout(() => {
         router.replace("/dashboard");
       }, 800);
@@ -76,39 +77,45 @@ function AcceptInvitePageInner() {
       description="Set your password to activate your account."
     >
       {!token ? (
-        <Alert>This invite link is missing a token or is invalid.</Alert>
+        <Alert variant="inline">This invite link is missing a token or is invalid.</Alert>
       ) : (
         <form onSubmit={handleSubmit} className="space-y-4">
-          <label className="block">
-            <span className="text-sm font-medium">New password</span>
+          <Field label="New password" required>
             <input
               type="password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              className="input mt-1"
+              className="input"
               placeholder="At least 8 characters"
               required
+              autoComplete="new-password"
             />
-          </label>
+          </Field>
 
-          <label className="block">
-            <span className="text-sm font-medium">Confirm password</span>
+          <Field label="Confirm password" required>
             <input
               type="password"
               value={confirmPassword}
               onChange={(e) => setConfirmPassword(e.target.value)}
-              className="input mt-1"
+              className="input"
               required
+              autoComplete="new-password"
             />
-          </label>
+          </Field>
 
-          {error ? <Alert>{error}</Alert> : null}
+          {error ? <Alert variant="inline">{error}</Alert> : null}
 
-          {success ? <Alert tone="success">{success}</Alert> : null}
+          {success ? (
+            <Alert variant="inline" tone="success">
+              {success}
+            </Alert>
+          ) : null}
 
-          <button type="submit" disabled={submitting} className="btn btn-primary w-full">
-            {submitting ? "Activating..." : "Activate account"}
-          </button>
+          <FormActions>
+            <button type="submit" disabled={submitting} className="btn btn-primary w-full">
+              {submitting ? "Activating…" : "Activate account"}
+            </button>
+          </FormActions>
         </form>
       )}
     </AuthFrame>
@@ -119,9 +126,9 @@ export default function AcceptInvitePage() {
   return (
     <Suspense
       fallback={
-        <main className="bg-app text-main flex min-h-screen items-center justify-center px-4">
+        <AuthFrame title="Accept invite" description="Loading…">
           <div className="text-muted text-sm">Loading…</div>
-        </main>
+        </AuthFrame>
       }
     >
       <AcceptInvitePageInner />

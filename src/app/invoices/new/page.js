@@ -2,7 +2,7 @@
 
 import { Alert } from "@/components/ui/alert";
 import { Field, FormActions } from "@/components/ui/field";
-import { Suspense, useEffect, useMemo, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { AppShell } from "@/components/app-shell";
 import { api } from "@/lib/api";
@@ -84,14 +84,12 @@ function NewInvoicePageInner() {
   }
 
   const isContextLocked = !!prefillJobId;
-
-  const title = useMemo(() => {
-    if (form.job_id) return `New Invoice for Job #${form.job_id}`;
-    return "New Invoice";
-  }, [form.job_id]);
+  const relatedJob = prefillJobId
+    ? jobs.find((job) => String(job.id) === String(prefillJobId))
+    : null;
 
   return (
-    <AppShell title={title}>
+    <AppShell title="New invoice" description={relatedJob?.title || undefined}>
       <section className="card p-4">
         {loadingJobs ? (
           <div className="space-y-4">
@@ -158,11 +156,11 @@ function NewInvoicePageInner() {
                 className="btn btn-primary"
                 disabled={saving}
               >
-                {saving ? "Creating…" : "Create Invoice"}
+                {saving ? "Creating…" : "Create invoice"}
               </button>
               <button
                 type="button"
-                className="btn btn-ghost"
+                className="btn"
                 onClick={() => router.back()}
               >
                 Cancel
@@ -179,7 +177,7 @@ export default function NewInvoicePage() {
   return (
     <Suspense
       fallback={
-        <AppShell title="New Invoice">
+        <AppShell title="New invoice">
           <section className="card p-4">
             <SectionSkeleton rows={4} />
           </section>

@@ -9,6 +9,7 @@ import { StatusBadge } from "@/components/ui/status-badge";
 import { SectionCard } from "@/components/ui/section-card";
 import { Field, FormActions } from "@/components/ui/field";
 import { EmptyState } from "@/components/error-boundary";
+import { ListRow } from "@/components/ui/list-row";
 import { Skeleton } from "@/components/loading/loadingSkeletons";
 import { PublicFrame } from "@/components/public/public-frame";
 
@@ -65,6 +66,7 @@ export default function PublicEstimatePage() {
 
   useEffect(() => {
     load();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [rawToken]);
 
   async function respond(decision) {
@@ -110,11 +112,11 @@ export default function PublicEstimatePage() {
       description={estimate?.job?.address || undefined}
       footer={
         <Link href="/" className="hover:text-main underline-offset-4 hover:underline">
-          Contractor sign-in
+          Contractor sign in
         </Link>
       }
     >
-      {error ? <Alert>{error}</Alert> : null}
+      {error ? <Alert variant="inline">{error}</Alert> : null}
 
       {loading ? (
         <SectionCard title="Estimate">
@@ -163,11 +165,11 @@ export default function PublicEstimatePage() {
           </SectionCard>
 
           <SectionCard title="Line items">
-            <div className="space-y-3">
+            <div className="space-y-2">
               {(estimate.line_items || []).map((item) => (
-                <div
+                <ListRow
                   key={item.id}
-                  className="border-base flex justify-between gap-3 border-b pb-3 last:border-0 last:pb-0"
+                  className="flex items-start justify-between gap-3"
                 >
                   <div>
                     <div className="font-medium">{item.name}</div>
@@ -182,7 +184,7 @@ export default function PublicEstimatePage() {
                   <div className="shrink-0 font-semibold">
                     ${formatCurrency(item.line_total)}
                   </div>
-                </div>
+                </ListRow>
               ))}
             </div>
 
@@ -195,7 +197,7 @@ export default function PublicEstimatePage() {
           {estimate.client_responded_at ? (
             <SectionCard title="Your response">
               {doneMessage ? (
-                <Alert tone="success" className="mb-3">
+                <Alert variant="inline" tone="success" className="mb-3">
                   {doneMessage}
                 </Alert>
               ) : null}

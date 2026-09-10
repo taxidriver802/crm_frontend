@@ -35,12 +35,12 @@ export const emerald = {
     "--overlay-strong": "rgb(16 24 20 / 0.72)",
     "--on-overlay": "#ffffff",
     
-    "--chrome": "#10231b",
-    "--chrome-elevated": "#173126",
-    "--chrome-border": "#264438",
+    "--chrome": "#2a3a32",
+    "--chrome-elevated": "#344640",
+    "--chrome-border": "#445850",
     "--chrome-text": "#f1f7f4",
-    "--chrome-muted": "#9cafa6",
-    "--chrome-hover": "color-mix(in srgb, #ffffff 8%, transparent)",
+    "--chrome-muted": "#a8bab2",
+    "--chrome-hover": "color-mix(in srgb, #ffffff 10%, transparent)",
     
     "--chart-1": "var(--accent)",
     "--chart-2": "var(--success)",

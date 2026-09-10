@@ -107,10 +107,14 @@ export default function EditLeadPage() {
     }
   }
 
+  const leadName = `${form.first_name || ""} ${form.last_name || ""}`.trim();
+
   return (
-    <AppShell title={`Edit Lead #${id}`}>
+    <AppShell title="Edit lead" description={!loading && leadName ? leadName : undefined}>
       {loading ? (
-        <div className="text-muted text-sm">Loading…</div>
+        <section className="card p-4">
+          <div className="text-muted text-sm">Loading…</div>
+        </section>
       ) : (
         <section className="card p-4">
           <LeadForm
@@ -119,7 +123,7 @@ export default function EditLeadPage() {
             onSubmit={onSubmit}
             saving={saving}
             error={error}
-            submitLabel="Save Changes"
+            submitLabel="Save changes"
             cancelLabel="Cancel"
             onCancel={() => router.push(`/leads/${id}`)}
           />

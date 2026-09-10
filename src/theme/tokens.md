@@ -31,16 +31,16 @@ PDFs and invite email consume **print hex** from each palette’s `print` map (l
 
 ## Chrome (shell / auth rail)
 
-Used by the desktop sidebar and mobile bottom nav. Stays dark in both schemes (Jobber-style field rail). Rooftop chrome is site black; Azure/Slate keep cooler charcoal.
+Used by the desktop sidebar and mobile bottom nav. Light scheme uses a mid charcoal grey rail (still darker than the page, softer than pure black). Dark scheme stays near-black. Each palette keeps a slight hue tint on chrome.
 
 | Token | Light (Rooftop) | Dark (Rooftop) |
 | --- | --- | --- |
-| `--chrome` | `#000000` | `#000000` |
-| `--chrome-elevated` | `#141414` | `#111111` |
-| `--chrome-border` | `#2a1c12` | `#2a1c12` |
+| `--chrome` | `#363a43` | `#000000` |
+| `--chrome-elevated` | `#40454f` | `#111111` |
+| `--chrome-border` | `#4e463c` | `#2a1c12` |
 | `--chrome-text` | `#f4f4f5` | `#f4f4f5` |
-| `--chrome-muted` | `#9aa0ab` | `#8b8d96` |
-| `--chrome-hover` | 8% white mix | 7% white mix |
+| `--chrome-muted` | `#a8adb8` | `#8b8d96` |
+| `--chrome-hover` | 10% white mix | 7% white mix |
 
 ## Text
 

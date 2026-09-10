@@ -4,11 +4,13 @@ import { useEffect, useState } from "react";
 import { AppShell } from "@/components/app-shell";
 import { useConfirmModal } from "@/components/modals/confirm-modal";
 import { api } from "@/lib/api";
-import { CollapsibleSection } from "@/components/forms/collapsible-section";
 import { SectionSkeleton } from "@/components/loading/loadingSkeletons";
-import { PageError } from "@/components/error-boundary";
+import { Alert } from "@/components/ui/alert";
 import { formatDate } from "@/lib/helper";
 import { StatusBadge } from "@/components/ui/status-badge";
+import { SectionCard } from "@/components/ui/section-card";
+import { PageToolbar } from "@/components/page-toolbar";
+import { Icon } from "@/components/icons";
 
 const TRIGGER_LABELS = {
   ESTIMATE_APPROVED: "Estimate approved",
@@ -193,16 +195,30 @@ export default function AutomationPage() {
   return (
     <AppShell
       title="Automation"
-      description="Workflow rules that run automatically when events occur."
+      description={loading ? "Loading…" : `${rules.length} in this view`}
     >
       <div className="space-y-6">
-        {error ? <PageError message={error} onRetry={loadData} /> : null}
+        {error ? <Alert variant="inline">{error}</Alert> : null}
 
-        <CollapsibleSection
-          title="Active Rules"
+        <PageToolbar
+          refresh={
+            <button
+              type="button"
+              className="icon-btn"
+              onClick={loadData}
+              disabled={loading}
+              title="Refresh"
+              aria-label="Refresh"
+            >
+              <Icon name="refreshCcw" className="h-4 w-4" />
+            </button>
+          }
+        />
+
+        <SectionCard
+          title="Active rules"
           description="Rules currently configured."
-          ready={!loading}
-          empty={rules.length === 0}
+          size="lg"
         >
           {loading ? (
             <SectionSkeleton rows={3} />
@@ -223,13 +239,12 @@ export default function AutomationPage() {
               ))}
             </div>
           )}
-        </CollapsibleSection>
+        </SectionCard>
 
-        <CollapsibleSection
-          title="Rule Templates"
+        <SectionCard
+          title="Rule templates"
           description="Pre-built workflow rules you can activate with one click."
-          ready={!loading}
-          empty={availableTemplates.length === 0}
+          size="lg"
         >
           {loading ? (
             <SectionSkeleton rows={3} />
@@ -249,7 +264,7 @@ export default function AutomationPage() {
               ))}
             </div>
           )}
-        </CollapsibleSection>
+        </SectionCard>
       </div>
       {confirmModal}
     </AppShell>
