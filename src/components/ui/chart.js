@@ -1,6 +1,66 @@
 import { cx } from "@/lib/cx";
 import { EmptyState } from "@/components/error-boundary";
 import { Icon } from "@/components/icons";
+import {
+  Bar,
+  BarChart,
+  CartesianGrid,
+  Cell,
+  ResponsiveContainer,
+  Tooltip,
+  XAxis,
+  YAxis,
+} from "recharts";
+
+function chartColor(config, key) {
+  return config?.[key]?.color || "var(--chart-1)";
+}
+
+export function ChartContainer({ config = {}, className = "", children }) {
+  const style = Object.fromEntries(
+    Object.entries(config).map(([key, value]) => [
+      `--color-${key}`,
+      chartColor(config, key),
+    ]),
+  );
+
+  return (
+    <div className={cx("chart-container", className)} style={style}>
+      <ResponsiveContainer width="100%" height="100%">
+        {children}
+      </ResponsiveContainer>
+    </div>
+  );
+}
+
+export function ChartTooltipContent({ active, payload = [], label }) {
+  if (!active || !payload.length) return null;
+
+  return (
+    <div className="chart-tooltip">
+      {label ? <div className="chart-tooltip-label">{label}</div> : null}
+      <div className="space-y-1">
+        {payload.map((entry) => (
+          <div key={entry.dataKey} className="flex items-center justify-between gap-6 text-xs">
+            <span className="inline-flex items-center gap-2">
+              <span
+                className="chart-tooltip-dot"
+                style={{ background: entry.color }}
+                aria-hidden
+              />
+              {entry.name || entry.dataKey}
+            </span>
+            <span className="font-semibold">{entry.value}</span>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+export function ChartTooltip({ content = <ChartTooltipContent /> }) {
+  return <Tooltip content={content} cursor={false} />;
+}
 
 function fillClass(series = 1) {
   const n = Number(series);
@@ -44,103 +104,140 @@ export function HorizontalBars({
     );
   }
 
-  const max = Math.max(1, ...rows.map((row) => Number(row.count || 0)));
+  const data = rows.map((row) => ({
+    label: row.status,
+    count: Number(row.count || 0),
+  }));
+  const config = {
+    count: { label: "Count", color: `var(--chart-${series})` },
+  };
 
   return (
-    <div className="space-y-3">
-      {rows.map((row) => {
-        const count = Number(row.count || 0);
-        return (
-          <div key={row.status} className="space-y-1">
-            <div className="flex items-center justify-between text-xs">
-              <span>{row.status}</span>
-              <span className="text-muted">{count}</span>
-            </div>
-            <div className="chart-track chart-track-h">
-              <div
-                className={cx("chart-bar", fillClass(series))}
-                style={{ width: `${(count / max) * 100}%` }}
-              />
-            </div>
-          </div>
-        );
-      })}
-    </div>
+    <ChartContainer config={config} className="h-48 min-h-[192px] w-full">
+      <BarChart
+        accessibilityLayer
+        data={data}
+        layout="vertical"
+        margin={{ top: 4, right: 8, bottom: 4, left: 4 }}
+      >
+        <CartesianGrid horizontal={false} vertical={false} />
+        <XAxis type="number" hide />
+        <YAxis
+          type="category"
+          dataKey="label"
+          axisLine={false}
+          tickLine={false}
+          width={96}
+          tick={{ fill: "var(--text)", fontSize: 12 }}
+        />
+        <ChartTooltip content={<ChartTooltipContent />} />
+        <Bar
+          dataKey="count"
+          name="Count"
+          fill={`var(--chart-${series})`}
+          radius={4}
+          barSize={14}
+        />
+      </BarChart>
+    </ChartContainer>
   );
 }
 
 export function FunnelBars({ steps = [] }) {
-  const max = Math.max(1, ...steps.map((step) => Number(step.value || 0)));
+  const data = steps.map((step) => ({
+    label: step.label,
+    value: Number(step.value || 0),
+    series: step.series,
+  }));
+  const config = Object.fromEntries(
+    steps.map((step) => [
+      step.label,
+      { label: step.label, color: `var(--chart-${step.series || 1})` },
+    ]),
+  );
 
   return (
-    <div className="space-y-3">
-      {steps.map((step) => {
-        const value = Number(step.value || 0);
-        const pct = Math.round((value / max) * 100);
-        return (
-          <div key={step.label} className="space-y-1">
-            <div className="flex items-center justify-between text-sm">
-              <span className="inline-flex items-center gap-2">
-                <span
-                  className={cx("chart-swatch", fillClass(step.series))}
-                  aria-hidden
-                />
-                {step.label}
-              </span>
-              <span className="font-semibold">{value}</span>
-            </div>
-            <div className="chart-track chart-track-h-lg">
-              <div
-                className={cx("chart-bar", fillClass(step.series))}
-                style={{ width: `${pct}%` }}
-              />
-            </div>
-          </div>
-        );
-      })}
-    </div>
+    <ChartContainer config={config} className="h-52 min-h-[208px] w-full">
+      <BarChart
+        accessibilityLayer
+        data={data}
+        layout="vertical"
+        margin={{ top: 4, right: 8, bottom: 4, left: 8 }}
+      >
+        <CartesianGrid horizontal={false} vertical={false} />
+        <XAxis type="number" hide />
+        <YAxis
+          type="category"
+          dataKey="label"
+          axisLine={false}
+          tickLine={false}
+          width={144}
+          tick={{ fill: "var(--text)", fontSize: 14 }}
+        />
+        <ChartTooltip content={<ChartTooltipContent />} />
+        <Bar dataKey="value" name="Count" radius={4} barSize={18}>
+          {data.map((entry) => (
+            <Cell
+              key={entry.label}
+              fill={`var(--chart-${entry.series || 1})`}
+            />
+          ))}
+        </Bar>
+      </BarChart>
+    </ChartContainer>
   );
 }
 
 export function GroupedVerticalBars({ labels = [], series = [] }) {
   const shown = labels.slice(-6);
   const offset = labels.length - shown.length;
-  const allValues = series.flatMap((item) =>
-    item.values.slice(offset).map((value) => Number(value || 0)),
+  const data = shown.map((label, index) => {
+    const row = { label };
+    series.forEach((item) => {
+      row[item.key] = Number(item.values[offset + index] || 0);
+    });
+    return row;
+  });
+  const config = Object.fromEntries(
+    series.map((item) => [
+      item.key,
+      {
+        label: item.label,
+        color: `var(--chart-${item.series || 1})`,
+      },
+    ]),
   );
-  const max = Math.max(1, ...allValues);
 
   return (
-    <div className="space-y-3">
-      <div className="grid grid-cols-6 gap-2 text-[11px]">
-        {shown.map((label, idx) => {
-          const i = offset + idx;
-          return (
-            <div key={label} className="space-y-1">
-              <div className="chart-cluster">
-                {series.map((item) => {
-                  const value = Number(item.values[i] || 0);
-                  return (
-                    <div
-                      key={item.key}
-                      className={cx("chart-col", fillClass(item.series))}
-                      style={{ height: `${(value / max) * 100}%` }}
-                      title={`${item.label}: ${value}`}
-                    />
-                  );
-                })}
-              </div>
-              <div className="text-muted truncate text-center">{label}</div>
-            </div>
-          );
-        })}
-      </div>
-      <ChartLegend
-        items={series.map((item) => ({
-          label: item.label,
-          series: item.series,
-        }))}
-      />
-    </div>
+    <ChartContainer config={config} className="h-64 min-h-[256px] w-full">
+      <BarChart
+        accessibilityLayer
+        data={data}
+        margin={{ top: 8, right: 8, bottom: 4, left: 0 }}
+        barGap={4}
+        barCategoryGap="24%"
+      >
+        <CartesianGrid vertical={false} />
+        <XAxis
+          dataKey="label"
+          axisLine={false}
+          tickLine={false}
+          tickMargin={8}
+          tickFormatter={(value) => value.slice(5)}
+          tick={{ fill: "var(--text-muted)", fontSize: 11 }}
+        />
+        <YAxis axisLine={false} tickLine={false} allowDecimals={false} hide />
+        <ChartTooltip content={<ChartTooltipContent />} />
+        {series.map((item) => (
+          <Bar
+            key={item.key}
+            dataKey={item.key}
+            name={item.label}
+            fill={`var(--chart-${item.series || 1})`}
+            radius={[4, 4, 0, 0]}
+          />
+        ))}
+      </BarChart>
+    </ChartContainer>
   );
 }
