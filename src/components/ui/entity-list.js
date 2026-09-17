@@ -36,10 +36,7 @@ export function EntityListMain({ children, className = "" }) {
 export function EntityListTrailing({ children, className = "", ...props }) {
   return (
     <div
-      className={cx(
-        "flex shrink-0 items-center gap-1 self-center sm:gap-1.5",
-        className,
-      )}
+      className={cx("flex shrink-0 items-center gap-1 self-center sm:gap-1.5", className)}
       {...props}
     >
       {children}
@@ -50,12 +47,10 @@ export function EntityListTrailing({ children, className = "", ...props }) {
 export function EntityListMeta({ label, children, className = "" }) {
   return (
     <div className={cx("flex min-w-0 items-baseline gap-1.5", className)}>
-      <span className="text-muted shrink-0 text-[0.5625rem] font-semibold uppercase tracking-[0.06em] sm:text-[0.625rem]">
+      <span className="shrink-0 text-[0.5625rem] font-semibold uppercase tracking-[0.06em] text-muted sm:text-[0.625rem]">
         {label}
       </span>
-      <div className="min-w-0 truncate text-[0.6875rem] sm:text-xs">
-        {children}
-      </div>
+      <div className="min-w-0 truncate text-[0.6875rem] sm:text-xs">{children}</div>
     </div>
   );
 }
@@ -73,7 +68,7 @@ export function EntityListPrimary({
         {subtitle ? (
           <div
             className={cx(
-              "text-muted mt-0.5 truncate text-[0.6875rem] sm:text-xs",
+              "mt-0.5 truncate text-[0.6875rem] text-muted sm:text-xs",
               subtitleClassName,
             )}
           >
@@ -117,7 +112,7 @@ export function EntityListAssignee({
   return (
     <div className={cx("flex min-w-0 items-center gap-1.5 sm:ml-auto", className)}>
       {!hideLabel && label ? (
-        <span className="text-muted shrink-0 text-[0.5625rem] font-semibold uppercase tracking-[0.06em] sm:text-[0.625rem]">
+        <span className="shrink-0 text-[0.5625rem] font-semibold uppercase tracking-[0.06em] text-muted sm:text-[0.625rem]">
           {label}
         </span>
       ) : null}
@@ -177,13 +172,13 @@ export function EntityListRow({
       className={cx(
         "relative",
         flush
-          ? "border-base border-t px-3 py-3 first:border-t-0 sm:px-4 sm:py-3.5"
+          ? "border-t border-base px-3 py-3 first:border-t-0 sm:px-4 sm:py-3.5"
           : "list-row",
         signal && (flush ? "pr-6 sm:pr-7" : "pr-6"),
         onOpen &&
           (flush
-            ? "hover:bg-accent-soft focus-visible:bg-accent-soft cursor-pointer focus:outline-none"
-            : "hover:bg-accent focus-visible:border-strong cursor-pointer focus:outline-none"),
+            ? "cursor-pointer hover:bg-accent-soft focus:outline-none focus-visible:bg-accent-soft"
+            : "cursor-pointer hover:bg-accent focus:outline-none focus-visible:border-strong"),
         className,
       )}
     >

@@ -135,7 +135,11 @@ export function JobForm({
       </div>
 
       <FormActions>
-        <button type="submit" disabled={saving || loadingLeads} className="btn btn-primary">
+        <button
+          type="submit"
+          disabled={saving || loadingLeads}
+          className="btn btn-primary"
+        >
           {saving ? "Saving…" : submitLabel}
         </button>
 

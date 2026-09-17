@@ -113,7 +113,7 @@ export default function EditLeadPage() {
     <AppShell title="Edit lead" description={!loading && leadName ? leadName : undefined}>
       {loading ? (
         <section className="card p-4">
-          <div className="text-muted text-sm">Loading…</div>
+          <div className="text-sm text-muted">Loading…</div>
         </section>
       ) : (
         <section className="card p-4">

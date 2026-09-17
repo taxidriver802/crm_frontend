@@ -9,13 +9,7 @@ import { Field, FormActions } from "@/components/ui/field";
 import { Alert } from "@/components/ui/alert";
 import { EmptyState } from "@/components/error-boundary";
 
-const SERVICE_OPTIONS = [
-  "Inspection",
-  "Repair",
-  "Replacement",
-  "Gutters",
-  "Maintenance",
-];
+const SERVICE_OPTIONS = ["Inspection", "Repair", "Replacement", "Gutters", "Maintenance"];
 const CONTACT_OPTIONS = ["Call", "Text", "Email"];
 
 const EMPTY_FORM = {
@@ -202,9 +196,7 @@ export default function PublicIntakePage() {
               <select
                 className="input"
                 value={form.preferred_contact_method}
-                onChange={(e) =>
-                  setField("preferred_contact_method", e.target.value)
-                }
+                onChange={(e) => setField("preferred_contact_method", e.target.value)}
               >
                 <option value="">Select…</option>
                 {CONTACT_OPTIONS.map((opt) => (

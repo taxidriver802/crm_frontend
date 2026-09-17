@@ -329,11 +329,7 @@ function LeadsPageInner() {
   return (
     <AppShell
       title="Leads"
-      description={
-        loadingLeads
-          ? "Loading…"
-          : `${leads.length} in this view`
-      }
+      description={loadingLeads ? "Loading…" : `${leads.length} in this view`}
       right={
         <div className="flex flex-wrap items-center gap-2">
           {canViewAll ? (
@@ -370,7 +366,7 @@ function LeadsPageInner() {
             <div className="mb-4 flex min-w-0 flex-wrap items-start justify-between gap-3">
               <div className="min-w-0">
                 <div className="text-sm font-medium">New lead</div>
-                <p className="text-muted mt-0.5 text-xs">
+                <p className="mt-0.5 text-xs text-muted">
                   Add to the pipeline without leaving this page.
                 </p>
               </div>
@@ -416,7 +412,7 @@ function LeadsPageInner() {
         <PageToolbar
           search={
             <input
-              className="input min-w-0 w-full flex-1 basis-48"
+              className="input w-full min-w-0 flex-1 basis-48"
               placeholder="Search name, email, phone…"
               value={q}
               onChange={(e) => setQ(e.target.value)}
@@ -465,7 +461,7 @@ function LeadsPageInner() {
           }
         >
           <select
-            className="input min-w-0 w-full sm:w-48"
+            className="input w-full min-w-0 sm:w-48"
             value={assignedFilter}
             onChange={(e) => setAssignedFilter(e.target.value)}
             aria-label="Assigned to"
@@ -480,11 +476,7 @@ function LeadsPageInner() {
           </select>
         </PageToolbar>
 
-        <div
-          ref={viewContentRef}
-          id="leads-view"
-          className="scroll-mt-20"
-        >
+        <div ref={viewContentRef} id="leads-view" className="scroll-mt-20">
           {viewMode === "board" ? (
             <section className="card p-4">
               {loadingLeads ? (
@@ -528,7 +520,7 @@ export default function LeadsPage() {
     <Suspense
       fallback={
         <AppShell title="Leads">
-          <div className="text-muted p-4 text-sm">Loading…</div>
+          <div className="p-4 text-sm text-muted">Loading…</div>
         </AppShell>
       }
     >

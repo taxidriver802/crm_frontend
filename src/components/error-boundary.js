@@ -21,7 +21,7 @@ export class ErrorBoundary extends Component {
       return (
         <div className="card mx-auto my-12 max-w-lg p-6 text-center">
           <div className="text-lg font-semibold">Something went wrong</div>
-          <div className="text-muted mt-2 text-sm">
+          <div className="mt-2 text-sm text-muted">
             {this.state.error?.message || "An unexpected error occurred."}
           </div>
           <button
@@ -42,7 +42,7 @@ export function PageError({ message, onRetry }) {
   return (
     <div className="card p-4">
       <div className="text-sm font-medium text-danger">Something went wrong</div>
-      <div className="text-muted mt-1 text-sm">
+      <div className="mt-1 text-sm text-muted">
         {message || "An unexpected error occurred."}
       </div>
       {onRetry ? (

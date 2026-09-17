@@ -97,9 +97,7 @@ export default function CustomerPortalPage() {
         title="Project status"
         right={<StatusBadge kind="job" status={job.status} />}
       >
-        {job.description ? (
-          <p className="text-muted text-sm">{job.description}</p>
-        ) : null}
+        {job.description ? <p className="text-sm text-muted">{job.description}</p> : null}
         {job.lead_name ? (
           <MetaList className={job.description ? "mt-4" : ""}>
             <MetaItem label="Client">
@@ -121,9 +119,7 @@ export default function CustomerPortalPage() {
             {timeline.map((item) => (
               <ListRow key={item.id} className="flex items-start justify-between gap-3">
                 <div className="min-w-0 text-sm font-medium">{item.label}</div>
-                <div className="text-muted shrink-0 text-xs">
-                  {formatDate(item.at)}
-                </div>
+                <div className="shrink-0 text-xs text-muted">{formatDate(item.at)}</div>
               </ListRow>
             ))}
           </div>
@@ -134,13 +130,10 @@ export default function CustomerPortalPage() {
         <SectionCard title="Estimates">
           <div className="space-y-2">
             {estimates.map((est) => (
-              <ListRow
-                key={est.id}
-                className="flex items-center justify-between gap-3"
-              >
+              <ListRow key={est.id} className="flex items-center justify-between gap-3">
                 <div className="min-w-0">
                   <div className="font-medium">{est.title}</div>
-                  <div className="text-muted mt-1 text-xs">
+                  <div className="mt-1 text-xs text-muted">
                     {formatDate(est.created_at)}
                   </div>
                 </div>
@@ -160,13 +153,10 @@ export default function CustomerPortalPage() {
         <SectionCard title="Invoices">
           <div className="space-y-2">
             {invoices.map((inv) => (
-              <ListRow
-                key={inv.id}
-                className="flex items-center justify-between gap-3"
-              >
+              <ListRow key={inv.id} className="flex items-center justify-between gap-3">
                 <div className="min-w-0">
                   <div className="font-medium">{inv.invoice_number}</div>
-                  <div className="text-muted mt-1 text-xs">
+                  <div className="mt-1 text-xs text-muted">
                     {formatDate(inv.created_at)}
                     {inv.due_date ? ` · Due ${formatDate(inv.due_date)}` : ""}
                   </div>
@@ -184,13 +174,13 @@ export default function CustomerPortalPage() {
       ) : null}
 
       <SectionCard title="Project photos">
-          <PhotoGallery
-            files={files}
-            loading={false}
-            emptyTitle="No photos shared yet."
-            emptyDescription=""
-          />
-        </SectionCard>
+        <PhotoGallery
+          files={files}
+          loading={false}
+          emptyTitle="No photos shared yet."
+          emptyDescription=""
+        />
+      </SectionCard>
     </PublicFrame>
   );
 }

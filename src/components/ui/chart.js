@@ -41,7 +41,10 @@ export function ChartTooltipContent({ active, payload = [], label }) {
       {label ? <div className="chart-tooltip-label">{label}</div> : null}
       <div className="space-y-1">
         {payload.map((entry) => (
-          <div key={entry.dataKey} className="flex items-center justify-between gap-6 text-xs">
+          <div
+            key={entry.dataKey}
+            className="flex items-center justify-between gap-6 text-xs"
+          >
             <span className="inline-flex items-center gap-2">
               <span
                 className="chart-tooltip-dot"
@@ -77,10 +80,7 @@ export function ChartLegend({ items = [], className = "" }) {
     <ul className={cx("chart-legend", className)}>
       {items.map((item) => (
         <li key={item.label} className="chart-legend-item">
-          <span
-            className={cx("chart-swatch", fillClass(item.series))}
-            aria-hidden
-          />
+          <span className={cx("chart-swatch", fillClass(item.series))} aria-hidden />
           <span>{item.label}</span>
         </li>
       ))}
@@ -177,10 +177,7 @@ export function FunnelBars({ steps = [] }) {
         <ChartTooltip content={<ChartTooltipContent />} />
         <Bar dataKey="value" name="Count" radius={4} barSize={18}>
           {data.map((entry) => (
-            <Cell
-              key={entry.label}
-              fill={`var(--chart-${entry.series || 1})`}
-            />
+            <Cell key={entry.label} fill={`var(--chart-${entry.series || 1})`} />
           ))}
         </Bar>
       </BarChart>

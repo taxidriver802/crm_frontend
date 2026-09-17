@@ -87,11 +87,7 @@ function InvoicesPageInner() {
     return invoices.filter((invoice) => {
       if (status && invoice.status !== status) return false;
       if (!needle) return true;
-      const hay = [
-        invoice.invoice_number,
-        invoice.lead_name,
-        invoice.job_title,
-      ]
+      const hay = [invoice.invoice_number, invoice.lead_name, invoice.job_title]
         .filter(Boolean)
         .join(" ")
         .toLowerCase();
@@ -111,9 +107,7 @@ function InvoicesPageInner() {
       label: column,
       count: loading ? undefined : (byStatus[column] ?? 0),
       countTone:
-        column === "Overdue" && !loading && overdueCount > 0
-          ? "danger"
-          : undefined,
+        column === "Overdue" && !loading && overdueCount > 0 ? "danger" : undefined,
     })),
   ];
 
@@ -136,7 +130,7 @@ function InvoicesPageInner() {
         <PageToolbar
           search={
             <input
-              className="input min-w-0 w-full flex-1 basis-48"
+              className="input w-full min-w-0 flex-1 basis-48"
               placeholder="Search number, lead, job…"
               value={q}
               onChange={(e) => setQ(e.target.value)}
@@ -161,7 +155,7 @@ function InvoicesPageInner() {
           }
         >
           <select
-            className="input min-w-0 w-full sm:w-44"
+            className="input w-full min-w-0 sm:w-44"
             value={dueFilter}
             onChange={(e) => setDueFilter(e.target.value)}
             aria-label="Due date"
@@ -190,7 +184,7 @@ export default function InvoicesPage() {
     <Suspense
       fallback={
         <AppShell title="Invoices">
-          <div className="text-muted p-4 text-sm">Loading…</div>
+          <div className="p-4 text-sm text-muted">Loading…</div>
         </AppShell>
       }
     >

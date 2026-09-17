@@ -40,12 +40,12 @@ export function CollapsibleSection({
       <div
         className={cx(
           "flex min-w-0 flex-wrap items-start justify-between gap-3 p-4",
-          open && "border-base border-b",
+          open && "border-b border-base",
         )}
       >
         <div className="min-w-0 flex-1">
           <div className="section-heading">{title}</div>
-          {description ? <p className="text-muted mt-1 text-sm">{description}</p> : null}
+          {description ? <p className="mt-1 text-sm text-muted">{description}</p> : null}
         </div>
 
         <div className="flex min-w-0 max-w-full flex-wrap items-center justify-end gap-2">

@@ -112,7 +112,11 @@ function AcceptInvitePageInner() {
           ) : null}
 
           <FormActions>
-            <button type="submit" disabled={submitting} className="btn btn-primary w-full">
+            <button
+              type="submit"
+              disabled={submitting}
+              className="btn btn-primary w-full"
+            >
               {submitting ? "Activating…" : "Activate account"}
             </button>
           </FormActions>
@@ -127,7 +131,7 @@ export default function AcceptInvitePage() {
     <Suspense
       fallback={
         <AuthFrame title="Accept invite" description="Loading…">
-          <div className="text-muted text-sm">Loading…</div>
+          <div className="text-sm text-muted">Loading…</div>
         </AuthFrame>
       }
     >

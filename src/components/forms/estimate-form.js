@@ -133,7 +133,11 @@ export function EstimateForm({
       {children}
       <div className="flex flex-row justify-between">
         <FormActions>
-          <button type="submit" disabled={saving || loadingJobs} className="btn btn-primary">
+          <button
+            type="submit"
+            disabled={saving || loadingJobs}
+            className="btn btn-primary"
+          >
             {saving ? "Saving…" : submitLabel}
           </button>
 

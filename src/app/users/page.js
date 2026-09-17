@@ -237,8 +237,7 @@ export default function UsersPage() {
   function deleteUser(id) {
     askConfirm({
       title: "Delete this user?",
-      description:
-        "This is best reserved for test accounts or unused invited users.",
+      description: "This is best reserved for test accounts or unused invited users.",
       confirmLabel: "Delete",
       onConfirm: async () => {
         setBusyId(id);
@@ -310,8 +309,7 @@ export default function UsersPage() {
   function revokeInvite(id) {
     askConfirm({
       title: "Revoke this invite?",
-      description:
-        "The link will stop working. You can send a new invite later.",
+      description: "The link will stop working. You can send a new invite later.",
       confirmLabel: "Revoke",
       onConfirm: async () => {
         setBusyId(id);
@@ -385,7 +383,7 @@ export default function UsersPage() {
     return (
       <AppShell title="Users" description="Loading…">
         <div className="card p-4">
-          <div className="text-muted text-sm">Loading…</div>
+          <div className="text-sm text-muted">Loading…</div>
         </div>
       </AppShell>
     );
@@ -394,9 +392,7 @@ export default function UsersPage() {
   return (
     <AppShell
       title="Users"
-      description={
-        loadingUsers ? "Loading…" : `${filteredUsers.length} in this view`
-      }
+      description={loadingUsers ? "Loading…" : `${filteredUsers.length} in this view`}
     >
       <div className="space-y-6">
         {error ? <Alert variant="inline">{error}</Alert> : null}
@@ -408,7 +404,7 @@ export default function UsersPage() {
         ) : null}
 
         {isAdmin ? (
-          <p className="text-muted text-sm">
+          <p className="text-sm text-muted">
             As an admin, you cannot change roles or account status for workspace owners.
             Ask an owner if you need changes to an owner account.
           </p>
@@ -425,7 +421,7 @@ export default function UsersPage() {
         <PageToolbar
           search={
             <input
-              className="input min-w-0 w-full flex-1 basis-48"
+              className="input w-full min-w-0 flex-1 basis-48"
               placeholder="Search name or email…"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
@@ -456,7 +452,7 @@ export default function UsersPage() {
           }
         >
           <select
-            className="input min-w-0 w-full sm:w-40"
+            className="input w-full min-w-0 sm:w-40"
             value={roleFilter}
             onChange={(e) => setRoleFilter(e.target.value)}
             aria-label="Role"
@@ -469,397 +465,389 @@ export default function UsersPage() {
         </PageToolbar>
 
         {loadingUsers ? (
-            <DataTable>
-                <thead>
-                  <tr>
-                    <th>User</th>
-                    <th>Role</th>
-                    <th>Status</th>
-                    <th>Invited</th>
-                    <th>Accepted</th>
-                    <th>Last Login</th>
-                    <th>Actions</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {Array.from({ length: 6 }).map((_, i) => (
-                    <TableRowSkeleton key={i} cols={7} />
-                  ))}
-                </tbody>
-            </DataTable>
-          ) : users.length === 0 ? (
-            <EmptyState title="No users found yet" />
-          ) : filteredUsers.length === 0 ? (
-            <EmptyState title="No users match the selected filters" />
-          ) : (
-            <DataTable>
-                <thead>
-                  <tr>
-                    <th>User</th>
-                    <th>Role</th>
-                    <th>Status</th>
-                    <th>Invited</th>
-                    <th>Accepted</th>
-                    <th>Last Login</th>
-                    <th>Actions</th>
-                  </tr>
-                </thead>
+          <DataTable>
+            <thead>
+              <tr>
+                <th>User</th>
+                <th>Role</th>
+                <th>Status</th>
+                <th>Invited</th>
+                <th>Accepted</th>
+                <th>Last Login</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {Array.from({ length: 6 }).map((_, i) => (
+                <TableRowSkeleton key={i} cols={7} />
+              ))}
+            </tbody>
+          </DataTable>
+        ) : users.length === 0 ? (
+          <EmptyState title="No users found yet" />
+        ) : filteredUsers.length === 0 ? (
+          <EmptyState title="No users match the selected filters" />
+        ) : (
+          <DataTable>
+            <thead>
+              <tr>
+                <th>User</th>
+                <th>Role</th>
+                <th>Status</th>
+                <th>Invited</th>
+                <th>Accepted</th>
+                <th>Last Login</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
 
-                <tbody>
-                  {filteredUsers.map((user) => {
-                    const isSelf = currentUser?.id === user.id;
-                    const adminLockedOwnerRow =
-                      currentUser?.role === "admin" && user.role === "owner" && !isSelf;
-                    const canDelete =
-                      user.status === "invited" || user.status === "disabled";
-                    const displayStatus = getDisplayStatus(user);
-                    const canInviteActions =
-                      user.status === "invited" && !adminLockedOwnerRow;
-                    const canRevokeInvite =
-                      user.status === "invited" &&
-                      !user.invite_revoked_at &&
-                      !adminLockedOwnerRow;
-                    const isExpired =
-                      user.status === "invited" &&
-                      !user.invite_revoked_at &&
-                      user.invite_expires_at &&
-                      new Date(user.invite_expires_at) < new Date();
+            <tbody>
+              {filteredUsers.map((user) => {
+                const isSelf = currentUser?.id === user.id;
+                const adminLockedOwnerRow =
+                  currentUser?.role === "admin" && user.role === "owner" && !isSelf;
+                const canDelete = user.status === "invited" || user.status === "disabled";
+                const displayStatus = getDisplayStatus(user);
+                const canInviteActions =
+                  user.status === "invited" && !adminLockedOwnerRow;
+                const canRevokeInvite =
+                  user.status === "invited" &&
+                  !user.invite_revoked_at &&
+                  !adminLockedOwnerRow;
+                const isExpired =
+                  user.status === "invited" &&
+                  !user.invite_revoked_at &&
+                  user.invite_expires_at &&
+                  new Date(user.invite_expires_at) < new Date();
 
-                    return (
-                      <tr key={user.id}>
-                        <Td primary label="User" className="align-top">
-                          <div className="min-w-0">
-                            <div className="font-medium md:truncate">
-                              {[user.first_name, user.last_name]
-                                .filter(Boolean)
-                                .join(" ") || "Unnamed User"}
-                            </div>
-                            <div className="text-muted text-xs sm:text-sm md:truncate">
-                              {user.email}
-                            </div>
-                          </div>
-                        </Td>
+                return (
+                  <tr key={user.id}>
+                    <Td primary label="User" className="align-top">
+                      <div className="min-w-0">
+                        <div className="font-medium md:truncate">
+                          {[user.first_name, user.last_name].filter(Boolean).join(" ") ||
+                            "Unnamed User"}
+                        </div>
+                        <div className="text-xs text-muted sm:text-sm md:truncate">
+                          {user.email}
+                        </div>
+                      </div>
+                    </Td>
 
-                        <Td label="Role" className="align-top">
-                          {(() => {
-                            const roleLocked =
-                              busyId === user.id || isSelf || adminLockedOwnerRow;
-                            const roleOptions = [
-                              { value: "agent", label: "Agent" },
-                              { value: "admin", label: "Admin" },
-                              ...(isOwner ? [{ value: "owner", label: "Owner" }] : []),
-                            ];
-                            const roleMenuOpen = openRoleUserId === user.id;
+                    <Td label="Role" className="align-top">
+                      {(() => {
+                        const roleLocked =
+                          busyId === user.id || isSelf || adminLockedOwnerRow;
+                        const roleOptions = [
+                          { value: "agent", label: "Agent" },
+                          { value: "admin", label: "Admin" },
+                          ...(isOwner ? [{ value: "owner", label: "Owner" }] : []),
+                        ];
+                        const roleMenuOpen = openRoleUserId === user.id;
 
-                            if (roleLocked) {
-                              return (
-                                <span
-                                  className="text-muted inline-block max-w-none text-sm capitalize md:max-w-[160px] md:truncate"
-                                  title={
-                                    isSelf
-                                      ? "You can't change your own role"
-                                      : adminLockedOwnerRow
-                                        ? "Only an owner can change another owner's role or status."
-                                        : undefined
-                                  }
-                                >
-                                  {user.role}
-                                </span>
-                              );
-                            }
+                        if (roleLocked) {
+                          return (
+                            <span
+                              className="inline-block max-w-none text-sm capitalize text-muted md:max-w-[160px] md:truncate"
+                              title={
+                                isSelf
+                                  ? "You can't change your own role"
+                                  : adminLockedOwnerRow
+                                    ? "Only an owner can change another owner's role or status."
+                                    : undefined
+                              }
+                            >
+                              {user.role}
+                            </span>
+                          );
+                        }
 
-                            return (
+                        return (
+                          <div
+                            className="relative flex justify-start"
+                            data-user-role-menu={user.id}
+                          >
+                            <button
+                              type="button"
+                              className="btn flex max-w-[160px] items-center gap-1 px-3 py-1.5 text-xs capitalize"
+                              aria-expanded={roleMenuOpen}
+                              aria-haspopup="listbox"
+                              aria-label={`Role for ${user.email}`}
+                              disabled={busyId === user.id}
+                              onClick={(e) => {
+                                setOpenActionsUserId(null);
+                                setActionsMenuPosition(null);
+                                const wrap = e.currentTarget.closest(
+                                  "[data-user-role-menu]",
+                                );
+                                if (openRoleUserId === user.id) {
+                                  setOpenRoleUserId(null);
+                                  setRoleMenuPosition(null);
+                                  return;
+                                }
+                                if (wrap) {
+                                  setRoleMenuPosition(getTableDropdownMenuPosition(wrap));
+                                }
+                                setOpenRoleUserId(user.id);
+                              }}
+                            >
+                              <span className="min-w-0 truncate">{user.role}</span>
+                              <span className="shrink-0 text-muted" aria-hidden>
+                                ▾
+                              </span>
+                            </button>
+
+                            {roleMenuOpen && roleMenuPosition ? (
                               <div
-                                className="relative flex justify-start"
-                                data-user-role-menu={user.id}
+                                role="listbox"
+                                aria-label={`Choose role for ${user.email}`}
+                                className="dropdown-panel fixed z-dialog min-w-[12rem] overflow-hidden py-1 shadow-lg"
+                                style={{
+                                  top: roleMenuPosition.top,
+                                  left: roleMenuPosition.left,
+                                  width: roleMenuPosition.width,
+                                }}
                               >
-                                <button
-                                  type="button"
-                                  className="btn flex max-w-[160px] items-center gap-1 px-3 py-1.5 text-xs capitalize"
-                                  aria-expanded={roleMenuOpen}
-                                  aria-haspopup="listbox"
-                                  aria-label={`Role for ${user.email}`}
-                                  disabled={busyId === user.id}
-                                  onClick={(e) => {
-                                    setOpenActionsUserId(null);
-                                    setActionsMenuPosition(null);
-                                    const wrap = e.currentTarget.closest(
-                                      "[data-user-role-menu]",
-                                    );
-                                    if (openRoleUserId === user.id) {
+                                {roleOptions.map((opt) => (
+                                  <button
+                                    key={opt.value}
+                                    type="button"
+                                    role="option"
+                                    aria-selected={user.role === opt.value}
+                                    className={`block w-full px-3 py-2 text-left text-xs capitalize transition-colors hover:bg-accent focus-visible:bg-accent ${
+                                      user.role === opt.value
+                                        ? "bg-accent-soft font-medium"
+                                        : ""
+                                    }`}
+                                    onClick={() => {
                                       setOpenRoleUserId(null);
                                       setRoleMenuPosition(null);
-                                      return;
-                                    }
-                                    if (wrap) {
-                                      setRoleMenuPosition(
-                                        getTableDropdownMenuPosition(wrap),
-                                      );
-                                    }
-                                    setOpenRoleUserId(user.id);
-                                  }}
-                                >
-                                  <span className="min-w-0 truncate">{user.role}</span>
-                                  <span className="text-muted shrink-0" aria-hidden>
-                                    ▾
-                                  </span>
-                                </button>
-
-                                {roleMenuOpen && roleMenuPosition ? (
-                                  <div
-                                    role="listbox"
-                                    aria-label={`Choose role for ${user.email}`}
-                                    className="dropdown-panel fixed z-dialog min-w-[12rem] overflow-hidden py-1 shadow-lg"
-                                    style={{
-                                      top: roleMenuPosition.top,
-                                      left: roleMenuPosition.left,
-                                      width: roleMenuPosition.width,
+                                      if (opt.value !== user.role) {
+                                        updateUser(user.id, { role: opt.value });
+                                      }
                                     }}
                                   >
-                                    {roleOptions.map((opt) => (
-                                      <button
-                                        key={opt.value}
-                                        type="button"
-                                        role="option"
-                                        aria-selected={user.role === opt.value}
-                                        className={`hover:bg-accent focus-visible:bg-accent block w-full px-3 py-2 text-left text-xs capitalize transition-colors ${
-                                          user.role === opt.value
-                                            ? "bg-accent-soft font-medium"
-                                            : ""
-                                        }`}
-                                        onClick={() => {
-                                          setOpenRoleUserId(null);
-                                          setRoleMenuPosition(null);
-                                          if (opt.value !== user.role) {
-                                            updateUser(user.id, { role: opt.value });
-                                          }
-                                        }}
-                                      >
-                                        {opt.label}
-                                      </button>
-                                    ))}
-                                  </div>
-                                ) : null}
+                                    {opt.label}
+                                  </button>
+                                ))}
                               </div>
-                            );
-                          })()}
-                        </Td>
-
-                        <Td label="Status" className="align-top">
-                          <div className="flex flex-col gap-1">
-                            <StatusBadge kind="user" status={displayStatus} size="md" />
-
-                            {user.status === "invited" && user.invite_revoked_at ? (
-                              <span className="text-muted text-xs">
-                                Invite was revoked
-                              </span>
-                            ) : null}
-
-                            {user.status === "invited" &&
-                            user.invite_expires_at &&
-                            !user.invite_revoked_at ? (
-                              <span className="text-muted text-xs">
-                                {isExpired
-                                  ? "Invite expired"
-                                  : `Expires ${new Date(user.invite_expires_at).toLocaleDateString()}`}
-                              </span>
                             ) : null}
                           </div>
-                        </Td>
+                        );
+                      })()}
+                    </Td>
 
-                        <Td label="Invited" className="text-muted align-top">
-                          {user.invited_at
-                            ? new Date(user.invited_at).toLocaleDateString()
-                            : "—"}
-                        </Td>
+                    <Td label="Status" className="align-top">
+                      <div className="flex flex-col gap-1">
+                        <StatusBadge kind="user" status={displayStatus} size="md" />
 
-                        <Td label="Accepted" className="text-muted align-top">
-                          {user.password_set_at
-                            ? new Date(user.password_set_at).toLocaleDateString()
-                            : "—"}
-                        </Td>
+                        {user.status === "invited" && user.invite_revoked_at ? (
+                          <span className="text-xs text-muted">Invite was revoked</span>
+                        ) : null}
 
-                        <Td label="Last Login" className="text-muted align-top">
-                          {user.last_login_at
-                            ? new Date(user.last_login_at).toLocaleDateString()
-                            : user.status === "invited"
-                              ? "Pending"
-                              : "—"}
-                        </Td>
+                        {user.status === "invited" &&
+                        user.invite_expires_at &&
+                        !user.invite_revoked_at ? (
+                          <span className="text-xs text-muted">
+                            {isExpired
+                              ? "Invite expired"
+                              : `Expires ${new Date(user.invite_expires_at).toLocaleDateString()}`}
+                          </span>
+                        ) : null}
+                      </div>
+                    </Td>
 
-                        <Td actions label="Actions" className="align-top">
-                          {(() => {
-                            const canDisable =
-                              user.status === "active" && !isSelf && !adminLockedOwnerRow;
-                            const canReenable =
-                              user.status === "disabled" && !adminLockedOwnerRow;
-                            const canDeleteUser =
-                              canDelete && !isSelf && !adminLockedOwnerRow;
-                            const hasRowActions =
-                              canDisable ||
-                              canReenable ||
-                              canInviteActions ||
-                              canRevokeInvite ||
-                              canDeleteUser;
+                    <Td label="Invited" className="align-top text-muted">
+                      {user.invited_at
+                        ? new Date(user.invited_at).toLocaleDateString()
+                        : "—"}
+                    </Td>
 
-                            if (isSelf) {
-                              return (
-                                <span className="text-muted text-xs">
-                                  Current account
-                                </span>
-                              );
-                            }
+                    <Td label="Accepted" className="align-top text-muted">
+                      {user.password_set_at
+                        ? new Date(user.password_set_at).toLocaleDateString()
+                        : "—"}
+                    </Td>
 
-                            if (!hasRowActions) {
-                              return <span className="text-muted text-xs">—</span>;
-                            }
+                    <Td label="Last Login" className="align-top text-muted">
+                      {user.last_login_at
+                        ? new Date(user.last_login_at).toLocaleDateString()
+                        : user.status === "invited"
+                          ? "Pending"
+                          : "—"}
+                    </Td>
 
-                            const menuOpen = openActionsUserId === user.id;
-                            const busy = busyId === user.id;
+                    <Td actions label="Actions" className="align-top">
+                      {(() => {
+                        const canDisable =
+                          user.status === "active" && !isSelf && !adminLockedOwnerRow;
+                        const canReenable =
+                          user.status === "disabled" && !adminLockedOwnerRow;
+                        const canDeleteUser =
+                          canDelete && !isSelf && !adminLockedOwnerRow;
+                        const hasRowActions =
+                          canDisable ||
+                          canReenable ||
+                          canInviteActions ||
+                          canRevokeInvite ||
+                          canDeleteUser;
 
-                            const menuItems = [];
-                            if (canDisable) {
-                              menuItems.push({
-                                key: "disable",
-                                label: "Disable account",
-                                itemClassName: "text-xs",
-                                disabled: false,
-                                onClick: () => {
+                        if (isSelf) {
+                          return (
+                            <span className="text-xs text-muted">Current account</span>
+                          );
+                        }
+
+                        if (!hasRowActions) {
+                          return <span className="text-xs text-muted">—</span>;
+                        }
+
+                        const menuOpen = openActionsUserId === user.id;
+                        const busy = busyId === user.id;
+
+                        const menuItems = [];
+                        if (canDisable) {
+                          menuItems.push({
+                            key: "disable",
+                            label: "Disable account",
+                            itemClassName: "text-xs",
+                            disabled: false,
+                            onClick: () => {
+                              setOpenActionsUserId(null);
+                              updateUser(user.id, { status: "disabled" });
+                            },
+                          });
+                        }
+                        if (canReenable) {
+                          menuItems.push({
+                            key: "reenable",
+                            label: "Re-enable account",
+                            itemClassName: "text-xs",
+                            disabled: false,
+                            onClick: () => {
+                              setOpenActionsUserId(null);
+                              updateUser(user.id, { status: "active" });
+                            },
+                          });
+                        }
+                        if (canInviteActions) {
+                          menuItems.push({
+                            key: "copy",
+                            label: "Copy invite link",
+                            itemClassName: "text-xs",
+                            disabled: busy,
+                            onClick: () => {
+                              setOpenActionsUserId(null);
+                              copyInviteLink(user.id);
+                            },
+                          });
+                          menuItems.push({
+                            key: "resend",
+                            label: "Resend invite",
+                            itemClassName: "text-xs",
+                            disabled: busy,
+                            onClick: () => {
+                              setOpenActionsUserId(null);
+                              resendInvite(user.id);
+                            },
+                          });
+                        }
+                        if (canRevokeInvite) {
+                          menuItems.push({
+                            key: "revoke",
+                            label: "Revoke invite",
+                            itemClassName: "text-xs text-danger",
+                            disabled: busy,
+                            onClick: () => {
+                              setOpenActionsUserId(null);
+                              revokeInvite(user.id);
+                            },
+                          });
+                        }
+                        if (canDeleteUser) {
+                          menuItems.push({
+                            key: "delete",
+                            label: "Delete user",
+                            itemClassName: "text-xs text-danger",
+                            disabled: busy,
+                            onClick: () => {
+                              setOpenActionsUserId(null);
+                              deleteUser(user.id);
+                            },
+                          });
+                        }
+
+                        return (
+                          <div
+                            className="relative flex justify-end"
+                            data-user-actions-menu={user.id}
+                          >
+                            <button
+                              type="button"
+                              className="btn flex items-center gap-1 px-3 py-1.5 text-xs"
+                              aria-expanded={menuOpen}
+                              aria-haspopup="menu"
+                              disabled={busy}
+                              onClick={(e) => {
+                                const wrap = e.currentTarget.closest(
+                                  "[data-user-actions-menu]",
+                                );
+                                if (openActionsUserId === user.id) {
                                   setOpenActionsUserId(null);
-                                  updateUser(user.id, { status: "disabled" });
-                                },
-                              });
-                            }
-                            if (canReenable) {
-                              menuItems.push({
-                                key: "reenable",
-                                label: "Re-enable account",
-                                itemClassName: "text-xs",
-                                disabled: false,
-                                onClick: () => {
-                                  setOpenActionsUserId(null);
-                                  updateUser(user.id, { status: "active" });
-                                },
-                              });
-                            }
-                            if (canInviteActions) {
-                              menuItems.push({
-                                key: "copy",
-                                label: "Copy invite link",
-                                itemClassName: "text-xs",
-                                disabled: busy,
-                                onClick: () => {
-                                  setOpenActionsUserId(null);
-                                  copyInviteLink(user.id);
-                                },
-                              });
-                              menuItems.push({
-                                key: "resend",
-                                label: "Resend invite",
-                                itemClassName: "text-xs",
-                                disabled: busy,
-                                onClick: () => {
-                                  setOpenActionsUserId(null);
-                                  resendInvite(user.id);
-                                },
-                              });
-                            }
-                            if (canRevokeInvite) {
-                              menuItems.push({
-                                key: "revoke",
-                                label: "Revoke invite",
-                                itemClassName: "text-xs text-danger",
-                                disabled: busy,
-                                onClick: () => {
-                                  setOpenActionsUserId(null);
-                                  revokeInvite(user.id);
-                                },
-                              });
-                            }
-                            if (canDeleteUser) {
-                              menuItems.push({
-                                key: "delete",
-                                label: "Delete user",
-                                itemClassName: "text-xs text-danger",
-                                disabled: busy,
-                                onClick: () => {
-                                  setOpenActionsUserId(null);
-                                  deleteUser(user.id);
-                                },
-                              });
-                            }
+                                  setActionsMenuPosition(null);
+                                  return;
+                                }
+                                setOpenRoleUserId(null);
+                                setRoleMenuPosition(null);
+                                if (wrap) {
+                                  setActionsMenuPosition(
+                                    getTableDropdownMenuPosition(wrap),
+                                  );
+                                }
+                                setOpenActionsUserId(user.id);
+                              }}
+                            >
+                              {busy ? "…" : "Actions"}
+                              <span className="text-muted" aria-hidden>
+                                ▾
+                              </span>
+                            </button>
 
-                            return (
+                            {menuOpen && actionsMenuPosition ? (
                               <div
-                                className="relative flex justify-end"
-                                data-user-actions-menu={user.id}
+                                role="menu"
+                                aria-label={`Actions for ${user.email}`}
+                                className="dropdown-panel fixed z-dialog min-w-[12rem] overflow-hidden py-1 shadow-lg"
+                                style={{
+                                  top: actionsMenuPosition.top,
+                                  left: actionsMenuPosition.left,
+                                  width: actionsMenuPosition.width,
+                                }}
                               >
-                                <button
-                                  type="button"
-                                  className="btn flex items-center gap-1 px-3 py-1.5 text-xs"
-                                  aria-expanded={menuOpen}
-                                  aria-haspopup="menu"
-                                  disabled={busy}
-                                  onClick={(e) => {
-                                    const wrap = e.currentTarget.closest(
-                                      "[data-user-actions-menu]",
-                                    );
-                                    if (openActionsUserId === user.id) {
-                                      setOpenActionsUserId(null);
-                                      setActionsMenuPosition(null);
-                                      return;
-                                    }
-                                    setOpenRoleUserId(null);
-                                    setRoleMenuPosition(null);
-                                    if (wrap) {
-                                      setActionsMenuPosition(
-                                        getTableDropdownMenuPosition(wrap),
-                                      );
-                                    }
-                                    setOpenActionsUserId(user.id);
-                                  }}
-                                >
-                                  {busy ? "…" : "Actions"}
-                                  <span className="text-muted" aria-hidden>
-                                    ▾
-                                  </span>
-                                </button>
-
-                                {menuOpen && actionsMenuPosition ? (
-                                  <div
-                                    role="menu"
-                                    aria-label={`Actions for ${user.email}`}
-                                    className="dropdown-panel fixed z-dialog min-w-[12rem] overflow-hidden py-1 shadow-lg"
-                                    style={{
-                                      top: actionsMenuPosition.top,
-                                      left: actionsMenuPosition.left,
-                                      width: actionsMenuPosition.width,
-                                    }}
+                                {menuItems.map((item) => (
+                                  <button
+                                    key={item.key}
+                                    type="button"
+                                    role="menuitem"
+                                    disabled={item.disabled}
+                                    className={`block w-full px-3 py-2 text-left transition-colors hover:bg-accent focus-visible:bg-accent ${item.itemClassName}`}
+                                    onClick={item.onClick}
                                   >
-                                    {menuItems.map((item) => (
-                                      <button
-                                        key={item.key}
-                                        type="button"
-                                        role="menuitem"
-                                        disabled={item.disabled}
-                                        className={`hover:bg-accent focus-visible:bg-accent block w-full px-3 py-2 text-left transition-colors ${item.itemClassName}`}
-                                        onClick={item.onClick}
-                                      >
-                                        {item.label}
-                                      </button>
-                                    ))}
-                                  </div>
-                                ) : null}
+                                    {item.label}
+                                  </button>
+                                ))}
                               </div>
-                            );
-                          })()}
-                        </Td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-            </DataTable>
-          )}
+                            ) : null}
+                          </div>
+                        );
+                      })()}
+                    </Td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </DataTable>
+        )}
 
         <InviteUserModal
           open={inviteModalOpen}

@@ -36,16 +36,19 @@ function getIntegrationHealth(data) {
 
 function IntegrationCard({ title, description, href, health, loading, note }) {
   return (
-    <Link href={href} className="card hover:bg-accent-soft block rounded-lg p-4 transition">
+    <Link
+      href={href}
+      className="card block rounded-lg p-4 transition hover:bg-accent-soft"
+    >
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
           <div className="font-medium">{title}</div>
-          <div className="text-muted mt-1 text-sm">{description}</div>
-          {note ? <div className="text-muted mt-3 text-xs">{note}</div> : null}
+          <div className="mt-1 text-sm text-muted">{description}</div>
+          {note ? <div className="mt-3 text-xs text-muted">{note}</div> : null}
         </div>
 
         {loading ? (
-          <span className="text-muted text-xs">Loading…</span>
+          <span className="text-xs text-muted">Loading…</span>
         ) : (
           <StatusBadge tone={health.tone}>{health.label}</StatusBadge>
         )}
@@ -221,9 +224,7 @@ export default function IntegrationsPage() {
   return (
     <AppShell
       title="Integrations"
-      description={
-        loading ? "Loading…" : "ABC, QuickBooks, and website intake"
-      }
+      description={loading ? "Loading…" : "ABC, QuickBooks, and website intake"}
     >
       {confirmModal}
       <div className="space-y-6">
@@ -250,15 +251,11 @@ export default function IntegrationsPage() {
           size="lg"
           right={
             loading ? (
-              <span className="text-muted text-xs">Loading…</span>
+              <span className="text-xs text-muted">Loading…</span>
             ) : (
               <StatusBadge
                 tone={
-                  !intakeConfigured
-                    ? "danger"
-                    : intakeEnabled
-                      ? "success"
-                      : "warning"
+                  !intakeConfigured ? "danger" : intakeEnabled ? "success" : "warning"
                 }
               >
                 {!intakeConfigured
@@ -270,19 +267,16 @@ export default function IntegrationsPage() {
             )
           }
         >
-          {intakeHint ? (
-            <Alert variant="inline">{intakeHint}</Alert>
-          ) : null}
+          {intakeHint ? <Alert variant="inline">{intakeHint}</Alert> : null}
 
           {intakeUrl ? (
-            <div className="bg-surface border-base mt-3 break-all rounded-md border px-3 py-2 text-sm">
+            <div className="mt-3 break-all rounded-md border border-base bg-surface px-3 py-2 text-sm">
               {intakeUrl}
             </div>
           ) : intakeConfigured ? (
-            <div className="text-muted mt-3 text-xs">
+            <div className="mt-3 text-xs text-muted">
               A link is active, but the raw URL is only shown when you generate or
-              regenerate it. Generate again only if you can update the website
-              button.
+              regenerate it. Generate again only if you can update the website button.
             </div>
           ) : null}
 

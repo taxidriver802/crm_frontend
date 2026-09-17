@@ -7,11 +7,7 @@ import { PalettePicker } from "@/components/theme/palette-picker";
 import { cx } from "@/lib/cx";
 
 /** Light/dark toggle with a chevron that reveals named palettes. */
-export function ThemeToggle({
-  className = "",
-  variant = "button",
-  tone = "default",
-}) {
+export function ThemeToggle({ className = "", variant = "button", tone = "default" }) {
   const { theme, setTheme, systemTheme } = useTheme();
   const mounted = useSyncExternalStore(
     () => () => {},
@@ -57,10 +53,7 @@ export function ThemeToggle({
   );
 
   return (
-    <div
-      ref={rootRef}
-      className={cx("relative", !iconOnly && "w-full", className)}
-    >
+    <div ref={rootRef} className={cx("relative", !iconOnly && "w-full", className)}>
       <div
         className={cx(
           "flex items-stretch gap-0 overflow-hidden p-0",
@@ -120,10 +113,7 @@ export function ThemeToggle({
             !iconOnly && !chrome && "rounded-theme-md border border-base p-1",
           )}
         >
-          <PalettePicker
-            tone={tone}
-            onPicked={() => setPaletteOpen(false)}
-          />
+          <PalettePicker tone={tone} onPicked={() => setPaletteOpen(false)} />
         </div>
       ) : null}
     </div>

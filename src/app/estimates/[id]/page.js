@@ -136,11 +136,7 @@ export default function EstimateDetailPage() {
             : "Message logged on the job. Copy it from the communication log.",
         );
       } catch {
-        setShareHint(
-          copied
-            ? "Message copied. Could not log communication."
-            : message,
-        );
+        setShareHint(copied ? "Message copied. Could not log communication." : message);
       }
     } catch (e) {
       setError(e?.message || "Could not copy message");
@@ -377,7 +373,8 @@ export default function EstimateDetailPage() {
   }
 
   const sortedLineItems = sortLineItems(lineItems, sortBy, sortDirection);
-  const jobTitle = estimate?.job?.title || (estimate?.job_id ? `Job #${estimate.job_id}` : "");
+  const jobTitle =
+    estimate?.job?.title || (estimate?.job_id ? `Job #${estimate.job_id}` : "");
   const jobHref = `/jobs/${estimate?.job?.id ?? estimate?.job_id}`;
 
   return (
@@ -390,11 +387,11 @@ export default function EstimateDetailPage() {
 
         {loading ? (
           <section className="card p-4">
-            <div className="text-muted text-sm">Loading estimate…</div>
+            <div className="text-sm text-muted">Loading estimate…</div>
           </section>
         ) : !estimate ? (
           <section className="card p-4">
-            <p className="text-muted text-sm">Estimate not found.</p>
+            <p className="text-sm text-muted">Estimate not found.</p>
           </section>
         ) : (
           <DetailHeader
@@ -423,10 +420,7 @@ export default function EstimateDetailPage() {
                     {invoiceBusy ? "Creating…" : "Create invoice"}
                   </button>
                 ) : null}
-                <Link
-                  className="btn btn-sm"
-                  href={`/estimates/${estimate.id}/edit`}
-                >
+                <Link className="btn btn-sm" href={`/estimates/${estimate.id}/edit`}>
                   Edit
                 </Link>
                 <DetailMoreMenu label="More">
@@ -464,96 +458,95 @@ export default function EstimateDetailPage() {
               </>
             }
           >
+            {shareHint ? <div className="text-sm text-muted">{shareHint}</div> : null}
 
-              {shareHint ? <div className="text-muted text-sm">{shareHint}</div> : null}
+            {estimate.share_expires_at ? (
+              <div className="text-xs text-muted">
+                Share link active until{" "}
+                {new Date(estimate.share_expires_at).toLocaleString()}
+              </div>
+            ) : null}
 
-              {estimate.share_expires_at ? (
-                <div className="text-muted text-xs">
-                  Share link active until{" "}
-                  {new Date(estimate.share_expires_at).toLocaleString()}
+            {estimate.client_responded_at ? (
+              <div className="space-y-3 rounded-md border border-base p-3 text-sm">
+                <div>
+                  <div className="font-medium">Client response</div>
+                  <div className="mt-1 text-xs text-muted">
+                    {new Date(estimate.client_responded_at).toLocaleString()}
+                  </div>
                 </div>
-              ) : null}
 
-              {estimate.client_responded_at ? (
-                <div className="border-base space-y-3 rounded-md border p-3 text-sm">
-                  <div>
-                    <div className="font-medium">Client response</div>
-                    <div className="text-muted mt-1 text-xs">
-                      {new Date(estimate.client_responded_at).toLocaleString()}
+                {estimate.status === "Approved" ? (
+                  <p className="leading-relaxed text-main">
+                    The client accepted this estimate.
+                  </p>
+                ) : estimate.status === "Rejected" ? (
+                  <p className="leading-relaxed text-main">
+                    The client declined. Adjust line items or pricing, then use{" "}
+                    <strong>Resend to client</strong> when you are ready to send a fresh
+                    link.
+                  </p>
+                ) : (
+                  <p className="leading-relaxed text-main">
+                    The client asked for changes (or you moved back to Draft). Update the
+                    scope or pricing here or on <strong>Edit</strong>, then resend when
+                    the estimate is ready to review again.
+                  </p>
+                )}
+
+                {estimate.client_response_note ? (
+                  <div className="whitespace-pre-wrap rounded-md border border-dashed border-base bg-surface p-3">
+                    {estimate.client_response_note}
+                  </div>
+                ) : null}
+
+                {(estimate.status === "Draft" || estimate.status === "Rejected") && (
+                  <div className="space-y-2 border-t border-base pt-3">
+                    <div className="text-xs font-medium">Your next steps</div>
+                    <ul className="list-inside list-disc space-y-1 text-xs leading-relaxed text-muted">
+                      <li>
+                        Edit line items below, or open{" "}
+                        <Link
+                          href={`/estimates/${estimate.id}/edit`}
+                          className="text-main underline underline-offset-2"
+                        >
+                          Edit
+                        </Link>{" "}
+                        to change title, notes, or status.
+                      </li>
+                      <li>
+                        When the estimate is ready to send again, click{" "}
+                        <strong>Resend to client</strong>. That clears this response
+                        record, sets status to <strong>Sent</strong>, creates a new link,
+                        and copies it — the previous link stops working.
+                      </li>
+                    </ul>
+                    <div className="flex flex-wrap gap-2 pt-1">
+                      <Link
+                        className="btn btn-ghost btn-sm px-3 py-1.5"
+                        href={`/estimates/${estimate.id}/edit`}
+                      >
+                        Edit details
+                      </Link>
+                      <button
+                        type="button"
+                        className="btn btn-sm px-3 py-1.5"
+                        disabled={resendBusy}
+                        onClick={resendToClient}
+                      >
+                        {resendBusy ? "Working…" : "Resend to client"}
+                      </button>
                     </div>
                   </div>
+                )}
+              </div>
+            ) : null}
 
-                  {estimate.status === "Approved" ? (
-                    <p className="text-main leading-relaxed">
-                      The client accepted this estimate.
-                    </p>
-                  ) : estimate.status === "Rejected" ? (
-                    <p className="text-main leading-relaxed">
-                      The client declined. Adjust line items or pricing, then use{" "}
-                      <strong>Resend to client</strong> when you are ready to send a fresh
-                      link.
-                    </p>
-                  ) : (
-                    <p className="text-main leading-relaxed">
-                      The client asked for changes (or you moved back to Draft). Update
-                      the scope or pricing here or on <strong>Edit</strong>, then resend
-                      when the estimate is ready to review again.
-                    </p>
-                  )}
-
-                  {estimate.client_response_note ? (
-                    <div className="bg-surface border-base whitespace-pre-wrap rounded-md border border-dashed p-3">
-                      {estimate.client_response_note}
-                    </div>
-                  ) : null}
-
-                  {(estimate.status === "Draft" || estimate.status === "Rejected") && (
-                    <div className="border-base space-y-2 border-t pt-3">
-                      <div className="text-xs font-medium">Your next steps</div>
-                      <ul className="text-muted list-inside list-disc space-y-1 text-xs leading-relaxed">
-                        <li>
-                          Edit line items below, or open{" "}
-                          <Link
-                            href={`/estimates/${estimate.id}/edit`}
-                            className="text-main underline underline-offset-2"
-                          >
-                            Edit
-                          </Link>{" "}
-                          to change title, notes, or status.
-                        </li>
-                        <li>
-                          When the estimate is ready to send again, click{" "}
-                          <strong>Resend to client</strong>. That clears this response
-                          record, sets status to <strong>Sent</strong>, creates a new
-                          link, and copies it — the previous link stops working.
-                        </li>
-                      </ul>
-                      <div className="flex flex-wrap gap-2 pt-1">
-                        <Link
-                          className="btn btn-ghost btn-sm px-3 py-1.5"
-                          href={`/estimates/${estimate.id}/edit`}
-                        >
-                          Edit details
-                        </Link>
-                        <button
-                          type="button"
-                          className="btn btn-sm px-3 py-1.5"
-                          disabled={resendBusy}
-                          onClick={resendToClient}
-                        >
-                          {resendBusy ? "Working…" : "Resend to client"}
-                        </button>
-                      </div>
-                    </div>
-                  )}
-                </div>
-              ) : null}
-
-              {estimate.notes ? (
-                <MetaItem label="Notes">
-                  <span className="whitespace-pre-wrap">{estimate.notes}</span>
-                </MetaItem>
-              ) : null}
+            {estimate.notes ? (
+              <MetaItem label="Notes">
+                <span className="whitespace-pre-wrap">{estimate.notes}</span>
+              </MetaItem>
+            ) : null}
           </DetailHeader>
         )}
 
@@ -633,9 +626,9 @@ export default function EstimateDetailPage() {
 
             {lineItems.length > 0 ? (
               <div className="flex min-w-0 max-w-full items-center gap-2">
-                <div className="text-muted shrink-0 text-sm">Sort</div>
+                <div className="shrink-0 text-sm text-muted">Sort</div>
                 <div className="relative min-w-0 flex-1">
-                  <div className="scrollbar-theme bg-surface border-base flex min-w-0 touch-pan-x items-center gap-2 overflow-x-auto overscroll-x-contain rounded-theme-md border py-1 pl-1.5 pr-6">
+                  <div className="scrollbar-theme flex min-w-0 touch-pan-x items-center gap-2 overflow-x-auto overscroll-x-contain rounded-theme-md border border-base bg-surface py-1 pl-1.5 pr-6">
                     {[
                       { key: "updated_at", label: "Last updated" },
                       { key: "created_at", label: "Created at" },
@@ -665,16 +658,16 @@ export default function EstimateDetailPage() {
                   </div>
                   <div
                     aria-hidden="true"
-                    className="from-surface pointer-events-none absolute inset-y-px right-px w-8 rounded-r-[calc(var(--radius-md)-1px)] bg-gradient-to-l to-transparent"
+                    className="pointer-events-none absolute inset-y-px right-px w-8 rounded-r-[calc(var(--radius-md)-1px)] bg-gradient-to-l from-surface to-transparent"
                   />
                 </div>
               </div>
             ) : null}
 
             {loading ? (
-              <div className="text-muted text-sm">Loading items…</div>
+              <div className="text-sm text-muted">Loading items…</div>
             ) : lineItems.length === 0 ? (
-              <div className="text-muted rounded-lg border border-dashed p-4 text-sm">
+              <div className="rounded-lg border border-dashed p-4 text-sm text-muted">
                 No line items yet.
               </div>
             ) : (
@@ -689,10 +682,10 @@ export default function EstimateDetailPage() {
                       <div className="font-medium">{item.name}</div>
 
                       {item.description ? (
-                        <div className="text-muted mt-1 text-sm">{item.description}</div>
+                        <div className="mt-1 text-sm text-muted">{item.description}</div>
                       ) : null}
 
-                      <div className="text-muted mt-1 text-xs">
+                      <div className="mt-1 text-xs text-muted">
                         {Number(item.quantity).toLocaleString("en-US")} × $
                         {formatCurrency(item.unit_price)}
                       </div>
@@ -700,7 +693,7 @@ export default function EstimateDetailPage() {
 
                     <div className="flex flex-col items-end gap-2 font-semibold">
                       ${formatCurrency(item.line_total)}
-                      <div className="text-muted text-sm">
+                      <div className="text-sm text-muted">
                         {item.updated_at === item.created_at ? "Created: " : "Updated: "}
                         {formatDate(item.updated_at || item.created_at)}
                       </div>

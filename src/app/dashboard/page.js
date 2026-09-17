@@ -253,10 +253,8 @@ export default function DashboardPage() {
       setUser(null);
     }
 
-    const nextUser =
-      authRes.status === "fulfilled" ? authRes.value?.user || null : null;
-    const canLoadWorkload =
-      nextUser?.role === "owner" || nextUser?.role === "admin";
+    const nextUser = authRes.status === "fulfilled" ? authRes.value?.user || null : null;
+    const canLoadWorkload = nextUser?.role === "owner" || nextUser?.role === "admin";
 
     if (canLoadWorkload) {
       try {

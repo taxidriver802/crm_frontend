@@ -161,7 +161,8 @@ export default function EstimateTemplatesPage() {
     if (!selected) return;
     askConfirm({
       title: "Delete this template?",
-      description: "Line items on this template will be removed. Existing estimates are unchanged.",
+      description:
+        "Line items on this template will be removed. Existing estimates are unchanged.",
       confirmLabel: "Delete",
       onConfirm: async () => {
         setError("");
@@ -267,7 +268,7 @@ export default function EstimateTemplatesPage() {
             <div className="mb-4 flex min-w-0 flex-wrap items-start justify-between gap-3">
               <div className="min-w-0">
                 <div className="text-sm font-medium">New template</div>
-                <p className="text-muted mt-0.5 text-xs">
+                <p className="mt-0.5 text-xs text-muted">
                   Instance-wide packages. Applying a template copies lines onto a draft
                   estimate.
                 </p>
@@ -316,7 +317,7 @@ export default function EstimateTemplatesPage() {
         <div className="grid gap-6 lg:grid-cols-[minmax(0,16rem)_minmax(0,1fr)]">
           <SectionCard title="Templates" size="lg">
             {loading ? (
-              <div className="text-muted text-sm">Loading…</div>
+              <div className="text-sm text-muted">Loading…</div>
             ) : templates.length === 0 ? (
               <EmptyState
                 title="No templates yet"
@@ -336,7 +337,7 @@ export default function EstimateTemplatesPage() {
                     onClick={() => setSelectedId(template.id)}
                   >
                     <div className="font-medium">{template.name}</div>
-                    <div className="text-muted mt-1 text-xs">
+                    <div className="mt-1 text-xs text-muted">
                       {(template.line_items || []).length} lines · $
                       {formatCurrency(templateSubtotal(template))}
                     </div>
@@ -438,7 +439,7 @@ export default function EstimateTemplatesPage() {
                   ) : null}
 
                   {(selected.line_items || []).length === 0 ? (
-                    <div className="text-muted rounded-lg border border-dashed p-4 text-sm">
+                    <div className="rounded-lg border border-dashed p-4 text-sm text-muted">
                       No line items yet.
                     </div>
                   ) : (
@@ -464,11 +465,11 @@ export default function EstimateTemplatesPage() {
                           <div>
                             <div className="font-medium">{item.name}</div>
                             {item.description ? (
-                              <div className="text-muted mt-1 text-sm">
+                              <div className="mt-1 text-sm text-muted">
                                 {item.description}
                               </div>
                             ) : null}
-                            <div className="text-muted mt-1 text-xs">
+                            <div className="mt-1 text-xs text-muted">
                               {Number(item.quantity).toLocaleString("en-US")} × $
                               {formatCurrency(item.unit_price)}
                             </div>
@@ -476,8 +477,7 @@ export default function EstimateTemplatesPage() {
                           <div className="font-semibold">
                             $
                             {formatCurrency(
-                              Number(item.quantity || 0) *
-                                Number(item.unit_price || 0),
+                              Number(item.quantity || 0) * Number(item.unit_price || 0),
                             )}
                           </div>
                         </ListRow>

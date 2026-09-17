@@ -19,8 +19,7 @@ export function Field({
   const autoId = useId();
   const childList = Children.toArray(children);
   const firstControlIndex = childList.findIndex((child) => isValidElement(child));
-  const firstControl =
-    firstControlIndex >= 0 ? childList[firstControlIndex] : null;
+  const firstControl = firstControlIndex >= 0 ? childList[firstControlIndex] : null;
   const existingId =
     isValidElement(firstControl) && firstControl.props.id
       ? firstControl.props.id

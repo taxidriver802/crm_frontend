@@ -27,9 +27,7 @@ export function useScrollIntoViewOnChange(
     if (typeof window === "undefined") return;
     if (window.matchMedia(`(min-width: ${maxWidthPx + 1}px)`).matches) return;
 
-    const reduceMotion = window.matchMedia(
-      "(prefers-reduced-motion: reduce)",
-    ).matches;
+    const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
     ref.current?.scrollIntoView({
       behavior: reduceMotion ? "auto" : behavior,

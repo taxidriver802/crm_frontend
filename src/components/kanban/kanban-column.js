@@ -18,9 +18,9 @@ export function KanbanColumn({ status, leads }) {
       ref={setNodeRef}
       className={`kanban-column ${isOver ? "kanban-column-over" : ""}`}
     >
-      <div className="border-base mb-3 flex items-center justify-between border-b pb-2">
+      <div className="mb-3 flex items-center justify-between border-b border-base pb-2">
         <h3 className="text-sm font-semibold">{status}</h3>
-        <span className="text-muted text-xs">{leads.length}</span>
+        <span className="text-xs text-muted">{leads.length}</span>
       </div>
 
       <SortableContext items={itemIds} strategy={verticalListSortingStrategy}>

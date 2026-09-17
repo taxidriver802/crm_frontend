@@ -3,7 +3,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 
-
 import { AppShell } from "@/components/app-shell";
 import { useReturnPush } from "@/components/return-to";
 import { useConfirmModal } from "@/components/modals/confirm-modal";
@@ -49,7 +48,7 @@ function ScopeBadge({ file }) {
     );
   }
 
-  return <span className="text-muted text-sm">General</span>;
+  return <span className="text-sm text-muted">General</span>;
 }
 
 export default function FilesPage() {
@@ -248,7 +247,7 @@ export default function FilesPage() {
     return (
       <AppShell title="Files" description="Loading…">
         <div className="card p-4">
-          <div className="text-muted text-sm">Loading…</div>
+          <div className="text-sm text-muted">Loading…</div>
         </div>
       </AppShell>
     );
@@ -257,9 +256,7 @@ export default function FilesPage() {
   return (
     <AppShell
       title="Files"
-      description={
-        loadingFiles ? "Loading…" : `${filteredFiles.length} in this view`
-      }
+      description={loadingFiles ? "Loading…" : `${filteredFiles.length} in this view`}
     >
       <div className="space-y-6">
         {error ? <Alert variant="inline">{error}</Alert> : null}
@@ -273,7 +270,7 @@ export default function FilesPage() {
         <PageToolbar
           search={
             <input
-              className="input min-w-0 w-full flex-1 basis-48"
+              className="input w-full min-w-0 flex-1 basis-48"
               placeholder="Search files, types, or uploader…"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
@@ -306,7 +303,7 @@ export default function FilesPage() {
           }
         >
           <select
-            className="input min-w-0 w-full sm:w-40"
+            className="input w-full min-w-0 sm:w-40"
             value={scopeFilter}
             onChange={(e) => setScopeFilter(e.target.value)}
             aria-label="Scope"
@@ -317,7 +314,7 @@ export default function FilesPage() {
             <option value="job">Job</option>
           </select>
           <select
-            className="input min-w-0 w-full sm:w-36"
+            className="input w-full min-w-0 sm:w-36"
             value={typeFilter}
             onChange={(e) => setTypeFilter(e.target.value)}
             aria-label="Type"
@@ -330,119 +327,119 @@ export default function FilesPage() {
         </PageToolbar>
 
         {loadingFiles ? (
-            <DataTable>
-                <thead>
-                  <tr>
-                    <th>File</th>
-                    <th>Type</th>
-                    <th>Size</th>
-                    <th>Uploaded By</th>
-                    <th>Attached To</th>
-                    <th>Uploaded</th>
-                    <th>Actions</th>
+          <DataTable>
+            <thead>
+              <tr>
+                <th>File</th>
+                <th>Type</th>
+                <th>Size</th>
+                <th>Uploaded By</th>
+                <th>Attached To</th>
+                <th>Uploaded</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {Array.from({ length: 6 }).map((_, i) => (
+                <TableRowSkeleton key={i} cols={7} />
+              ))}
+            </tbody>
+          </DataTable>
+        ) : files.length === 0 ? (
+          <EmptyState title="No files uploaded yet" />
+        ) : filteredFiles.length === 0 ? (
+          <EmptyState title="No files match the current filters" />
+        ) : (
+          <DataTable>
+            <thead>
+              <tr>
+                <th>File</th>
+                <th>Type</th>
+                <th>Size</th>
+                <th>Uploaded By</th>
+                <th>Attached To</th>
+                <th>Uploaded</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+
+            <tbody>
+              {filteredFiles.map((file) => {
+                const uploaderName =
+                  [file.first_name, file.last_name].filter(Boolean).join(" ") ||
+                  "Unknown User";
+
+                return (
+                  <tr key={file.id}>
+                    <Td primary label="File">
+                      <div className="min-w-0">
+                        <div className="font-medium md:truncate">
+                          {file.original_name}
+                        </div>
+                        <div className="text-xs text-muted md:truncate">
+                          {file.storage_key}
+                        </div>
+                      </div>
+                    </Td>
+
+                    <Td label="Type" className="align-top">
+                      <StatusBadge>{getFileTypeLabel(file)}</StatusBadge>
+                    </Td>
+
+                    <Td label="Size" className="align-top text-muted">
+                      {formatBytes(file.size_bytes)}
+                    </Td>
+
+                    <Td label="Uploaded By" className="align-top text-muted">
+                      {uploaderName}
+                    </Td>
+
+                    <Td label="Attached To" className="align-top">
+                      <ScopeBadge file={file} />
+                    </Td>
+
+                    <Td label="Uploaded" className="align-top text-muted">
+                      {formatDate(file.created_at)}
+                    </Td>
+
+                    <Td actions label="Actions" className="align-top">
+                      <div className="flex flex-wrap items-center gap-2">
+                        {isPreviewableFile(file) ? (
+                          <button
+                            type="button"
+                            onClick={() => setPreviewFile(file)}
+                            className="btn px-3 py-1.5 text-xs"
+                          >
+                            Preview
+                          </button>
+                        ) : (
+                          <a
+                            href={buildFileUrl(file)}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="btn px-3 py-1.5 text-xs"
+                          >
+                            Open
+                          </a>
+                        )}
+
+                        {canManageFiles ? (
+                          <button
+                            onClick={() => deleteFile(file.id)}
+                            disabled={busyId === file.id}
+                            className="btn btn-danger px-3 py-1.5 text-xs"
+                          >
+                            {busyId === file.id ? "Deleting..." : "Delete"}
+                          </button>
+                        ) : null}
+                      </div>
+                    </Td>
                   </tr>
-                </thead>
-                <tbody>
-                  {Array.from({ length: 6 }).map((_, i) => (
-                    <TableRowSkeleton key={i} cols={7} />
-                  ))}
-                </tbody>
-            </DataTable>
-          ) : files.length === 0 ? (
-            <EmptyState title="No files uploaded yet" />
-          ) : filteredFiles.length === 0 ? (
-            <EmptyState title="No files match the current filters" />
-          ) : (
-            <DataTable>
-                <thead>
-                  <tr>
-                    <th>File</th>
-                    <th>Type</th>
-                    <th>Size</th>
-                    <th>Uploaded By</th>
-                    <th>Attached To</th>
-                    <th>Uploaded</th>
-                    <th>Actions</th>
-                  </tr>
-                </thead>
-
-                <tbody>
-                  {filteredFiles.map((file) => {
-                    const uploaderName =
-                      [file.first_name, file.last_name].filter(Boolean).join(" ") ||
-                      "Unknown User";
-
-                    return (
-                      <tr key={file.id}>
-                        <Td primary label="File">
-                          <div className="min-w-0">
-                            <div className="font-medium md:truncate">
-                              {file.original_name}
-                            </div>
-                            <div className="text-muted text-xs md:truncate">
-                              {file.storage_key}
-                            </div>
-                          </div>
-                        </Td>
-
-                        <Td label="Type" className="align-top">
-                          <StatusBadge>{getFileTypeLabel(file)}</StatusBadge>
-                        </Td>
-
-                        <Td label="Size" className="text-muted align-top">
-                          {formatBytes(file.size_bytes)}
-                        </Td>
-
-                        <Td label="Uploaded By" className="text-muted align-top">
-                          {uploaderName}
-                        </Td>
-
-                        <Td label="Attached To" className="align-top">
-                          <ScopeBadge file={file} />
-                        </Td>
-
-                        <Td label="Uploaded" className="text-muted align-top">
-                          {formatDate(file.created_at)}
-                        </Td>
-
-                        <Td actions label="Actions" className="align-top">
-                          <div className="flex flex-wrap items-center gap-2">
-                            {isPreviewableFile(file) ? (
-                              <button
-                                type="button"
-                                onClick={() => setPreviewFile(file)}
-                                className="btn px-3 py-1.5 text-xs"
-                              >
-                                Preview
-                              </button>
-                            ) : (
-                              <a
-                                href={buildFileUrl(file)}
-                                target="_blank"
-                                rel="noreferrer"
-                                className="btn px-3 py-1.5 text-xs"
-                              >
-                                Open
-                              </a>
-                            )}
-
-                            {canManageFiles ? (
-                              <button
-                                onClick={() => deleteFile(file.id)}
-                                disabled={busyId === file.id}
-                                className="btn btn-danger px-3 py-1.5 text-xs"
-                              >
-                                {busyId === file.id ? "Deleting..." : "Delete"}
-                              </button>
-                            ) : null}
-                          </div>
-                        </Td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-            </DataTable>
-          )}
+                );
+              })}
+            </tbody>
+          </DataTable>
+        )}
       </div>
 
       <FilePreviewModal

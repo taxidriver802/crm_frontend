@@ -53,9 +53,7 @@ export default function RootLayout({ children }) {
           id="crm-palette-vars"
           dangerouslySetInnerHTML={{ __html: buildAllPalettesCss() }}
         />
-        <script
-          dangerouslySetInnerHTML={{ __html: getPaletteBootstrapScript() }}
-        />
+        <script dangerouslySetInnerHTML={{ __html: getPaletteBootstrapScript() }} />
         <meta name="apple-mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
       </head>

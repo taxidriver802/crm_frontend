@@ -38,9 +38,9 @@ function RuleCard({ rule, onToggle, onDelete, busy }) {
           </StatusBadge>
         </div>
         {rule.description ? (
-          <div className="text-muted mt-1 text-sm">{rule.description}</div>
+          <div className="mt-1 text-sm text-muted">{rule.description}</div>
         ) : null}
-        <div className="text-muted mt-2 flex flex-wrap gap-3 text-xs">
+        <div className="mt-2 flex flex-wrap gap-3 text-xs text-muted">
           <span>Trigger: {TRIGGER_LABELS[rule.trigger_event] || rule.trigger_event}</span>
           <span>Action: {ACTION_LABELS[rule.action_type] || rule.action_type}</span>
           <span>Created {formatDate(rule.created_at)}</span>
@@ -74,9 +74,9 @@ function TemplateCard({ template, onActivate, busy }) {
       <div className="min-w-0 flex-1">
         <div className="font-medium">{template.name}</div>
         {template.description ? (
-          <div className="text-muted mt-1 text-sm">{template.description}</div>
+          <div className="mt-1 text-sm text-muted">{template.description}</div>
         ) : null}
-        <div className="text-muted mt-2 flex flex-wrap gap-3 text-xs">
+        <div className="mt-2 flex flex-wrap gap-3 text-xs text-muted">
           <span>
             Trigger: {TRIGGER_LABELS[template.trigger_event] || template.trigger_event}
           </span>
@@ -223,7 +223,7 @@ export default function AutomationPage() {
           {loading ? (
             <SectionSkeleton rows={3} />
           ) : rules.length === 0 ? (
-            <div className="text-muted rounded-lg border border-dashed p-4 text-sm">
+            <div className="rounded-lg border border-dashed p-4 text-sm text-muted">
               No rules configured. Activate a template below to get started.
             </div>
           ) : (
@@ -249,7 +249,7 @@ export default function AutomationPage() {
           {loading ? (
             <SectionSkeleton rows={3} />
           ) : availableTemplates.length === 0 ? (
-            <div className="text-muted rounded-lg border border-dashed p-4 text-sm">
+            <div className="rounded-lg border border-dashed p-4 text-sm text-muted">
               All templates have been activated.
             </div>
           ) : (

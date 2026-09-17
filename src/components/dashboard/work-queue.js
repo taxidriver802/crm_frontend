@@ -21,7 +21,7 @@ function WorkRow({ item, completingId, onComplete }) {
   const busy = completingId === item.id;
 
   return (
-    <div className="border-base flex items-start gap-3 border-t px-4 py-3.5 first:border-t-0">
+    <div className="flex items-start gap-3 border-t border-base px-4 py-3.5 first:border-t-0">
       <StatusBadge tone={meta.tone} className="mt-0.5 shrink-0">
         {meta.label}
       </StatusBadge>
@@ -29,11 +29,11 @@ function WorkRow({ item, completingId, onComplete }) {
       <div className="min-w-0 flex-1">
         <ReturnLink
           href={item.href}
-          className="hover:text-main font-medium hover:underline"
+          className="font-medium hover:text-main hover:underline"
         >
           {item.title}
         </ReturnLink>
-        <div className="text-muted mt-1 flex flex-wrap items-center gap-x-1 text-sm">
+        <div className="mt-1 flex flex-wrap items-center gap-x-1 text-sm text-muted">
           {item.subtitle ? <span>{item.subtitle}</span> : null}
           {item.subtitle && item.reason ? <span>·</span> : null}
           {item.reason ? <span>{item.reason}</span> : null}
@@ -54,7 +54,7 @@ function WorkRow({ item, completingId, onComplete }) {
       ) : (
         <ReturnLink
           href={item.href}
-          className="text-muted hover:text-main shrink-0 pt-0.5 text-xs hover:underline"
+          className="shrink-0 pt-0.5 text-xs text-muted hover:text-main hover:underline"
         >
           Open
         </ReturnLink>
@@ -84,11 +84,11 @@ export function WorkQueue({
 
   return (
     <section className="card overflow-hidden p-0">
-      <div className="border-base space-y-3 border-b px-4 py-3">
+      <div className="space-y-3 border-b border-base px-4 py-3">
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div className="min-w-0">
             <div className="text-sm font-medium">Do next</div>
-            <p className="text-muted mt-0.5 text-xs">
+            <p className="mt-0.5 text-xs text-muted">
               One list, prioritized. Finish these before hunting through records.
             </p>
           </div>
@@ -118,11 +118,11 @@ export function WorkQueue({
       </div>
 
       {loading ? (
-        <div className="border-base border-t p-4">
+        <div className="border-t border-base p-4">
           <SectionSkeleton rows={5} />
         </div>
       ) : visible.length === 0 ? (
-        <div className="border-base border-t p-4">
+        <div className="border-t border-base p-4">
           <EmptyState
             icon={<Icon name="inbox" className="h-5 w-5" />}
             title={filter === "all" ? "You're caught up" : "Nothing in this view"}
@@ -158,8 +158,8 @@ export function WorkQueue({
       )}
 
       {showLater ? (
-        <div className="border-base bg-surface border-t">
-          <div className="text-muted px-4 py-2 text-[11px] font-semibold uppercase tracking-wider">
+        <div className="border-t border-base bg-surface">
+          <div className="px-4 py-2 text-[11px] font-semibold uppercase tracking-wider text-muted">
             Later this week
           </div>
           {laterItems.map((item) => (

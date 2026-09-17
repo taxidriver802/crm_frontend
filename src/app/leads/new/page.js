@@ -8,7 +8,9 @@ import { api } from "@/lib/api";
 
 /** Split a free-text name query into first / last for the lead form. */
 function splitLeadNamePrefill(value) {
-  const trimmed = String(value || "").trim().replace(/\s+/g, " ");
+  const trimmed = String(value || "")
+    .trim()
+    .replace(/\s+/g, " ");
   if (!trimmed) return { first_name: "", last_name: "" };
   const parts = trimmed.split(" ");
   if (parts.length === 1) {
@@ -101,7 +103,7 @@ export default function NewLeadPage() {
       fallback={
         <AppShell title="New lead">
           <section className="card p-4">
-            <p className="text-muted text-sm">Loading…</p>
+            <p className="text-sm text-muted">Loading…</p>
           </section>
         </AppShell>
       }

@@ -88,7 +88,10 @@ export function readSearchRecents() {
     if (!raw) return [];
     const parsed = JSON.parse(raw);
     if (!Array.isArray(parsed)) return [];
-    return parsed.filter(isValidRecent).map(normalizeRecent).slice(0, SEARCH_RECENTS_LIMIT);
+    return parsed
+      .filter(isValidRecent)
+      .map(normalizeRecent)
+      .slice(0, SEARCH_RECENTS_LIMIT);
   } catch {
     return [];
   }
@@ -144,7 +147,12 @@ export function parseEntityContext(pathname) {
     { re: /^\/jobs\/(\d+)\/?$/, type: "job", label: "job", icon: "briefcase" },
     { re: /^\/tasks\/(\d+)\/?$/, type: "task", label: "task", icon: "checklist" },
     { re: /^\/invoices\/(\d+)\/?$/, type: "invoice", label: "invoice", icon: "invoice" },
-    { re: /^\/estimates\/(\d+)\/?$/, type: "estimate", label: "estimate", icon: "invoice" },
+    {
+      re: /^\/estimates\/(\d+)\/?$/,
+      type: "estimate",
+      label: "estimate",
+      icon: "invoice",
+    },
   ];
 
   for (const pattern of patterns) {

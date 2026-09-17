@@ -296,7 +296,11 @@ export default function TaskDetailPage() {
     >
       <div className="space-y-6">
         {error ? <Alert variant="inline">{error}</Alert> : null}
-        {success ? <Alert variant="inline" tone="success">{success}</Alert> : null}
+        {success ? (
+          <Alert variant="inline" tone="success">
+            {success}
+          </Alert>
+        ) : null}
 
         {loadingTask ? (
           <section className="card p-4">
@@ -312,7 +316,7 @@ export default function TaskDetailPage() {
           </section>
         ) : !task ? (
           <section className="card p-4">
-            <p className="text-muted text-sm">Task not found.</p>
+            <p className="text-sm text-muted">Task not found.</p>
           </section>
         ) : (
           <DetailHeader
@@ -424,23 +428,20 @@ export default function TaskDetailPage() {
             ) : filesError ? (
               <Alert variant="inline">{filesError}</Alert>
             ) : files.length === 0 ? (
-              <div className="text-muted rounded-lg border border-dashed p-4 text-sm">
+              <div className="rounded-lg border border-dashed p-4 text-sm text-muted">
                 No files available for this task yet.
               </div>
             ) : (
               <div className="space-y-3">
                 {files.map((file) => (
-                  <div
-                    key={file.id}
-                    className="list-row list-row-split"
-                  >
+                  <div key={file.id} className="list-row list-row-split">
                     <div className="min-w-0">
                       <div className="truncate font-medium">{file.original_name}</div>
-                      <div className="text-muted mt-1 text-xs">
+                      <div className="mt-1 text-xs text-muted">
                         {file.mime_type || "Unknown type"} •{" "}
                         {formatBytes(file.size_bytes)}
                       </div>
-                      <div className="text-muted mt-1 text-xs">
+                      <div className="mt-1 text-xs text-muted">
                         Uploaded: {formatDate(file.created_at)}
                       </div>
                     </div>

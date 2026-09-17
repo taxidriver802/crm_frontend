@@ -58,9 +58,7 @@ export function StatusBadge({
           ? "status-chip"
           : [
               "inline-flex items-center rounded-full border text-[0.6875rem] sm:text-xs",
-              size === "md"
-                ? "px-2.5 py-1 font-medium"
-                : "px-1.5 py-0.5 sm:px-2",
+              size === "md" ? "px-2.5 py-1 font-medium" : "px-1.5 py-0.5 sm:px-2",
               TONE_CLASS[resolvedTone] || TONE_CLASS.neutral,
             ],
         className,

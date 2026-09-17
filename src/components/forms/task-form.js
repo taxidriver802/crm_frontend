@@ -41,13 +41,8 @@ export function buildTaskApiPayload(form, { contextType } = {}) {
     kind,
     due_date: form.due_date ? new Date(form.due_date).toISOString() : null,
     end_at:
-      kind === "appointment" && form.end_at
-        ? new Date(form.end_at).toISOString()
-        : null,
-    location:
-      kind === "appointment"
-        ? (form.location || "").trim() || null
-        : null,
+      kind === "appointment" && form.end_at ? new Date(form.end_at).toISOString() : null,
+    location: kind === "appointment" ? (form.location || "").trim() || null : null,
   };
 
   if (contextType === "lead") {
@@ -214,10 +209,7 @@ export function TaskForm({
           </select>
         </Field>
 
-        <Field
-          label={isAppointment ? "Starts" : "Due date"}
-          required={isAppointment}
-        >
+        <Field label={isAppointment ? "Starts" : "Due date"} required={isAppointment}>
           <CustomDateTimePicker
             value={form.due_date}
             onChange={(val) => setField("due_date", val)}
@@ -260,9 +252,7 @@ export function TaskForm({
             className="input"
             value={form.title}
             onChange={(e) => setField("title", e.target.value)}
-            placeholder={
-              isAppointment ? "e.g. Site visit" : "e.g. Call about showing"
-            }
+            placeholder={isAppointment ? "e.g. Site visit" : "e.g. Call about showing"}
             required
           />
         </Field>
@@ -499,7 +489,7 @@ export function CustomDateTimePicker({ value, onChange }) {
   }, []);
 
   return (
-    <div ref={pickerRef} className="flex min-w-0 w-full max-w-full gap-2">
+    <div ref={pickerRef} className="flex w-full min-w-0 max-w-full gap-2">
       {/* Date Button */}
       <div className="relative w-full">
         <button
@@ -521,7 +511,7 @@ export function CustomDateTimePicker({ value, onChange }) {
               startMonth={new Date(2020, 0)}
               endMonth={new Date(2035, 11)}
               showOutsideDays
-              className="text-main text-sm"
+              className="text-sm text-main"
               classNames={DAY_PICKER_CLASSNAMES}
             />
           </div>

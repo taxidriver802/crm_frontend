@@ -59,17 +59,17 @@ export function KanbanCard({ lead }) {
           Drag
         </button>
       </div>
-      <div className="text-muted mt-1 text-xs">
+      <div className="mt-1 text-xs text-muted">
         {(lead.email ?? "—") + (lead.phone ? ` • ${lead.phone}` : "")}
       </div>
-      <div className="text-muted mt-2 text-xs">
+      <div className="mt-2 text-xs text-muted">
         {lead.source || "Unknown source"} • {formatDate(lead.created_at)}
       </div>
-      {aging ? <div className="text-muted mt-1 text-xs">{aging}</div> : null}
+      {aging ? <div className="mt-1 text-xs text-muted">{aging}</div> : null}
       {lead.urgency ? (
-        <div className="text-muted mt-1 text-xs">{lead.urgency}</div>
+        <div className="mt-1 text-xs text-muted">{lead.urgency}</div>
       ) : null}
-      <div className="text-muted mt-1 text-xs">
+      <div className="mt-1 text-xs text-muted">
         Assignee:{" "}
         {lead.assigned_user
           ? `${lead.assigned_user.first_name || ""} ${lead.assigned_user.last_name || ""}`.trim() ||

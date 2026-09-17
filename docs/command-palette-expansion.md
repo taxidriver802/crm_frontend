@@ -4,14 +4,14 @@ Expand the global search/command palette ([`command-palette.js`](../src/componen
 
 Work this plan **one step at a time**. Mark status as you go.
 
-| Step | Status |
-| --- | --- |
-| 1. Recents + more record types | Done |
-| 2. Generalize item renderer + Actions mode | Done |
-| 3. Aliases + app bar affordance | Done |
-| 4. Create-from-query | Done |
-| 5. Filters / operators | Done |
-| 6. Contextual results + deep links | Done |
+| Step                                       | Status |
+| ------------------------------------------ | ------ |
+| 1. Recents + more record types             | Done   |
+| 2. Generalize item renderer + Actions mode | Done   |
+| 3. Aliases + app bar affordance            | Done   |
+| 4. Create-from-query                       | Done   |
+| 5. Filters / operators                     | Done   |
+| 6. Contextual results + deep links         | Done   |
 
 ---
 

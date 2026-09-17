@@ -1,7 +1,6 @@
 import { NextResponse } from "next/server";
 
-const BACKEND_URL =
-  process.env.API_INTERNAL_BASE_URL || "http://localhost:4000";
+const BACKEND_URL = process.env.API_INTERNAL_BASE_URL || "http://localhost:4000";
 
 async function handler(req, { params }) {
   const path = params.path || [];

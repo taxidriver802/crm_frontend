@@ -108,10 +108,7 @@ export function parseSearchQuery(query) {
     if (value) valueBits.push(value);
   }
 
-  const text = raw
-    .replace(TOKEN_RE, " ")
-    .replace(/\s+/g, " ")
-    .trim();
+  const text = raw.replace(TOKEN_RE, " ").replace(/\s+/g, " ").trim();
   const freeText = [text, ...valueBits].filter(Boolean).join(" ").trim();
 
   return { text: freeText, types, status, assigned, jump, tokens };
@@ -182,10 +179,10 @@ export function hasActiveSearchFilters(parsed) {
   if (!parsed) return false;
   return Boolean(
     parsed.types?.length ||
-      parsed.status ||
-      parsed.assigned ||
-      parsed.jump ||
-      parsed.text,
+    parsed.status ||
+    parsed.assigned ||
+    parsed.jump ||
+    parsed.text,
   );
 }
 

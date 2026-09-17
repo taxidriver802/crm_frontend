@@ -116,9 +116,7 @@ function JobsPageInner() {
     () => ({ q, status, assignedFilter, viewScope }),
     [q, status, assignedFilter, viewScope],
   );
-  const newJobHref = prefillLeadId
-    ? `/jobs/new?lead_id=${prefillLeadId}`
-    : "/jobs/new";
+  const newJobHref = prefillLeadId ? `/jobs/new?lead_id=${prefillLeadId}` : "/jobs/new";
   const summaryPath =
     canViewAll && viewScope === "all" ? "/jobs/summary?view=all" : "/jobs/summary";
 
@@ -347,9 +345,7 @@ function JobsPageInner() {
   return (
     <AppShell
       title="Jobs"
-      description={
-        loadingJobs ? "Loading…" : `${jobs.length} in this view`
-      }
+      description={loadingJobs ? "Loading…" : `${jobs.length} in this view`}
       right={
         canViewAll ? (
           <div className="flex flex-wrap items-center gap-2">
@@ -374,7 +370,7 @@ function JobsPageInner() {
             <div className="mb-4 flex min-w-0 flex-wrap items-start justify-between gap-3">
               <div className="min-w-0">
                 <div className="text-sm font-medium">New job</div>
-                <p className="text-muted mt-0.5 text-xs">
+                <p className="mt-0.5 text-xs text-muted">
                   Start a workspace tied to an existing lead.
                 </p>
               </div>
@@ -422,7 +418,7 @@ function JobsPageInner() {
         <PageToolbar
           search={
             <input
-              className="input min-w-0 w-full flex-1 basis-48"
+              className="input w-full min-w-0 flex-1 basis-48"
               placeholder="Search title, description, address…"
               value={q}
               onChange={(e) => setQ(e.target.value)}
@@ -466,7 +462,7 @@ function JobsPageInner() {
           }
         >
           <select
-            className="input min-w-0 w-full sm:w-48"
+            className="input w-full min-w-0 sm:w-48"
             value={assignedFilter}
             onChange={(e) => setAssignedFilter(e.target.value)}
             aria-label="Assigned to"
@@ -504,11 +500,11 @@ function JobsPageInner() {
               id="job-address-preview-title"
               className="flex w-full items-center gap-2 text-sm font-semibold"
             >
-              <div className="border-base flex w-full items-center justify-between border-b pb-2">
+              <div className="flex w-full items-center justify-between border-b border-base pb-2">
                 Address
                 <button
                   type="button"
-                  className="bg-accent/30 hover:bg-accent text-main ml-2 inline-flex items-center rounded px-2 py-0.5 text-xs transition"
+                  className="bg-accent/30 ml-2 inline-flex items-center rounded px-2 py-0.5 text-xs text-main transition hover:bg-accent"
                   onClick={async () => {
                     if (addressPreview) {
                       await navigator.clipboard.writeText(addressPreview);
@@ -521,7 +517,7 @@ function JobsPageInner() {
               </div>
             </h2>
 
-            <p className="text-main mt-2 whitespace-pre-wrap break-words text-sm leading-relaxed">
+            <p className="mt-2 whitespace-pre-wrap break-words text-sm leading-relaxed text-main">
               {addressPreview}
             </p>
             <div className="mt-4 flex justify-end gap-2">
@@ -545,7 +541,7 @@ export default function JobsPage() {
     <Suspense
       fallback={
         <AppShell title="Jobs">
-          <div className="text-muted p-4 text-sm">Loading…</div>
+          <div className="p-4 text-sm text-muted">Loading…</div>
         </AppShell>
       }
     >

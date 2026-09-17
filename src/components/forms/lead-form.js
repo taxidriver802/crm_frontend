@@ -4,20 +4,8 @@ import { Alert } from "@/components/ui/alert";
 import { Field, FormActions } from "@/components/ui/field";
 
 const STATUS_OPTIONS = ["New", "Contacted", "Qualified", "Closed", "Inactive"];
-const SOURCE_OPTIONS = [
-  "Referral",
-  "Website",
-  "Repeat customer",
-  "Door knock",
-  "Other",
-];
-const SERVICE_OPTIONS = [
-  "Inspection",
-  "Repair",
-  "Replacement",
-  "Gutters",
-  "Maintenance",
-];
+const SOURCE_OPTIONS = ["Referral", "Website", "Repeat customer", "Door knock", "Other"];
+const SERVICE_OPTIONS = ["Inspection", "Repair", "Replacement", "Gutters", "Maintenance"];
 const CONTACT_OPTIONS = ["Call", "Text", "Email"];
 const URGENCY_OPTIONS = ["Low", "Normal", "Urgent"];
 
@@ -198,10 +186,7 @@ export function LeadForm({
           />
         </Field>
 
-        <Field
-          label="Notes"
-          className={isCompact ? "md:col-span-2" : "sm:col-span-2"}
-        >
+        <Field label="Notes" className={isCompact ? "md:col-span-2" : "sm:col-span-2"}>
           <textarea
             className="input min-h-[120px]"
             value={form.notes}

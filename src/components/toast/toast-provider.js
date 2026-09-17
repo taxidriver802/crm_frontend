@@ -24,7 +24,7 @@ export function ToastProvider({ children }) {
         {toasts.map((t) => (
           <div
             key={t.id}
-            className="bg-surface border-base rounded-md border px-4 py-2 text-sm shadow-lg"
+            className="rounded-md border border-base bg-surface px-4 py-2 text-sm shadow-lg"
           >
             {t.message}
           </div>

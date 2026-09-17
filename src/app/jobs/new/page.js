@@ -122,7 +122,7 @@ export default function NewJobPage() {
       fallback={
         <AppShell title="New job">
           <section className="card p-4">
-            <div className="text-muted text-sm">Loading…</div>
+            <div className="text-sm text-muted">Loading…</div>
           </section>
         </AppShell>
       }

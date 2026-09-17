@@ -1,6 +1,14 @@
 "use client";
 
-import { Suspense, useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from "react";
+import {
+  Suspense,
+  useEffect,
+  useId,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 
@@ -34,7 +42,12 @@ const SYSTEM_NAV = [
   { href: "/integrations", label: "Integrations", icon: "plug", priority: "secondary" },
 ];
 
-const USERS_NAV = { href: "/users", label: "Users", icon: "users", priority: "secondary" };
+const USERS_NAV = {
+  href: "/users",
+  label: "Users",
+  icon: "users",
+  priority: "secondary",
+};
 const TEMPLATES_NAV = {
   href: "/estimates/templates",
   label: "Templates",
@@ -253,8 +266,7 @@ export function AppShell({ children, title, description, right, back }) {
       if (!isK || !isMeta) return;
       event.preventDefault();
       const useTopbar =
-        typeof window !== "undefined" &&
-        window.matchMedia("(min-width: 1024px)").matches;
+        typeof window !== "undefined" && window.matchMedia("(min-width: 1024px)").matches;
       setSearchSurface(useTopbar ? "topbar" : "palette");
       setSearchOpen(true);
       if (useTopbar) {
@@ -583,7 +595,7 @@ export function AppShell({ children, title, description, right, back }) {
           tone === "chrome"
             ? active && "nav-chrome-active"
             : active
-              ? "bg-accent text-main font-medium"
+              ? "bg-accent font-medium text-main"
               : "text-muted hover:bg-accent",
         )}
       >
@@ -607,11 +619,11 @@ export function AppShell({ children, title, description, right, back }) {
           "lg:w-[min(22rem,calc(100vw-2rem))]",
         )}
       >
-        <div className="border-base flex items-center justify-between gap-3 border-b px-3 py-2.5 sm:px-3.5">
+        <div className="flex items-center justify-between gap-3 border-b border-base px-3 py-2.5 sm:px-3.5">
           <div className="flex min-w-0 items-center gap-2">
             <p className="text-sm font-semibold tracking-tight">Notifications</p>
             {unreadCount > 0 ? (
-              <span className="bg-accent-solid text-on-accent inline-flex min-h-[1.15rem] min-w-[1.15rem] items-center justify-center rounded-full px-1.5 text-[10px] font-semibold">
+              <span className="inline-flex min-h-[1.15rem] min-w-[1.15rem] items-center justify-center rounded-full bg-accent-solid px-1.5 text-[10px] font-semibold text-on-accent">
                 {unreadCount > 99 ? "99+" : unreadCount}
               </span>
             ) : null}
@@ -623,7 +635,7 @@ export function AppShell({ children, title, description, right, back }) {
               onClick={handleMarkAllRead}
               disabled={markingAllRead || unreadCount === 0}
               className={cx(
-                "text-muted hover:text-main text-xs transition",
+                "text-xs text-muted transition hover:text-main",
                 (markingAllRead || unreadCount === 0) && "cursor-not-allowed opacity-50",
               )}
             >
@@ -634,7 +646,7 @@ export function AppShell({ children, title, description, right, back }) {
               <button
                 type="button"
                 onClick={handleClearRead}
-                className="text-muted hover:text-main text-xs transition"
+                className="text-xs text-muted transition hover:text-main"
               >
                 Clear
               </button>
@@ -644,13 +656,13 @@ export function AppShell({ children, title, description, right, back }) {
 
         <div className="scrollbar-theme min-h-0 flex-1 overflow-y-auto py-1">
           {notificationsLoading ? (
-            <div className="text-muted flex flex-col items-center gap-2 px-4 py-10 text-center text-sm">
-              <Icon name="bell" className="text-soft h-5 w-5" />
+            <div className="flex flex-col items-center gap-2 px-4 py-10 text-center text-sm text-muted">
+              <Icon name="bell" className="h-5 w-5 text-soft" />
               Loading…
             </div>
           ) : notifications.length === 0 ? (
-            <div className="text-muted flex flex-col items-center gap-2 px-4 py-10 text-center text-sm">
-              <Icon name="inbox" className="text-soft h-5 w-5" />
+            <div className="flex flex-col items-center gap-2 px-4 py-10 text-center text-sm text-muted">
+              <Icon name="inbox" className="h-5 w-5 text-soft" />
               You’re all caught up.
             </div>
           ) : (
@@ -664,14 +676,14 @@ export function AppShell({ children, title, description, right, back }) {
                   type="button"
                   onClick={() => handleNotificationClick(notification)}
                   className={cx(
-                    "hover:bg-accent group relative flex w-full items-start gap-2.5 px-3 py-2.5 text-left transition sm:px-3.5",
+                    "group relative flex w-full items-start gap-2.5 px-3 py-2.5 text-left transition hover:bg-accent sm:px-3.5",
                     !unread && "opacity-60 hover:opacity-100",
                   )}
                 >
                   <span
                     aria-hidden
                     className={cx(
-                      "bg-accent-solid absolute bottom-1.5 left-0 top-1.5 w-0.5 rounded-full transition-opacity",
+                      "absolute bottom-1.5 left-0 top-1.5 w-0.5 rounded-full bg-accent-solid transition-opacity",
                       unread ? "opacity-100" : "opacity-0",
                     )}
                   />
@@ -690,12 +702,12 @@ export function AppShell({ children, title, description, right, back }) {
                       <p
                         className={cx(
                           "truncate text-sm leading-snug",
-                          unread ? "text-main font-semibold" : "text-muted font-medium",
+                          unread ? "font-semibold text-main" : "font-medium text-muted",
                         )}
                       >
                         {notification.title}
                       </p>
-                      <span className="text-soft shrink-0 text-[11px] tabular-nums">
+                      <span className="shrink-0 text-[11px] tabular-nums text-soft">
                         {formatNotificationTime(notification.created_at)}
                       </span>
                     </div>
@@ -719,320 +731,329 @@ export function AppShell({ children, title, description, right, back }) {
 
   return (
     <ReturnToProvider title={title}>
-      <div className="app-shell bg-app text-main flex overflow-hidden">
-      {/* SIDEBAR — large screens; toggled from the topbar */}
-      <aside
-        id="desktop-sidebar"
-        aria-hidden={!desktopSidebarOpen}
-        inert={!desktopSidebarOpen ? true : undefined}
-        className={cx(
-          "scrollbar-theme bg-chrome text-chrome hidden h-full shrink-0 flex-col overflow-hidden lg:flex",
-          desktopSidebarOpen ? "w-64 border-chrome border-r" : "w-0 border-0",
-        )}
-        style={{
-          transitionProperty: "width, border-width",
-          transitionDuration: "var(--duration-fast)",
-          transitionTimingFunction: "var(--ease-standard)",
-        }}
-      >
-        <div className="flex h-full w-64 min-w-64 flex-col">
-          <Link
-            href="/dashboard"
-            className="flex items-center gap-3 px-5 py-5"
-            onClick={() => clearReturnStack()}
-          >
-            <MainLogo className="h-8 w-8" />
-            <span className="text-sm font-semibold tracking-tight">CRM</span>
-          </Link>
+      <div className="app-shell flex overflow-hidden bg-app text-main">
+        {/* SIDEBAR — large screens; toggled from the topbar */}
+        <aside
+          id="desktop-sidebar"
+          aria-hidden={!desktopSidebarOpen}
+          inert={!desktopSidebarOpen ? true : undefined}
+          className={cx(
+            "scrollbar-theme hidden h-full shrink-0 flex-col overflow-hidden bg-chrome text-chrome lg:flex",
+            desktopSidebarOpen ? "w-64 border-r border-chrome" : "w-0 border-0",
+          )}
+          style={{
+            transitionProperty: "width, border-width",
+            transitionDuration: "var(--duration-fast)",
+            transitionTimingFunction: "var(--ease-standard)",
+          }}
+        >
+          <div className="flex h-full w-64 min-w-64 flex-col">
+            <Link
+              href="/dashboard"
+              className="flex items-center gap-3 px-5 py-5"
+              onClick={() => clearReturnStack()}
+            >
+              <MainLogo className="h-8 w-8" />
+              <span className="text-sm font-semibold tracking-tight">CRM</span>
+            </Link>
 
-          <nav className="flex-1 space-y-5 overflow-y-auto px-3 pb-2">
-            <div className="space-y-0.5">
-              {primaryNavItems.map((item) => renderNavLink(item))}
-            </div>
-
-            {secondaryNavItems.length > 0 && (
+            <nav className="flex-1 space-y-5 overflow-y-auto px-3 pb-2">
               <div className="space-y-0.5">
-                <div className="nav-section-label">Tools</div>
-                {secondaryNavItems.map((item) => renderNavLink(item))}
+                {primaryNavItems.map((item) => renderNavLink(item))}
               </div>
-            )}
-          </nav>
 
-          <div className="border-chrome space-y-2 border-t p-3">
-            <AccountSettings
-              tone="chrome"
-              isAdminUser={isAdminUser}
-              onInvite={() => setInviteModalOpen(true)}
-              onLogout={() => setLogoutConfirmOpen(true)}
-            />
+              {secondaryNavItems.length > 0 && (
+                <div className="space-y-0.5">
+                  <div className="nav-section-label">Tools</div>
+                  {secondaryNavItems.map((item) => renderNavLink(item))}
+                </div>
+              )}
+            </nav>
+
+            <div className="space-y-2 border-t border-chrome p-3">
+              <AccountSettings
+                tone="chrome"
+                isAdminUser={isAdminUser}
+                onInvite={() => setInviteModalOpen(true)}
+                onLogout={() => setLogoutConfirmOpen(true)}
+              />
+            </div>
           </div>
-        </div>
-      </aside>
+        </aside>
 
-      {/* MAIN */}
-      <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
-        {/* TOPBAR */}
-        <header className={cx(
-          "border-base bg-surface-elevated sticky top-0 z-10 flex shrink-0 items-center justify-between gap-4 border-b px-4 py-2.5 sm:px-6",
-          searchOpen && searchSurface === "topbar" && "z-[85]",
-        )}>
-          <div
+        {/* MAIN */}
+        <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
+          {/* TOPBAR */}
+          <header
             className={cx(
-              "flex h-full min-w-0 flex-row gap-2",
-              !description ? "items-center" : "items-start",
+              "sticky top-0 z-10 flex shrink-0 items-center justify-between gap-4 border-b border-base bg-surface-elevated px-4 py-2.5 sm:px-6",
+              searchOpen && searchSurface === "topbar" && "z-[85]",
             )}
           >
-            <button
-              type="button"
-              onClick={() => {
-                setDesktopSidebarOpen((open) => {
-                  const next = !open;
-                  writeDesktopSidebarOpen(next);
-                  return next;
-                });
-              }}
-              className="icon-btn hidden lg:inline-flex"
-              aria-label={desktopSidebarOpen ? "Collapse menu" : "Open menu"}
-              aria-expanded={desktopSidebarOpen}
-              aria-controls="desktop-sidebar"
-              title={desktopSidebarOpen ? "Collapse menu" : "Open menu"}
+            <div
+              className={cx(
+                "flex h-full min-w-0 flex-row gap-2",
+                !description ? "items-center" : "items-start",
+              )}
             >
-              <Icon
-                name={desktopSidebarOpen ? "panelLeft" : "menu"}
-                className="h-4 w-4"
-              />
-            </button>
-            <Suspense fallback={null}>
-              <ReturnBackButton back={back} />
-            </Suspense>
-            <div className={cx("flex min-w-0 flex-col", !description && "justify-center")}>
-              {title ? (
-                <h1 className="truncate text-[15px] font-semibold tracking-tight">{title}</h1>
-              ) : null}
-              {description ? (
-                <p className="text-muted mt-0.5 truncate text-sm">{description}</p>
-              ) : null}
-            </div>
-          </div>
-
-          <div className="flex min-w-0 shrink-0 items-center gap-1.5 sm:gap-2">
-            {right ? (
-              <div className="hidden min-w-0 items-center gap-2 lg:flex lg:flex-wrap">
-                {right}
-              </div>
-            ) : null}
-
-            <div className="notifications-menu relative flex items-center gap-1.5">
               <button
                 type="button"
-                onClick={openSearchFromIcon}
-                aria-label="Open search"
-                title="Search (Ctrl/Cmd + K)"
-                className="icon-btn lg:hidden"
+                onClick={() => {
+                  setDesktopSidebarOpen((open) => {
+                    const next = !open;
+                    writeDesktopSidebarOpen(next);
+                    return next;
+                  });
+                }}
+                className="icon-btn hidden lg:inline-flex"
+                aria-label={desktopSidebarOpen ? "Collapse menu" : "Open menu"}
+                aria-expanded={desktopSidebarOpen}
+                aria-controls="desktop-sidebar"
+                title={desktopSidebarOpen ? "Collapse menu" : "Open menu"}
               >
-                <Icon name="search" className="h-4 w-4" />
-              </button>
-
-              <label
-                className={cx(
-                  "border-base bg-surface focus-within:border-strong hidden items-center gap-2 rounded-theme-md border px-2.5 transition lg:inline-flex",
-                  "h-9 min-w-[12.5rem] max-w-[16rem]",
-                  searchOpen && searchSurface === "topbar" && "border-strong bg-accent",
-                )}
-              >
-                <Icon name="search" className="text-muted h-3.5 w-3.5 shrink-0" />
-                <input
-                  ref={topbarSearchRef}
-                  type="search"
-                  value={searchQuery}
-                  placeholder="Search…"
-                  aria-label="Search workspace"
-                  className="placeholder:text-soft min-w-0 flex-1 border-0 bg-transparent text-sm outline-none"
-                  onFocus={openSearchFromTopbar}
-                  onChange={(event) => {
-                    setSearchQuery(event.target.value);
-                    openSearchFromTopbar();
-                  }}
-                  onKeyDown={(event) => {
-                    searchKeyDownRef.current?.(event);
-                  }}
+                <Icon
+                  name={desktopSidebarOpen ? "panelLeft" : "menu"}
+                  className="h-4 w-4"
                 />
-                <kbd className="border-base text-soft rounded-theme-sm border px-1.5 py-0.5 text-[10px] font-medium">
-                  ⌘K
-                </kbd>
-              </label>
-
-              <button
-                type="button"
-                onClick={handleToggleNotifications}
-                aria-label="Open notifications"
-                aria-expanded={notificationsOpen}
-                className="icon-btn relative"
-              >
-                <Icon name="bell" className="h-4 w-4" />
-                {unreadCount > 0 && (
-                  <span className="bg-accent-solid text-on-accent absolute -right-1 -top-1 inline-flex min-h-[1.1rem] min-w-[1.1rem] items-center justify-center rounded-full px-1 text-[10px] font-semibold">
-                    {unreadCount > 9 ? "9+" : unreadCount}
-                  </span>
-                )}
               </button>
-
-              {notificationsOpen ? (
-                <>
-                  <Overlay
-                    className="sm:hidden"
-                    aria-hidden
-                    onClick={() => setNotificationsOpen(false)}
-                  />
-                  {renderNotificationsPanel()}
-                </>
-              ) : null}
+              <Suspense fallback={null}>
+                <ReturnBackButton back={back} />
+              </Suspense>
+              <div
+                className={cx("flex min-w-0 flex-col", !description && "justify-center")}
+              >
+                {title ? (
+                  <h1 className="truncate text-[15px] font-semibold tracking-tight">
+                    {title}
+                  </h1>
+                ) : null}
+                {description ? (
+                  <p className="mt-0.5 truncate text-sm text-muted">{description}</p>
+                ) : null}
+              </div>
             </div>
 
-            <button
-              type="button"
-              aria-label={mobileMenuOpen ? "Close menu" : "Open menu"}
-              aria-expanded={mobileMenuOpen}
-              onClick={() => setMobileMenuOpen((p) => !p)}
-              className="icon-btn menu-trigger lg:hidden"
-            >
-              <Icon name={mobileMenuOpen ? "close" : "menu"} className="h-4 w-4" />
-            </button>
-          </div>
-        </header>
+            <div className="flex min-w-0 shrink-0 items-center gap-1.5 sm:gap-2">
+              {right ? (
+                <div className="hidden min-w-0 items-center gap-2 lg:flex lg:flex-wrap">
+                  {right}
+                </div>
+              ) : null}
 
-        {mobileMenuOpen && (
-          <>
-            <Overlay
-              className="lg:hidden"
-              aria-hidden
-              onClick={() => setMobileMenuOpen(false)}
-            />
-            <div className="mobile-menu dropdown-panel fixed right-3 top-[max(4.25rem,calc(env(safe-area-inset-top,0px)+3.75rem))] z-50 flex max-h-[min(70vh,calc(100dvh-5rem))] w-[min(20rem,calc(100vw-1.5rem))] flex-col overflow-hidden lg:hidden">
-              <div className="border-base flex shrink-0 items-center justify-between border-b px-3 py-2">
-                <span className="text-sm font-semibold tracking-tight">Menu</span>
+              <div className="notifications-menu relative flex items-center gap-1.5">
                 <button
                   type="button"
-                  className="icon-btn"
-                  aria-label="Close menu"
-                  onClick={() => setMobileMenuOpen(false)}
+                  onClick={openSearchFromIcon}
+                  aria-label="Open search"
+                  title="Search (Ctrl/Cmd + K)"
+                  className="icon-btn lg:hidden"
                 >
-                  <Icon name="close" className="h-4 w-4" />
+                  <Icon name="search" className="h-4 w-4" />
                 </button>
-              </div>
-              <div className="scrollbar-theme min-h-0 flex-1 space-y-4 overflow-y-auto p-3">
-                <div className="space-y-0.5">
-                  <div className="text-muted px-2.5 pt-1 text-[10px] font-semibold uppercase tracking-[0.14em]">
-                    Workflow
-                  </div>
-                  {primaryNavItems.map((item) =>
-                    renderNavLink(item, {
-                      onNavigate: () => setMobileMenuOpen(false),
-                      tone: "panel",
-                    }),
+
+                <label
+                  className={cx(
+                    "hidden items-center gap-2 rounded-theme-md border border-base bg-surface px-2.5 transition focus-within:border-strong lg:inline-flex",
+                    "h-9 min-w-[12.5rem] max-w-[16rem]",
+                    searchOpen && searchSurface === "topbar" && "border-strong bg-accent",
                   )}
-                </div>
-
-                {secondaryNavItems.length > 0 && (
-                  <>
-                    <div className="border-base border-t pt-2" />
-                    <div className="space-y-0.5">
-                      <div className="text-muted px-2.5 pt-1 text-[10px] font-semibold uppercase tracking-[0.14em]">
-                        Tools
-                      </div>
-                      {secondaryNavItems.map((item) =>
-                        renderNavLink(item, {
-                          onNavigate: () => setMobileMenuOpen(false),
-                          tone: "panel",
-                        }),
-                      )}
-                    </div>
-                  </>
-                )}
-
-                <div className="border-base border-t pt-3">
-                  <AccountSettings
-                    isAdminUser={isAdminUser}
-                    onInvite={() => {
-                      setMobileMenuOpen(false);
-                      setInviteModalOpen(true);
+                >
+                  <Icon name="search" className="h-3.5 w-3.5 shrink-0 text-muted" />
+                  <input
+                    ref={topbarSearchRef}
+                    type="search"
+                    value={searchQuery}
+                    placeholder="Search…"
+                    aria-label="Search workspace"
+                    className="min-w-0 flex-1 border-0 bg-transparent text-sm outline-none placeholder:text-soft"
+                    onFocus={openSearchFromTopbar}
+                    onChange={(event) => {
+                      setSearchQuery(event.target.value);
+                      openSearchFromTopbar();
                     }}
-                    onLogout={() => {
-                      setMobileMenuOpen(false);
-                      setLogoutConfirmOpen(true);
+                    onKeyDown={(event) => {
+                      searchKeyDownRef.current?.(event);
                     }}
                   />
+                  <kbd className="rounded-theme-sm border border-base px-1.5 py-0.5 text-[10px] font-medium text-soft">
+                    ⌘K
+                  </kbd>
+                </label>
+
+                <button
+                  type="button"
+                  onClick={handleToggleNotifications}
+                  aria-label="Open notifications"
+                  aria-expanded={notificationsOpen}
+                  className="icon-btn relative"
+                >
+                  <Icon name="bell" className="h-4 w-4" />
+                  {unreadCount > 0 && (
+                    <span className="absolute -right-1 -top-1 inline-flex min-h-[1.1rem] min-w-[1.1rem] items-center justify-center rounded-full bg-accent-solid px-1 text-[10px] font-semibold text-on-accent">
+                      {unreadCount > 9 ? "9+" : unreadCount}
+                    </span>
+                  )}
+                </button>
+
+                {notificationsOpen ? (
+                  <>
+                    <Overlay
+                      className="sm:hidden"
+                      aria-hidden
+                      onClick={() => setNotificationsOpen(false)}
+                    />
+                    {renderNotificationsPanel()}
+                  </>
+                ) : null}
+              </div>
+
+              <button
+                type="button"
+                aria-label={mobileMenuOpen ? "Close menu" : "Open menu"}
+                aria-expanded={mobileMenuOpen}
+                onClick={() => setMobileMenuOpen((p) => !p)}
+                className="icon-btn menu-trigger lg:hidden"
+              >
+                <Icon name={mobileMenuOpen ? "close" : "menu"} className="h-4 w-4" />
+              </button>
+            </div>
+          </header>
+
+          {mobileMenuOpen && (
+            <>
+              <Overlay
+                className="lg:hidden"
+                aria-hidden
+                onClick={() => setMobileMenuOpen(false)}
+              />
+              <div className="mobile-menu dropdown-panel fixed right-3 top-[max(4.25rem,calc(env(safe-area-inset-top,0px)+3.75rem))] z-50 flex max-h-[min(70vh,calc(100dvh-5rem))] w-[min(20rem,calc(100vw-1.5rem))] flex-col overflow-hidden lg:hidden">
+                <div className="flex shrink-0 items-center justify-between border-b border-base px-3 py-2">
+                  <span className="text-sm font-semibold tracking-tight">Menu</span>
+                  <button
+                    type="button"
+                    className="icon-btn"
+                    aria-label="Close menu"
+                    onClick={() => setMobileMenuOpen(false)}
+                  >
+                    <Icon name="close" className="h-4 w-4" />
+                  </button>
+                </div>
+                <div className="scrollbar-theme min-h-0 flex-1 space-y-4 overflow-y-auto p-3">
+                  <div className="space-y-0.5">
+                    <div className="px-2.5 pt-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-muted">
+                      Workflow
+                    </div>
+                    {primaryNavItems.map((item) =>
+                      renderNavLink(item, {
+                        onNavigate: () => setMobileMenuOpen(false),
+                        tone: "panel",
+                      }),
+                    )}
+                  </div>
+
+                  {secondaryNavItems.length > 0 && (
+                    <>
+                      <div className="border-t border-base pt-2" />
+                      <div className="space-y-0.5">
+                        <div className="px-2.5 pt-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-muted">
+                          Tools
+                        </div>
+                        {secondaryNavItems.map((item) =>
+                          renderNavLink(item, {
+                            onNavigate: () => setMobileMenuOpen(false),
+                            tone: "panel",
+                          }),
+                        )}
+                      </div>
+                    </>
+                  )}
+
+                  <div className="border-t border-base pt-3">
+                    <AccountSettings
+                      isAdminUser={isAdminUser}
+                      onInvite={() => {
+                        setMobileMenuOpen(false);
+                        setInviteModalOpen(true);
+                      }}
+                      onLogout={() => {
+                        setMobileMenuOpen(false);
+                        setLogoutConfirmOpen(true);
+                      }}
+                    />
+                  </div>
                 </div>
               </div>
+            </>
+          )}
+
+          {/* PAGE */}
+          <main className="scrollbar-none min-h-0 min-w-0 flex-1 overflow-y-auto overscroll-y-none">
+            <div className="page-wrap">
+              <div className="page-stack">
+                {right ? <div className="page-actions lg:hidden">{right}</div> : null}
+                {children}
+              </div>
             </div>
-          </>
-        )}
+          </main>
 
-        {/* PAGE */}
-        <main className="scrollbar-none min-h-0 min-w-0 flex-1 overflow-y-auto overscroll-y-none">
-          <div className="page-wrap">
-            <div className="page-stack">
-              {right ? <div className="page-actions lg:hidden">{right}</div> : null}
-              {children}
-            </div>
-          </div>
-        </main>
+          {/* MOBILE BOTTOM NAV — in-flow so iOS overscroll cannot drag it off-screen */}
+          <nav
+            className="flex shrink-0 items-center justify-around border-t border-chrome bg-chrome py-1.5 text-chrome lg:hidden"
+            style={{ paddingBottom: "max(0.375rem, env(safe-area-inset-bottom, 0px))" }}
+          >
+            {[
+              { href: "/dashboard", label: "Home", icon: "home" },
+              { href: "/leads", label: "Leads", icon: "users" },
+              { href: "/jobs", label: "Jobs", icon: "briefcase" },
+              { href: "/tasks", label: "Tasks", icon: "checklist" },
+              { href: "/reports", label: "Reports", icon: "chart" },
+            ].map((item) => {
+              const active = isActivePath(pathname, item.href);
+              return (
+                <Link
+                  key={item.href}
+                  href={item.href}
+                  onClick={() => clearReturnStack()}
+                  className={cx(
+                    "flex min-w-[3.25rem] flex-col items-center gap-0.5 px-2 py-1 text-[10px] transition",
+                    active ? "font-semibold text-chrome" : "text-chrome-muted",
+                  )}
+                >
+                  <Icon name={item.icon} className="h-4 w-4" />
+                  <span>{item.label}</span>
+                </Link>
+              );
+            })}
+          </nav>
+        </div>
 
-        {/* MOBILE BOTTOM NAV — in-flow so iOS overscroll cannot drag it off-screen */}
-        <nav
-          className="border-chrome bg-chrome text-chrome flex shrink-0 items-center justify-around border-t py-1.5 lg:hidden"
-          style={{ paddingBottom: "max(0.375rem, env(safe-area-inset-bottom, 0px))" }}
-        >
-          {[
-            { href: "/dashboard", label: "Home", icon: "home" },
-            { href: "/leads", label: "Leads", icon: "users" },
-            { href: "/jobs", label: "Jobs", icon: "briefcase" },
-            { href: "/tasks", label: "Tasks", icon: "checklist" },
-            { href: "/reports", label: "Reports", icon: "chart" },
-          ].map((item) => {
-            const active = isActivePath(pathname, item.href);
-            return (
-              <Link
-                key={item.href}
-                href={item.href}
-                onClick={() => clearReturnStack()}
-                className={cx(
-                  "flex min-w-[3.25rem] flex-col items-center gap-0.5 px-2 py-1 text-[10px] transition",
-                  active ? "text-chrome font-semibold" : "text-chrome-muted",
-                )}
-              >
-                <Icon name={item.icon} className="h-4 w-4" />
-                <span>{item.label}</span>
-              </Link>
-            );
-          })}
-        </nav>
-      </div>
-
-      <InviteUserModal open={inviteModalOpen} onClose={() => setInviteModalOpen(false)} />
-      <ConfirmModal
-        open={logoutConfirmOpen}
-        onClose={() => setLogoutConfirmOpen(false)}
-        onConfirm={handleLogout}
-        title="Log out?"
-        description="Are you sure you want to log out? You can sign back in anytime."
-        confirmLabel="Log out"
-        cancelLabel="Cancel"
-        tone="danger"
-      />
-      <CommandPalette
-        open={searchOpen}
-        onClose={closeSearch}
-        query={searchQuery}
-        onQueryChange={setSearchQuery}
-        autoFocus={searchSurface === "palette"}
-        showInput={searchSurface === "palette"}
-        externalKeyDownRef={searchSurface === "topbar" ? searchKeyDownRef : null}
-        entityContext={entityContext}
-        isAdminUser={isAdminUser}
-        onInviteUser={() => setInviteModalOpen(true)}
-        onMarkAllNotificationsRead={handleMarkAllRead}
-      />
+        <InviteUserModal
+          open={inviteModalOpen}
+          onClose={() => setInviteModalOpen(false)}
+        />
+        <ConfirmModal
+          open={logoutConfirmOpen}
+          onClose={() => setLogoutConfirmOpen(false)}
+          onConfirm={handleLogout}
+          title="Log out?"
+          description="Are you sure you want to log out? You can sign back in anytime."
+          confirmLabel="Log out"
+          cancelLabel="Cancel"
+          tone="danger"
+        />
+        <CommandPalette
+          open={searchOpen}
+          onClose={closeSearch}
+          query={searchQuery}
+          onQueryChange={setSearchQuery}
+          autoFocus={searchSurface === "palette"}
+          showInput={searchSurface === "palette"}
+          externalKeyDownRef={searchSurface === "topbar" ? searchKeyDownRef : null}
+          entityContext={entityContext}
+          isAdminUser={isAdminUser}
+          onInviteUser={() => setInviteModalOpen(true)}
+          onMarkAllNotificationsRead={handleMarkAllRead}
+        />
       </div>
     </ReturnToProvider>
   );

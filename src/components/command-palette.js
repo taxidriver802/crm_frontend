@@ -25,7 +25,12 @@ import {
 import { cx } from "@/lib/cx";
 
 const QUICK_NAV_ITEMS = [
-  { href: "/dashboard", label: "Dashboard", icon: "home", keywords: "home overview dash" },
+  {
+    href: "/dashboard",
+    label: "Dashboard",
+    icon: "home",
+    keywords: "home overview dash",
+  },
   { href: "/leads", label: "Leads", icon: "users", keywords: "contacts ld" },
   { href: "/jobs", label: "Jobs", icon: "briefcase", keywords: "projects jb" },
   { href: "/tasks", label: "Tasks", icon: "checklist", keywords: "to do todo tk" },
@@ -33,8 +38,18 @@ const QUICK_NAV_ITEMS = [
   { href: "/files", label: "Files", icon: "folder", keywords: "documents docs fl" },
   { href: "/reports", label: "Reports", icon: "chart", keywords: "analytics rpt" },
   { href: "/automation", label: "Automation", icon: "spark", keywords: "workflows auto" },
-  { href: "/estimates/templates", label: "Templates", icon: "invoice", keywords: "quotes estimate packages est tmpl" },
-  { href: "/integrations", label: "Integrations", icon: "plug", keywords: "connections integ" },
+  {
+    href: "/estimates/templates",
+    label: "Templates",
+    icon: "invoice",
+    keywords: "quotes estimate packages est tmpl",
+  },
+  {
+    href: "/integrations",
+    label: "Integrations",
+    icon: "plug",
+    keywords: "connections integ",
+  },
   { href: "/users", label: "Users", icon: "users", keywords: "team usr" },
 ];
 
@@ -92,7 +107,12 @@ function parseActionsQuery(query) {
   };
 }
 
-function buildActionItems({ filter, isAdminUser, onInviteUser, onMarkAllNotificationsRead }) {
+function buildActionItems({
+  filter,
+  isAdminUser,
+  onInviteUser,
+  onMarkAllNotificationsRead,
+}) {
   const actions = [
     {
       key: "action-create-lead",
@@ -138,7 +158,8 @@ function buildActionItems({ filter, isAdminUser, onInviteUser, onMarkAllNotifica
   if (!filter) return actions;
 
   return actions.filter((action) => {
-    const haystack = `${action.label} ${action.sublabel} ${action.keywords || ""}`.toLowerCase();
+    const haystack =
+      `${action.label} ${action.sublabel} ${action.keywords || ""}`.toLowerCase();
     return haystack.includes(filter);
   });
 }
@@ -352,9 +373,7 @@ function flattenResults(
       !hasGlobalEntityHits(results) &&
       !hasRelatedHits(related)
     ) {
-      output.push(
-        ...buildCreateFromQueryItems(createFromQueryText || query.trim()),
-      );
+      output.push(...buildCreateFromQueryItems(createFromQueryText || query.trim()));
     }
   }
 
@@ -420,12 +439,12 @@ function PaletteItem({ item, active, onActivate, onHover }) {
 
   const content = (
     <>
-      <span className="bg-surface text-muted mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-theme-md">
+      <span className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-theme-md bg-surface text-muted">
         <Icon name={item.icon || "search"} className="h-3.5 w-3.5" />
       </span>
       <div className="min-w-0 flex-1">
         <p className="truncate text-sm font-medium leading-snug">{item.label}</p>
-        <p className="text-muted mt-0.5 truncate text-xs leading-relaxed">
+        <p className="mt-0.5 truncate text-xs leading-relaxed text-muted">
           {item.sublabel}
         </p>
       </div>
@@ -512,8 +531,7 @@ export function CommandPalette({
         isAdminUser,
         onInviteUser: () => inviteUserRef.current?.(),
         onMarkAllNotificationsRead: () => markAllReadRef.current?.(),
-        includeCreateFromQuery:
-          searchReady && !loading && Boolean(parsedQuery.text),
+        includeCreateFromQuery: searchReady && !loading && Boolean(parsedQuery.text),
         createFromQueryText: parsedQuery.text,
         entityContext,
         jumpActive: Boolean(parsedQuery.jump),
@@ -700,7 +718,7 @@ export function CommandPalette({
     }
     return (
       <div className="px-3.5 pb-3 pt-1">
-        <p className="text-soft pb-1.5 text-[10px] font-semibold uppercase tracking-wider">
+        <p className="pb-1.5 text-[10px] font-semibold uppercase tracking-wider text-soft">
           Try a filter
         </p>
         <div className="flex flex-wrap gap-1.5">
@@ -708,11 +726,11 @@ export function CommandPalette({
             <button
               key={example.raw}
               type="button"
-              className="border-base bg-surface text-muted hover:bg-accent hover:text-main inline-flex items-center gap-1.5 rounded-theme-sm border px-2 py-1 text-[11px] transition"
+              className="inline-flex items-center gap-1.5 rounded-theme-sm border border-base bg-surface px-2 py-1 text-[11px] text-muted transition hover:bg-accent hover:text-main"
               onClick={() => applyFilterExample(example)}
             >
               <span>{example.label}</span>
-              <span className="text-soft font-mono text-[10px]">{example.raw}</span>
+              <span className="font-mono text-[10px] text-soft">{example.raw}</span>
             </button>
           ))}
         </div>
@@ -757,14 +775,14 @@ export function CommandPalette({
         onClick={(e) => e.stopPropagation()}
       >
         {showInput ? (
-          <div className="border-base flex items-center gap-2.5 border-b px-3.5 py-3">
+          <div className="flex items-center gap-2.5 border-b border-base px-3.5 py-3">
             <Icon
               name={isActionsMode ? "spark" : "search"}
-              className="text-muted h-4 w-4 shrink-0"
+              className="h-4 w-4 shrink-0 text-muted"
             />
             <input
               ref={inputRef}
-              className="placeholder:text-soft min-w-0 flex-1 border-0 bg-transparent text-sm outline-none"
+              className="min-w-0 flex-1 border-0 bg-transparent text-sm outline-none placeholder:text-soft"
               placeholder={
                 isActionsMode
                   ? "Filter actions…"
@@ -783,32 +801,34 @@ export function CommandPalette({
                     : "Search workspace"
               }
             />
-            <div className="text-soft hidden shrink-0 items-center gap-1.5 text-[10px] sm:flex">
-              <kbd className="border-base rounded-theme-sm border px-1.5 py-0.5 font-medium">
+            <div className="hidden shrink-0 items-center gap-1.5 text-[10px] text-soft sm:flex">
+              <kbd className="rounded-theme-sm border border-base px-1.5 py-0.5 font-medium">
                 &gt;
               </kbd>
               <span>Actions</span>
               {!isActionsMode ? (
                 <>
-                  <kbd className="border-base ml-0.5 rounded-theme-sm border px-1.5 py-0.5 font-medium">
+                  <kbd className="ml-0.5 rounded-theme-sm border border-base px-1.5 py-0.5 font-medium">
                     CTRL
                   </kbd>
                   <span>{isPagesMode ? "Results" : "Pages"}</span>
                 </>
               ) : null}
-              <kbd className="border-base ml-0.5 rounded-theme-sm border px-1.5 py-0.5 font-medium">
+              <kbd className="ml-0.5 rounded-theme-sm border border-base px-1.5 py-0.5 font-medium">
                 ESC
               </kbd>
             </div>
           </div>
         ) : null}
 
-        <div className="border-base flex items-center gap-2 border-b px-3.5 py-2">
+        <div className="flex items-center gap-2 border-b border-base px-3.5 py-2">
           <button
             type="button"
             className={cx(
               "rounded-theme-sm px-2 py-0.5 text-[11px] font-medium transition",
-              !isActionsMode && !isPagesMode ? "bg-accent text-main" : "text-muted hover:text-main",
+              !isActionsMode && !isPagesMode
+                ? "bg-accent text-main"
+                : "text-muted hover:text-main",
             )}
             onClick={() => {
               setNavigationMode("results");
@@ -865,11 +885,11 @@ export function CommandPalette({
               {filtersMenuOpen ? (
                 <div
                   role="menu"
-                  className="border-base bg-surface-elevated absolute left-0 top-full z-10 mt-1.5 w-44 overflow-hidden rounded-theme-md border py-1 shadow-md"
+                  className="absolute left-0 top-full z-10 mt-1.5 w-44 overflow-hidden rounded-theme-md border border-base bg-surface-elevated py-1 shadow-md"
                 >
                   {SEARCH_FILTER_MENU.map((section) => (
                     <div key={section.heading}>
-                      <p className="text-soft px-2.5 pb-0.5 pt-1.5 text-[10px] font-semibold uppercase tracking-wider">
+                      <p className="px-2.5 pb-0.5 pt-1.5 text-[10px] font-semibold uppercase tracking-wider text-soft">
                         {section.heading}
                       </p>
                       {section.items.map((item) => (
@@ -877,28 +897,30 @@ export function CommandPalette({
                           key={item.raw}
                           type="button"
                           role="menuitem"
-                          className="hover:bg-accent text-main flex w-full items-center justify-between gap-2 px-2.5 py-1.5 text-left text-xs transition"
+                          className="flex w-full items-center justify-between gap-2 px-2.5 py-1.5 text-left text-xs text-main transition hover:bg-accent"
                           onClick={() => applyFilterExample(item)}
                         >
                           <span>{item.label}</span>
-                          <span className="text-soft font-mono text-[10px]">{item.raw}</span>
+                          <span className="font-mono text-[10px] text-soft">
+                            {item.raw}
+                          </span>
                         </button>
                       ))}
                     </div>
                   ))}
                   {entityContext ? (
                     <div>
-                      <p className="text-soft px-2.5 pb-0.5 pt-1.5 text-[10px] font-semibold uppercase tracking-wider">
+                      <p className="px-2.5 pb-0.5 pt-1.5 text-[10px] font-semibold uppercase tracking-wider text-soft">
                         Jump
                       </p>
                       <button
                         type="button"
                         role="menuitem"
-                        className="hover:bg-accent text-main flex w-full items-center justify-between gap-2 px-2.5 py-1.5 text-left text-xs transition"
+                        className="flex w-full items-center justify-between gap-2 px-2.5 py-1.5 text-left text-xs text-main transition hover:bg-accent"
                         onClick={() => applyFilterExample(SEARCH_JUMP_FILTER)}
                       >
                         <span>{SEARCH_JUMP_FILTER.label}</span>
-                        <span className="text-soft font-mono text-[10px]">
+                        <span className="font-mono text-[10px] text-soft">
                           {SEARCH_JUMP_FILTER.raw}
                         </span>
                       </button>
@@ -909,7 +931,7 @@ export function CommandPalette({
             </div>
           ) : null}
 
-          <span className="text-soft ml-auto hidden text-[11px] sm:inline">
+          <span className="ml-auto hidden text-[11px] text-soft sm:inline">
             {isActionsMode
               ? "Run a quick action"
               : isPagesMode
@@ -923,12 +945,12 @@ export function CommandPalette({
         </div>
 
         {parsedQuery.tokens.length > 0 && !isActionsMode ? (
-          <div className="border-base flex flex-wrap items-center gap-1.5 border-b px-3.5 py-2">
+          <div className="flex flex-wrap items-center gap-1.5 border-b border-base px-3.5 py-2">
             {parsedQuery.tokens.map((token) => (
               <button
                 key={`${token.key}-${token.value}-${token.raw}`}
                 type="button"
-                className="border-base bg-surface text-muted hover:text-main inline-flex items-center gap-1 rounded-theme-sm border px-2 py-0.5 text-[11px] transition"
+                className="inline-flex items-center gap-1 rounded-theme-sm border border-base bg-surface px-2 py-0.5 text-[11px] text-muted transition hover:text-main"
                 onClick={() => setQuery(removeSearchFilterToken(query, token.raw))}
                 title={`Remove ${token.label}`}
               >
@@ -941,16 +963,16 @@ export function CommandPalette({
 
         <div className="scrollbar-theme max-h-[min(60vh,26rem)] overflow-y-auto py-1">
           {loading ? (
-            <div className="text-muted flex flex-col items-center gap-2 px-4 py-10 text-center text-sm">
-              <Icon name="search" className="text-soft h-5 w-5" />
+            <div className="flex flex-col items-center gap-2 px-4 py-10 text-center text-sm text-muted">
+              <Icon name="search" className="h-5 w-5 text-soft" />
               Searching…
             </div>
           ) : flatItems.length === 0 ? (
             <div>
-              <div className="text-muted flex flex-col items-center gap-2 px-4 py-8 text-center text-sm">
+              <div className="flex flex-col items-center gap-2 px-4 py-8 text-center text-sm text-muted">
                 <Icon
                   name={isActionsMode ? "spark" : showingRecents ? "search" : "inbox"}
-                  className="text-soft h-5 w-5"
+                  className="h-5 w-5 text-soft"
                 />
                 {isActionsMode
                   ? "No matching actions."
@@ -966,7 +988,7 @@ export function CommandPalette({
             <>
               {groupedItems.map((group) => (
                 <div key={group.name} className="pb-1">
-                  <p className="text-soft px-3.5 pb-1 pt-2 text-[10px] font-semibold uppercase tracking-wider">
+                  <p className="px-3.5 pb-1 pt-2 text-[10px] font-semibold uppercase tracking-wider text-soft">
                     {group.name}
                   </p>
                   {group.items.map((item) => {
@@ -991,7 +1013,9 @@ export function CommandPalette({
                 </div>
               ))}
               {showingRecents ? (
-                <div className="border-base mt-1 border-t pt-1">{renderFilterExamples()}</div>
+                <div className="mt-1 border-t border-base pt-1">
+                  {renderFilterExamples()}
+                </div>
               ) : null}
             </>
           )}

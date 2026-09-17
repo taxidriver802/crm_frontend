@@ -16,7 +16,7 @@ function BoolBadge({ ok }) {
 function Row({ label, value }) {
   return (
     <div className="flex items-center justify-between gap-4 py-2">
-      <div className="text-muted text-sm">{label}</div>
+      <div className="text-sm text-muted">{label}</div>
       <div className="text-right text-sm font-medium">{value}</div>
     </div>
   );
@@ -111,10 +111,7 @@ export default function AbcIntegrationPage() {
   const health = useMemo(() => getIntegrationHealth(data), [data]);
 
   return (
-    <AppShell
-      title="ABC Supply"
-      description={loading ? "Loading…" : health.label}
-    >
+    <AppShell title="ABC Supply" description={loading ? "Loading…" : health.label}>
       <div className="space-y-6">
         {error ? <Alert variant="inline">{error}</Alert> : null}
 
@@ -144,13 +141,13 @@ export default function AbcIntegrationPage() {
               }
             >
               {loading ? (
-                <div className="text-muted text-sm">Loading…</div>
+                <div className="text-sm text-muted">Loading…</div>
               ) : (
                 <div className="space-y-3">
                   <div className="text-sm font-medium">
                     {data?.provider ? data.provider : "ABC Supply"}
                   </div>
-                  <div className="text-muted text-sm">{health.description}</div>
+                  <div className="text-sm text-muted">{health.description}</div>
                 </div>
               )}
             </SectionCard>
@@ -169,15 +166,17 @@ export default function AbcIntegrationPage() {
                 </button>
               </div>
 
-              <div className="text-muted mt-3 text-sm">
+              <div className="mt-3 text-sm text-muted">
                 Sample pricing lookup runs a minimal item search against ABC when
                 credentials are configured (Phase 9.5).
               </div>
               {pricingError ? (
-                <Alert variant="inline" className="mt-2">{pricingError}</Alert>
+                <Alert variant="inline" className="mt-2">
+                  {pricingError}
+                </Alert>
               ) : null}
               {pricingSample?.data != null ? (
-                <div className="text-muted mt-3 max-h-40 overflow-auto rounded border border-dashed p-2 font-mono text-xs">
+                <div className="mt-3 max-h-40 overflow-auto rounded border border-dashed p-2 font-mono text-xs text-muted">
                   <pre className="whitespace-pre-wrap">
                     {JSON.stringify(pricingSample.data, null, 2)}
                   </pre>
@@ -190,9 +189,9 @@ export default function AbcIntegrationPage() {
         <section className="grid gap-4 lg:grid-cols-2">
           <SectionCard title="Credentials">
             {loading ? (
-              <div className="text-muted text-sm">Loading…</div>
+              <div className="text-sm text-muted">Loading…</div>
             ) : data ? (
-              <div className="divide-base divide-y">
+              <div className="divide-y divide-base">
                 <Row label="Configured" value={<BoolBadge ok={data.configured} />} />
                 <Row
                   label="Access Token"
@@ -209,20 +208,20 @@ export default function AbcIntegrationPage() {
                 />
               </div>
             ) : (
-              <div className="text-muted text-sm">No integration data available.</div>
+              <div className="text-sm text-muted">No integration data available.</div>
             )}
           </SectionCard>
 
           <SectionCard title="Provider">
             {loading ? (
-              <div className="text-muted text-sm">Loading…</div>
+              <div className="text-sm text-muted">Loading…</div>
             ) : data ? (
-              <div className="divide-base divide-y">
+              <div className="divide-y divide-base">
                 <Row label="Provider" value={data.provider} />
                 <Row label="Account ID" value={data.accountId || "Not set"} />
               </div>
             ) : (
-              <div className="text-muted text-sm">No integration data available.</div>
+              <div className="text-sm text-muted">No integration data available.</div>
             )}
           </SectionCard>
         </section>

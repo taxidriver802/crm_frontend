@@ -13,8 +13,8 @@ export function PublicFrame({
   const maxWidth = width === "narrow" ? "max-w-2xl" : "max-w-4xl";
 
   return (
-    <div className="bg-app text-main min-h-screen">
-      <header className="border-base bg-surface-elevated border-b">
+    <div className="min-h-screen bg-app text-main">
+      <header className="border-b border-base bg-surface-elevated">
         <div
           className={cx(
             "mx-auto flex items-start justify-between gap-3 px-4 py-4 sm:px-6",
@@ -22,14 +22,12 @@ export function PublicFrame({
           )}
         >
           <div className="flex min-w-0 items-start gap-3">
-            <MainLogo className="text-main mt-0.5 h-8 w-8 shrink-0" />
+            <MainLogo className="mt-0.5 h-8 w-8 shrink-0 text-main" />
             <div className="min-w-0">
-              {eyebrow ? (
-                <div className="text-muted text-xs">{eyebrow}</div>
-              ) : null}
+              {eyebrow ? <div className="text-xs text-muted">{eyebrow}</div> : null}
               <h1 className="truncate text-base font-semibold tracking-tight">{title}</h1>
               {description ? (
-                <p className="text-muted mt-0.5 text-sm">{description}</p>
+                <p className="mt-0.5 text-sm text-muted">{description}</p>
               ) : null}
             </div>
           </div>
@@ -42,7 +40,7 @@ export function PublicFrame({
       </main>
 
       {footer ? (
-        <footer className="text-muted px-4 pb-8 text-center text-xs">{footer}</footer>
+        <footer className="px-4 pb-8 text-center text-xs text-muted">{footer}</footer>
       ) : null}
     </div>
   );

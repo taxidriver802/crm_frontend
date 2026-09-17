@@ -57,7 +57,7 @@ export function ConfirmModal({
             {title}
           </h2>
           {description ? (
-            <p className="text-muted mt-1.5 text-sm leading-relaxed">{description}</p>
+            <p className="mt-1.5 text-sm leading-relaxed text-muted">{description}</p>
           ) : null}
         </div>
 

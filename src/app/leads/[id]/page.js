@@ -255,15 +255,17 @@ export default function LeadDetailPage() {
   const leadName = lead
     ? `${lead.first_name || ""} ${lead.last_name || ""}`.trim() || `Lead #${id}`
     : `Lead #${id}`;
-  const leadContact = lead
-    ? [lead.email, lead.phone].filter(Boolean).join(" • ")
-    : "";
+  const leadContact = lead ? [lead.email, lead.phone].filter(Boolean).join(" • ") : "";
 
   return (
     <AppShell title={leadName} description={leadContact || undefined}>
       <div className="min-w-0 space-y-6">
         {error ? <Alert variant="inline">{error}</Alert> : null}
-        {success ? <Alert variant="inline" tone="success">{success}</Alert> : null}
+        {success ? (
+          <Alert variant="inline" tone="success">
+            {success}
+          </Alert>
+        ) : null}
 
         {loading ? (
           <section className="card p-4">
@@ -279,7 +281,7 @@ export default function LeadDetailPage() {
           </section>
         ) : !lead ? (
           <section className="card p-4">
-            <p className="text-muted text-sm">Lead not found.</p>
+            <p className="text-sm text-muted">Lead not found.</p>
           </section>
         ) : (
           <DetailHeader
@@ -297,9 +299,7 @@ export default function LeadDetailPage() {
                 {lead.preferred_contact_method ? (
                   <StatusBadge>Prefers {lead.preferred_contact_method}</StatusBadge>
                 ) : null}
-                {lead.urgency ? (
-                  <StatusBadge>Urgency: {lead.urgency}</StatusBadge>
-                ) : null}
+                {lead.urgency ? <StatusBadge>Urgency: {lead.urgency}</StatusBadge> : null}
                 {lead.budget_min != null || lead.budget_max != null ? (
                   <StatusBadge>
                     Budget: {lead.budget_min ?? "—"} - {lead.budget_max ?? "—"}
@@ -351,11 +351,7 @@ export default function LeadDetailPage() {
           title="Communication"
           description="Call notes, decisions, and context for this lead."
         >
-          <NotesSection
-            entityType="lead"
-            entityId={id}
-            onLoadState={setNotesLoadState}
-          />
+          <NotesSection entityType="lead" entityId={id} onLoadState={setNotesLoadState} />
         </SectionCard>
 
         <SectionCard
@@ -383,7 +379,7 @@ export default function LeadDetailPage() {
               ))}
             </div>
           ) : jobs.length === 0 ? (
-            <div className="text-muted rounded-lg border border-dashed p-4 text-sm">
+            <div className="rounded-lg border border-dashed p-4 text-sm text-muted">
               No jobs for this lead yet.
             </div>
           ) : (
@@ -397,7 +393,7 @@ export default function LeadDetailPage() {
                   <div className="flex items-center justify-between gap-3">
                     <div className="min-w-0">
                       <div className="font-medium">{job.title}</div>
-                      <div className="text-muted text-sm">{job.address ?? "—"}</div>
+                      <div className="text-sm text-muted">{job.address ?? "—"}</div>
                     </div>
                     <StatusBadge kind="job" status={job.status} />
                   </div>
@@ -429,7 +425,7 @@ export default function LeadDetailPage() {
               ))}
             </div>
           ) : tasks.length === 0 ? (
-            <div className="text-muted rounded-lg border border-dashed p-4 text-sm">
+            <div className="rounded-lg border border-dashed p-4 text-sm text-muted">
               No tasks for this lead yet.
             </div>
           ) : (
@@ -445,7 +441,7 @@ export default function LeadDetailPage() {
                   <div className="flex items-start justify-between gap-3">
                     <div className="min-w-0">
                       <div className="font-medium">{task.title}</div>
-                      <div className="text-muted mt-1 text-sm">
+                      <div className="mt-1 text-sm text-muted">
                         Due: {formatDateTime(task.due_date)}
                       </div>
                     </div>
@@ -482,7 +478,9 @@ export default function LeadDetailPage() {
           }
         >
           {filesError ? (
-            <Alert variant="inline" className="mb-3">{filesError}</Alert>
+            <Alert variant="inline" className="mb-3">
+              {filesError}
+            </Alert>
           ) : null}
 
           {loadingFiles ? (
@@ -495,23 +493,19 @@ export default function LeadDetailPage() {
               ))}
             </div>
           ) : files.length === 0 ? (
-            <div className="text-muted rounded-lg border border-dashed p-4 text-sm">
+            <div className="rounded-lg border border-dashed p-4 text-sm text-muted">
               No files attached to this lead yet.
             </div>
           ) : (
             <div className="space-y-3">
               {files.map((file) => (
-                <div
-                  key={file.id}
-                  className="list-row list-row-split"
-                >
+                <div key={file.id} className="list-row list-row-split">
                   <div className="min-w-0">
                     <div className="truncate font-medium">{file.original_name}</div>
-                    <div className="text-muted mt-1 text-xs">
-                      {file.mime_type || "Unknown type"} •{" "}
-                      {formatBytes(file.size_bytes)}
+                    <div className="mt-1 text-xs text-muted">
+                      {file.mime_type || "Unknown type"} • {formatBytes(file.size_bytes)}
                     </div>
-                    <div className="text-muted mt-1 text-xs">
+                    <div className="mt-1 text-xs text-muted">
                       Uploaded: {formatDate(file.created_at)}
                     </div>
                   </div>

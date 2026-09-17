@@ -13,7 +13,11 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { AppShell } from "@/components/app-shell";
 import { useReturnPush } from "@/components/return-to";
-import { TaskForm, createEmptyTaskForm, buildTaskApiPayload } from "@/components/forms/task-form";
+import {
+  TaskForm,
+  createEmptyTaskForm,
+  buildTaskApiPayload,
+} from "@/components/forms/task-form";
 import { api } from "@/lib/api";
 import { TaskCalendar } from "@/components/calendar/task-calendar";
 import { SavedViewsControls } from "@/components/saved-views-controls";
@@ -574,9 +578,7 @@ function TasksPageInner() {
   return (
     <AppShell
       title="Tasks"
-      description={
-        loadingTasks ? "Loading…" : `${tasks.length} in this view`
-      }
+      description={loadingTasks ? "Loading…" : `${tasks.length} in this view`}
       right={
         <div className="flex flex-wrap items-center gap-2">
           {canViewAll ? (
@@ -613,7 +615,7 @@ function TasksPageInner() {
             <div className="mb-4 flex min-w-0 flex-wrap items-start justify-between gap-3">
               <div className="min-w-0">
                 <div className="text-sm font-medium">New task</div>
-                <p className="text-muted mt-0.5 text-xs">
+                <p className="mt-0.5 text-xs text-muted">
                   Add a follow-up tied to a lead or job.
                 </p>
               </div>
@@ -679,7 +681,7 @@ function TasksPageInner() {
         <PageToolbar
           search={
             <input
-              className="input min-w-0 w-full flex-1 basis-48"
+              className="input w-full min-w-0 flex-1 basis-48"
               placeholder="Search title…"
               value={title}
               onChange={(e) => setTitle(e.target.value)}
@@ -732,7 +734,7 @@ function TasksPageInner() {
           }
         >
           <select
-            className="input min-w-0 w-full sm:w-40"
+            className="input w-full min-w-0 sm:w-40"
             value={linkedFilter}
             onChange={(e) => setLinkedFilter(e.target.value)}
             aria-label="Linked to"
@@ -742,7 +744,7 @@ function TasksPageInner() {
             <option value="lead">Lead</option>
           </select>
           <select
-            className="input min-w-0 w-full sm:w-48"
+            className="input w-full min-w-0 sm:w-48"
             value={assignedFilter}
             onChange={(e) => setAssignedFilter(e.target.value)}
             aria-label="Assigned to"
@@ -757,20 +759,15 @@ function TasksPageInner() {
           </select>
         </PageToolbar>
 
-        <div
-          ref={viewContentRef}
-          id="tasks-view"
-          className="scroll-mt-20"
-        >
+        <div ref={viewContentRef} id="tasks-view" className="scroll-mt-20">
           {viewMode === "calendar" ? (
             <div className="space-y-3">
               {duePreset ? (
-                <p className="text-muted text-xs">
-                  Due window is saved for List. Calendar shows the visible month
-                  instead.
+                <p className="text-xs text-muted">
+                  Due window is saved for List. Calendar shows the visible month instead.
                 </p>
               ) : null}
-              <p className="text-muted text-xs">
+              <p className="text-xs text-muted">
                 {unscheduledCount > 0
                   ? `${unscheduledCount} task${unscheduledCount === 1 ? "" : "s"} without a due date are not shown on calendar.`
                   : "All visible tasks have due dates."}
@@ -832,7 +829,7 @@ export default function TasksPage() {
     <Suspense
       fallback={
         <AppShell title="Tasks">
-          <div className="text-muted p-4 text-sm">Loading…</div>
+          <div className="p-4 text-sm text-muted">Loading…</div>
         </AppShell>
       }
     >

@@ -62,7 +62,7 @@ export function AttentionStrip({
         <div>
           <button
             type="button"
-            className="group text-muted hover:text-main -ml-1 flex items-center gap-1 rounded-sm px-1 py-0.5 text-xs font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+            className="group -ml-1 flex items-center gap-1 rounded-sm px-1 py-0.5 text-xs font-medium text-muted transition-colors hover:text-main focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
             aria-label={showMore ? "Hide counts" : "More counts"}
             aria-expanded={showMore}
             onClick={() => setShowMore((open) => !open)}
@@ -85,11 +85,10 @@ export function AttentionStrip({
                 strokeLinejoin="round"
               />
             </svg>
-            <span className="ml-0.5 opacity-0 text-muted transition-opacity duration-200 group-hover:opacity-100 group-focus-visible:opacity-100">
+            <span className="ml-0.5 text-muted opacity-0 transition-opacity duration-200 group-hover:opacity-100 group-focus-visible:opacity-100">
               {showMore ? "Hide counts" : "More counts"}
             </span>
           </button>
-    
 
           <div
             className={cx(
@@ -112,7 +111,7 @@ export function AttentionStrip({
               </div>
             </div>
           </div>
-          <div className="w-full h-[2px] bg-surface my-2" />
+          <div className="my-2 h-[2px] w-full bg-surface" />
         </div>
       ) : null}
     </div>

@@ -96,15 +96,15 @@ export default function LoadingDots({ size = 8, className = "" }) {
   return (
     <div className={`flex items-center gap-2 ${className}`}>
       <span
-        className="bg-accent animate-bounce rounded-full"
+        className="animate-bounce rounded-full bg-accent"
         style={{ width: size, height: size, animationDelay: "0ms" }}
       />
       <span
-        className="bg-accent animate-bounce rounded-full"
+        className="animate-bounce rounded-full bg-accent"
         style={{ width: size, height: size, animationDelay: "150ms" }}
       />
       <span
-        className="bg-accent animate-bounce rounded-full"
+        className="animate-bounce rounded-full bg-accent"
         style={{ width: size, height: size, animationDelay: "300ms" }}
       />
     </div>

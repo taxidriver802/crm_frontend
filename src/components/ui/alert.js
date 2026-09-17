@@ -16,12 +16,7 @@ const INLINE_TEXT = {
   neutral: "text-muted",
 };
 
-export function Alert({
-  tone = "danger",
-  variant = "banner",
-  className = "",
-  children,
-}) {
+export function Alert({ tone = "danger", variant = "banner", className = "", children }) {
   if (children == null || children === false) return null;
 
   if (variant === "inline") {

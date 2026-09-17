@@ -100,7 +100,7 @@ export function SavedViewsControls({ entityType, currentFilters, onApplyFilters 
       {isNaming ? (
         <input
           ref={nameInputRef}
-          className="input min-w-0 w-full sm:w-auto sm:min-w-[180px]"
+          className="input w-full min-w-0 sm:w-auto sm:min-w-[180px]"
           placeholder="Saved view name"
           value={draftName}
           onChange={(e) => setDraftName(e.target.value)}
@@ -120,7 +120,7 @@ export function SavedViewsControls({ entityType, currentFilters, onApplyFilters 
         />
       ) : (
         <select
-          className="input min-w-0 w-full sm:w-auto sm:min-w-[180px]"
+          className="input w-full min-w-0 sm:w-auto sm:min-w-[180px]"
           value={selectedId}
           disabled={loading || busy}
           onChange={(e) => {

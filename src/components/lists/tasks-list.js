@@ -20,17 +20,13 @@ function TaskLinkedContext({ task }) {
   const linked = getLinkedEntity(task);
 
   if (!linked?.href) {
-    return (
-      <span className="text-muted truncate">
-        {linked?.label || "Unlinked"}
-      </span>
-    );
+    return <span className="truncate text-muted">{linked?.label || "Unlinked"}</span>;
   }
 
   return (
     <ReturnLink
       href={linked.href}
-      className="hover:text-main min-w-0 truncate underline-offset-2 hover:underline"
+      className="min-w-0 truncate underline-offset-2 hover:text-main hover:underline"
       onClick={(e) => e.stopPropagation()}
       title={`${linked.kind}: ${linked.label}`}
     >
@@ -59,7 +55,7 @@ function TaskRow({
     <>
       {task.title}
       {task.kind === "appointment" ? (
-        <span className="text-muted ml-2 text-[0.6875rem] font-normal sm:text-xs">
+        <span className="ml-2 text-[0.6875rem] font-normal text-muted sm:text-xs">
           Appt
         </span>
       ) : null}
@@ -71,9 +67,7 @@ function TaskRow({
       variant={variant}
       ariaLabel={`${task.title}, status ${task.status}`}
       onOpen={() => onOpen(task.id)}
-      signal={
-        <StatusBadge appearance="signal" kind="task" status={task.status} />
-      }
+      signal={<StatusBadge appearance="signal" kind="task" status={task.status} />}
     >
       <EntityListBody>
         <EntityListMain>
@@ -88,7 +82,7 @@ function TaskRow({
               <TaskLinkedContext task={task} />
             </div>
             <span
-              className="text-muted shrink-0 tabular-nums text-[0.6875rem] sm:text-xs"
+              className="shrink-0 text-[0.6875rem] tabular-nums text-muted sm:text-xs"
               title="Due"
             >
               {formatTaskSchedule(task)}
@@ -136,7 +130,7 @@ function TaskRow({
                 <ReturnLink
                   href={`/tasks/${task.id}`}
                   role="menuitem"
-                  className="hover:bg-accent focus-visible:bg-accent block w-full px-3 py-2 text-left text-xs transition-colors"
+                  className="block w-full px-3 py-2 text-left text-xs transition-colors hover:bg-accent focus-visible:bg-accent"
                   onClick={onCloseActions}
                 >
                   Open
@@ -144,7 +138,7 @@ function TaskRow({
                 <Link
                   href={`/tasks/${task.id}/edit`}
                   role="menuitem"
-                  className="hover:bg-accent focus-visible:bg-accent block w-full px-3 py-2 text-left text-xs transition-colors"
+                  className="block w-full px-3 py-2 text-left text-xs transition-colors hover:bg-accent focus-visible:bg-accent"
                   onClick={onCloseActions}
                 >
                   Edit
@@ -152,7 +146,7 @@ function TaskRow({
                 <button
                   type="button"
                   role="menuitem"
-                  className="hover:bg-accent focus-visible:bg-accent block w-full px-3 py-2 text-left text-xs transition-colors"
+                  className="block w-full px-3 py-2 text-left text-xs transition-colors hover:bg-accent focus-visible:bg-accent"
                   onClick={() => {
                     onCloseActions();
                     onSetStatus(task.id, isCompleted ? "Pending" : "Completed");

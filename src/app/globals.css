@@ -523,7 +523,7 @@
   }
 
   .page-subtitle {
-    @apply text-muted mt-1 text-sm;
+    @apply mt-1 text-sm text-muted;
   }
 
   .page-actions {

@@ -37,10 +37,7 @@ function taskEventLabel(task, { dayKey } = {}) {
 
   const startKey = formatDayKey(new Date(task.due_date));
   const isContinuation =
-    task?.kind === "appointment" &&
-    task?.end_at &&
-    dayKey &&
-    dayKey !== startKey;
+    task?.kind === "appointment" && task?.end_at && dayKey && dayKey !== startKey;
 
   if (isContinuation) {
     return `${prefix}cont. ${task.title}`;
@@ -155,8 +152,7 @@ export function TaskCalendar({ tasks, onTaskClick, onRangeChange, onDayCreate })
   );
 
   const selectedDay =
-    gridDays.find((day) => formatDayKey(day) === effectiveSelectedKey) ||
-    gridDays[0];
+    gridDays.find((day) => formatDayKey(day) === effectiveSelectedKey) || gridDays[0];
   const selectedTasks = selectedDay
     ? tasksByDay.get(formatDayKey(selectedDay)) || []
     : [];
@@ -165,11 +161,7 @@ export function TaskCalendar({ tasks, onTaskClick, onRangeChange, onDayCreate })
     <div className="space-y-4">
       <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
         <div className="flex flex-wrap items-center gap-2">
-          <button
-            type="button"
-            className="btn btn-sm"
-            onClick={() => shiftRange(-1)}
-          >
+          <button type="button" className="btn btn-sm" onClick={() => shiftRange(-1)}>
             Prev
           </button>
           <button
@@ -197,13 +189,13 @@ export function TaskCalendar({ tasks, onTaskClick, onRangeChange, onDayCreate })
       </div>
 
       <div
-        className="bg-surface hidden gap-2 rounded-theme-lg p-2 md:grid"
+        className="hidden gap-2 rounded-theme-lg bg-surface p-2 md:grid"
         style={{ gridTemplateColumns: `repeat(${columnCount}, minmax(0, 1fr))` }}
       >
         {weekHeaderDays.map((day) => (
           <div
             key={`h-${formatDayKey(day)}`}
-            className="text-muted px-2 py-1 text-xs font-semibold"
+            className="px-2 py-1 text-xs font-semibold text-muted"
           >
             {formatShortDay(day)}
           </div>
@@ -224,13 +216,18 @@ export function TaskCalendar({ tasks, onTaskClick, onRangeChange, onDayCreate })
                 isToday && "cal-day-today",
               )}
             >
-              <div className="border-base flex items-center justify-between border-b p-2">
-                <div className={cx("cal-day-num text-xs font-semibold", isToday && "text-accent")}>
+              <div className="flex items-center justify-between border-b border-base p-2">
+                <div
+                  className={cx(
+                    "cal-day-num text-xs font-semibold",
+                    isToday && "text-accent",
+                  )}
+                >
                   {day.getDate()}
                 </div>
                 <button
                   type="button"
-                  className="text-muted text-[11px] underline"
+                  className="text-[11px] text-muted underline"
                   onClick={() => onDayCreate?.(day)}
                 >
                   + task
@@ -239,7 +236,7 @@ export function TaskCalendar({ tasks, onTaskClick, onRangeChange, onDayCreate })
 
               <div className="space-y-1 p-2 pb-2">
                 {dayTasks.length === 0 ? (
-                  <div className="text-muted text-[11px]">No tasks</div>
+                  <div className="text-[11px] text-muted">No tasks</div>
                 ) : (
                   dayTasks.slice(0, 3).map((task) => (
                     <button
@@ -248,9 +245,7 @@ export function TaskCalendar({ tasks, onTaskClick, onRangeChange, onDayCreate })
                       className={taskEventClass(task)}
                       onClick={() => onTaskClick?.(task)}
                       title={
-                        task.location
-                          ? `${task.title} · ${task.location}`
-                          : task.title
+                        task.location ? `${task.title} · ${task.location}` : task.title
                       }
                     >
                       {taskEventLabel(task, { dayKey: key })}
@@ -258,7 +253,9 @@ export function TaskCalendar({ tasks, onTaskClick, onRangeChange, onDayCreate })
                   ))
                 )}
                 {dayTasks.length > 3 ? (
-                  <div className="text-muted text-[11px]">+{dayTasks.length - 3} more</div>
+                  <div className="text-[11px] text-muted">
+                    +{dayTasks.length - 3} more
+                  </div>
                 ) : null}
               </div>
             </div>
@@ -308,7 +305,9 @@ export function TaskCalendar({ tasks, onTaskClick, onRangeChange, onDayCreate })
         {selectedDay ? (
           <div className="cal-agenda space-y-3">
             <div className="flex items-center justify-between gap-3">
-              <div className="min-w-0 text-sm font-medium">{formatAgendaDay(selectedDay)}</div>
+              <div className="min-w-0 text-sm font-medium">
+                {formatAgendaDay(selectedDay)}
+              </div>
               <button
                 type="button"
                 className="btn btn-sm shrink-0"
@@ -319,7 +318,7 @@ export function TaskCalendar({ tasks, onTaskClick, onRangeChange, onDayCreate })
             </div>
 
             {selectedTasks.length === 0 ? (
-              <div className="text-muted text-sm">No tasks</div>
+              <div className="text-sm text-muted">No tasks</div>
             ) : (
               <div className="space-y-2">
                 {selectedTasks.map((task) => (

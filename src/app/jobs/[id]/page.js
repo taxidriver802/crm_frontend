@@ -19,7 +19,11 @@ import {
 
 import { useConfirmModal } from "@/components/modals/confirm-modal";
 import { FilePreviewModal } from "@/components/modals/file-preview-modal";
-import { TaskForm, createEmptyTaskForm, buildTaskApiPayload } from "@/components/forms/task-form";
+import {
+  TaskForm,
+  createEmptyTaskForm,
+  buildTaskApiPayload,
+} from "@/components/forms/task-form";
 import { CollapsibleSection } from "@/components/forms/collapsible-section";
 import { DetailMoreMenu, DetailMoreMenuItem } from "@/components/detail-more-menu";
 import { ActivityList } from "@/components/activity-list";
@@ -751,775 +755,761 @@ export default function JobDetailPage() {
 
         {!isInitialLoading && job ? (
           <div className="min-w-0 space-y-6">
-              <DetailHeader
-                subtitle={
-                  job.lead_id ? (
-                    <>
-                      Lead:{" "}
-                      <ReturnLink
-                        href={`/leads/${job.lead_id}`}
-                        className="underline underline-offset-4 hover:opacity-80"
-                      >
-                        {leadName || `Lead #${job.lead_id}`}
-                      </ReturnLink>
-                    </>
-                  ) : (
-                    "No lead linked"
-                  )
-                }
-                badges={
+            <DetailHeader
+              subtitle={
+                job.lead_id ? (
                   <>
-                    <JobStatusBadge status={job.status} />
-                    <HealthBadge health={job.health} />
-                    {daysInStatus ? <StatusBadge>{daysInStatus}</StatusBadge> : null}
+                    Lead:{" "}
+                    <ReturnLink
+                      href={`/leads/${job.lead_id}`}
+                      className="underline underline-offset-4 hover:opacity-80"
+                    >
+                      {leadName || `Lead #${job.lead_id}`}
+                    </ReturnLink>
                   </>
-                }
-                actions={
-                  <>
-                    <Link href={`/jobs/${id}/edit`} className="btn btn-sm">
-                      Edit
-                    </Link>
-                    <DetailMoreMenu label="More">
-                      <DetailMoreMenuItem
+                ) : (
+                  "No lead linked"
+                )
+              }
+              badges={
+                <>
+                  <JobStatusBadge status={job.status} />
+                  <HealthBadge health={job.health} />
+                  {daysInStatus ? <StatusBadge>{daysInStatus}</StatusBadge> : null}
+                </>
+              }
+              actions={
+                <>
+                  <Link href={`/jobs/${id}/edit`} className="btn btn-sm">
+                    Edit
+                  </Link>
+                  <DetailMoreMenu label="More">
+                    <DetailMoreMenuItem
+                      type="button"
+                      disabled={portalBusy}
+                      onClick={handleGeneratePortalLink}
+                    >
+                      {portalBusy ? "Link…" : "Customer portal"}
+                    </DetailMoreMenuItem>
+                    <DetailMoreMenuItem
+                      type="button"
+                      disabled={portalMessageBusy}
+                      onClick={handleCopyPortalMessage}
+                    >
+                      {portalMessageBusy ? "Message…" : "Copy portal message"}
+                    </DetailMoreMenuItem>
+                  </DetailMoreMenu>
+                </>
+              }
+            >
+              {portalHint || job.description || job.address ? (
+                <>
+                  {portalHint ? <p className="text-sm text-muted">{portalHint}</p> : null}
+                  {job.description ? (
+                    <p className="text-sm leading-6 text-muted">{job.description}</p>
+                  ) : null}
+                  {job.address ? (
+                    <p className="text-sm text-muted">{job.address}</p>
+                  ) : null}
+                </>
+              ) : null}
+            </DetailHeader>
+
+            <SectionCard
+              size="lg"
+              title="Communication"
+              description="Capture conversations and decisions for this job."
+            >
+              <NotesSection
+                entityType="job"
+                entityId={id}
+                onLoadState={setNotesLoadState}
+              />
+            </SectionCard>
+
+            <SectionCard
+              size="lg"
+              title="Pipeline"
+              description="Track where this job is in the workflow"
+            >
+              <div className="pipeline">
+                {JOB_STATUSES.map((status, index) => {
+                  const currentIndex = JOB_STATUSES.indexOf(job.status ?? "New");
+                  const isActive = status === job.status;
+                  const isCompleted = index < currentIndex;
+                  const isTooFarAhead = index > currentIndex + 1;
+                  const isLocked = updatingStatus !== null || isTooFarAhead || isActive;
+
+                  return (
+                    <div key={status} className="pipeline-step">
+                      <button
                         type="button"
-                        disabled={portalBusy}
-                        onClick={handleGeneratePortalLink}
+                        onClick={() => updateJobStatus(status, index)}
+                        disabled={isLocked}
+                        className={[
+                          "choice-chip",
+                          isActive && "choice-chip-active",
+                          isCompleted && !isActive && "choice-chip-done",
+                          isTooFarAhead && "opacity-50",
+                          updatingStatus === status && "opacity-60",
+                        ]
+                          .filter(Boolean)
+                          .join(" ")}
                       >
-                        {portalBusy ? "Link…" : "Customer portal"}
-                      </DetailMoreMenuItem>
-                      <DetailMoreMenuItem
-                        type="button"
-                        disabled={portalMessageBusy}
-                        onClick={handleCopyPortalMessage}
-                      >
-                        {portalMessageBusy ? "Message…" : "Copy portal message"}
-                      </DetailMoreMenuItem>
-                    </DetailMoreMenu>
-                  </>
-                }
-              >
-                {portalHint || job.description || job.address ? (
-                  <>
-                    {portalHint ? (
-                      <p className="text-muted text-sm">{portalHint}</p>
-                    ) : null}
-                    {job.description ? (
-                      <p className="text-muted text-sm leading-6">{job.description}</p>
-                    ) : null}
-                    {job.address ? (
-                      <p className="text-muted text-sm">{job.address}</p>
-                    ) : null}
-                  </>
-                ) : null}
-              </DetailHeader>
+                        {status}
+                      </button>
 
-              <SectionCard
-                size="lg"
-                title="Communication"
-                description="Capture conversations and decisions for this job."
-              >
-                <NotesSection
-                  entityType="job"
-                  entityId={id}
-                  onLoadState={setNotesLoadState}
-                />
-              </SectionCard>
-
-              <SectionCard size="lg"
-                title="Pipeline"
-                description="Track where this job is in the workflow"
-              >
-                <div className="pipeline">
-                  {JOB_STATUSES.map((status, index) => {
-                    const currentIndex = JOB_STATUSES.indexOf(job.status ?? "New");
-                    const isActive = status === job.status;
-                    const isCompleted = index < currentIndex;
-                    const isTooFarAhead = index > currentIndex + 1;
-                    const isLocked = updatingStatus !== null || isTooFarAhead || isActive;
-
-                    return (
-                      <div key={status} className="pipeline-step">
-                        <button
-                          type="button"
-                          onClick={() => updateJobStatus(status, index)}
-                          disabled={isLocked}
+                      {index < JOB_STATUSES.length - 1 && (
+                        <div
                           className={[
-                            "choice-chip",
-                            isActive && "choice-chip-active",
-                            isCompleted && !isActive && "choice-chip-done",
-                            isTooFarAhead && "opacity-50",
-                            updatingStatus === status && "opacity-60",
+                            "pipeline-rail",
+                            index < currentIndex ? "pipeline-rail-done" : "",
                           ]
                             .filter(Boolean)
                             .join(" ")}
-                        >
-                          {status}
-                        </button>
-
-                        {index < JOB_STATUSES.length - 1 && (
-                          <div
-                            className={[
-                              "pipeline-rail",
-                              index < currentIndex ? "pipeline-rail-done" : "",
-                            ]
-                              .filter(Boolean)
-                              .join(" ")}
-                          />
-                        )}
-                      </div>
-                    );
-                  })}
+                        />
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            </SectionCard>
+            <SectionCard
+              size="lg"
+              title="Estimates"
+              description="Pricing and scope tied to this job"
+              right={
+                <Link
+                  href={`/estimates/new?job_id=${id}`}
+                  className="btn btn-primary btn-sm"
+                >
+                  New estimate
+                </Link>
+              }
+            >
+              {!isInitialLoading && loadingEstimates ? (
+                <SectionSkeleton rows={3} />
+              ) : estimatesError ? (
+                <Alert variant="inline">{estimatesError}</Alert>
+              ) : estimates.length === 0 ? (
+                <div className="rounded-lg border border-dashed p-4 text-sm text-muted">
+                  No estimates for this job yet.
                 </div>
-              </SectionCard>
-              <SectionCard
-                size="lg"
-                title="Estimates"
-                description="Pricing and scope tied to this job"
-                right={
-                  <Link
-                    href={`/estimates/new?job_id=${id}`}
-                    className="btn btn-primary btn-sm"
-                  >
-                    New estimate
-                  </Link>
-                }
-              >
-                {!isInitialLoading && loadingEstimates ? (
-                  <SectionSkeleton rows={3} />
-                ) : estimatesError ? (
-                  <Alert variant="inline">{estimatesError}</Alert>
-                ) : estimates.length === 0 ? (
-                  <div className="text-muted rounded-lg border border-dashed p-4 text-sm">
-                    No estimates for this job yet.
-                  </div>
-                ) : (
-                  <div className="min-w-0 space-y-3">
-                    {sortedEstimates.map((estimate) => (
-                      <ReturnLink
-                        key={estimate.id}
-                        href={`/estimates/${estimate.id}`}
-                        className="list-row list-row-interactive list-row-split"
-                      >
-                        <div className="min-w-0 flex-1">
-                          <div className="break-words font-medium">{estimate.title}</div>
+              ) : (
+                <div className="min-w-0 space-y-3">
+                  {sortedEstimates.map((estimate) => (
+                    <ReturnLink
+                      key={estimate.id}
+                      href={`/estimates/${estimate.id}`}
+                      className="list-row list-row-interactive list-row-split"
+                    >
+                      <div className="min-w-0 flex-1">
+                        <div className="break-words font-medium">{estimate.title}</div>
 
-                          <div className="text-muted mt-1 flex min-w-0 items-center gap-2 text-xs">
-                            <span className="shrink-0">
-                              {formatDate(estimate.updated_at || estimate.created_at)}
-                            </span>
+                        <div className="mt-1 flex min-w-0 items-center gap-2 text-xs text-muted">
+                          <span className="shrink-0">
+                            {formatDate(estimate.updated_at || estimate.created_at)}
+                          </span>
 
-                            {estimate.job?.address ? (
-                              <>
-                                <span className="shrink-0">•</span>
-                                <span className="min-w-0 truncate">
-                                  {estimate.job.address}
-                                </span>
-                              </>
-                            ) : null}
-                          </div>
-
-                          {estimate.notes ? (
-                            <div className="text-muted mt-2 line-clamp-2 break-words text-sm">
-                              {estimate.notes}
-                            </div>
+                          {estimate.job?.address ? (
+                            <>
+                              <span className="shrink-0">•</span>
+                              <span className="min-w-0 truncate">
+                                {estimate.job.address}
+                              </span>
+                            </>
                           ) : null}
                         </div>
 
-                        <div className="flex flex-wrap items-center gap-2 sm:shrink-0 sm:flex-col sm:items-end">
-                          <StatusBadge kind="estimate" status={estimate.status} />
+                        {estimate.notes ? (
+                          <div className="mt-2 line-clamp-2 break-words text-sm text-muted">
+                            {estimate.notes}
+                          </div>
+                        ) : null}
+                      </div>
+
+                      <div className="flex flex-wrap items-center gap-2 sm:shrink-0 sm:flex-col sm:items-end">
+                        <StatusBadge kind="estimate" status={estimate.status} />
+                        <div className="text-sm font-semibold">
+                          ${formatCurrency(Number(estimate.grand_total || 0).toFixed(2))}
+                        </div>
+                      </div>
+                    </ReturnLink>
+                  ))}
+                </div>
+              )}
+            </SectionCard>
+
+            <SectionCard
+              size="lg"
+              title="Invoices"
+              description="Billing tied to this job"
+              right={
+                <Link
+                  href={`/invoices/new?job_id=${id}`}
+                  className="btn btn-primary btn-sm"
+                >
+                  New invoice
+                </Link>
+              }
+            >
+              {!isInitialLoading && loadingInvoices ? (
+                <SectionSkeleton rows={3} />
+              ) : invoicesError ? (
+                <Alert variant="inline">{invoicesError}</Alert>
+              ) : invoices.length === 0 ? (
+                <div className="rounded-lg border border-dashed p-4 text-sm text-muted">
+                  No invoices for this job yet.
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {[...invoices]
+                    .sort(
+                      (a, b) =>
+                        new Date(b.updated_at || b.created_at) -
+                        new Date(a.updated_at || a.created_at),
+                    )
+                    .map((inv) => (
+                      <ReturnLink
+                        key={inv.id}
+                        href={`/invoices/${inv.id}`}
+                        className="flex min-w-0 items-start justify-between gap-3 rounded-lg border p-4 transition hover:bg-accent"
+                      >
+                        <div className="min-w-0 flex-1">
+                          <div className="font-medium">{inv.invoice_number}</div>
+                          <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-muted">
+                            <span>{formatDate(inv.updated_at || inv.created_at)}</span>
+                            {inv.due_date ? (
+                              <>
+                                <span>•</span>
+                                <span>Due {formatDate(inv.due_date)}</span>
+                              </>
+                            ) : null}
+                          </div>
+                        </div>
+                        <div className="flex shrink-0 flex-col items-end gap-2">
+                          <StatusBadge kind="invoice" status={inv.status} />
                           <div className="text-sm font-semibold">
-                            $
-                            {formatCurrency(Number(estimate.grand_total || 0).toFixed(2))}
+                            ${formatCurrency(Number(inv.grand_total || 0).toFixed(2))}
                           </div>
                         </div>
                       </ReturnLink>
                     ))}
-                  </div>
-                )}
-              </SectionCard>
+                </div>
+              )}
+            </SectionCard>
 
-              <SectionCard
-                size="lg"
-                title="Invoices"
-                description="Billing tied to this job"
-                right={
-                  <Link
-                    href={`/invoices/new?job_id=${id}`}
-                    className="btn btn-primary btn-sm"
-                  >
-                    New invoice
-                  </Link>
-                }
-              >
-                {!isInitialLoading && loadingInvoices ? (
-                  <SectionSkeleton rows={3} />
-                ) : invoicesError ? (
-                  <Alert variant="inline">{invoicesError}</Alert>
-                ) : invoices.length === 0 ? (
-                  <div className="text-muted rounded-lg border border-dashed p-4 text-sm">
-                    No invoices for this job yet.
-                  </div>
-                ) : (
-                  <div className="space-y-3">
-                    {[...invoices]
-                      .sort(
-                        (a, b) =>
-                          new Date(b.updated_at || b.created_at) -
-                          new Date(a.updated_at || a.created_at),
-                      )
-                      .map((inv) => (
-                        <ReturnLink
-                          key={inv.id}
-                          href={`/invoices/${inv.id}`}
-                          className="hover:bg-accent flex min-w-0 items-start justify-between gap-3 rounded-lg border p-4 transition"
-                        >
-                          <div className="min-w-0 flex-1">
-                            <div className="font-medium">{inv.invoice_number}</div>
-                            <div className="text-muted mt-1 flex flex-wrap items-center gap-2 text-xs">
-                              <span>{formatDate(inv.updated_at || inv.created_at)}</span>
-                              {inv.due_date ? (
-                                <>
-                                  <span>•</span>
-                                  <span>Due {formatDate(inv.due_date)}</span>
-                                </>
-                              ) : null}
-                            </div>
-                          </div>
-                          <div className="flex shrink-0 flex-col items-end gap-2">
-                            <StatusBadge kind="invoice" status={inv.status} />
-                            <div className="text-sm font-semibold">
-                              ${formatCurrency(Number(inv.grand_total || 0).toFixed(2))}
-                            </div>
-                          </div>
-                        </ReturnLink>
-                      ))}
-                  </div>
-                )}
-              </SectionCard>
+            <CollapsibleSection
+              title="Measurements"
+              description="Manual job dimensions for pricing context (optional)"
+              syncKey={id}
+              ready={!loadingMeasurements}
+              empty={measurements.length === 0}
+              actions={
+                <button
+                  type="button"
+                  className="btn px-3 py-2 text-xs"
+                  onClick={() => {
+                    if (measurementOpen) {
+                      setMeasurementOpen(false);
+                      setEditingMeasurement(null);
+                      setMeasurementForm({ label: "", value: "", unit: "" });
+                    } else {
+                      setMeasurementOpen(true);
+                      setEditingMeasurement(null);
+                      setMeasurementForm({ label: "", value: "", unit: "" });
+                    }
+                    setMeasurementsError("");
+                  }}
+                >
+                  {measurementOpen ? "Close" : "+ Add"}
+                </button>
+              }
+            >
+              {measurementsError ? (
+                <Alert variant="inline">{measurementsError}</Alert>
+              ) : null}
 
-              <CollapsibleSection
-                title="Measurements"
-                description="Manual job dimensions for pricing context (optional)"
-                syncKey={id}
-                ready={!loadingMeasurements}
-                empty={measurements.length === 0}
-                actions={
+              {!isInitialLoading && loadingMeasurements ? (
+                <SectionSkeleton rows={2} />
+              ) : measurements.length === 0 && !measurementOpen ? (
+                <EmptyState
+                  title="No measurements yet"
+                  description="Add roof areas, pitch, or other fields you use when quoting."
+                />
+              ) : null}
+
+              {measurementOpen ? (
+                <form
+                  onSubmit={handleSaveMeasurement}
+                  className="list-row list-row-muted mb-4 space-y-3"
+                >
+                  <div className="grid gap-3 sm:grid-cols-3">
+                    <Field label="Label">
+                      <input
+                        className="input"
+                        value={measurementForm.label}
+                        onChange={(e) =>
+                          setMeasurementForm((f) => ({ ...f, label: e.target.value }))
+                        }
+                        placeholder="e.g. Main roof area"
+                      />
+                    </Field>
+                    <Field label="Value">
+                      <input
+                        className="input"
+                        value={measurementForm.value}
+                        onChange={(e) =>
+                          setMeasurementForm((f) => ({ ...f, value: e.target.value }))
+                        }
+                        placeholder="e.g. 2400"
+                      />
+                    </Field>
+                    <Field label="Unit">
+                      <input
+                        className="input"
+                        value={measurementForm.unit}
+                        onChange={(e) =>
+                          setMeasurementForm((f) => ({ ...f, unit: e.target.value }))
+                        }
+                        placeholder="sq ft"
+                      />
+                    </Field>
+                  </div>
+                  <FormActions>
+                    <button
+                      type="submit"
+                      className="btn btn-primary btn-sm"
+                      disabled={savingMeasurement}
+                    >
+                      {editingMeasurement ? "Update" : "Save"}
+                    </button>
+                    {editingMeasurement ? (
+                      <button
+                        type="button"
+                        className="btn btn-ghost btn-sm"
+                        onClick={() => {
+                          setEditingMeasurement(null);
+                          setMeasurementForm({ label: "", value: "", unit: "" });
+                        }}
+                      >
+                        Cancel edit
+                      </button>
+                    ) : null}
+                  </FormActions>
+                </form>
+              ) : null}
+
+              {measurements.length > 0 ? (
+                <div className="space-y-2">
+                  {measurements.map((m) => (
+                    <div
+                      key={m.id}
+                      className="list-row list-row-interactive flex items-start justify-between gap-3"
+                    >
+                      <button
+                        type="button"
+                        className="min-w-0 flex-1 text-left"
+                        onClick={() => startEditMeasurement(m)}
+                      >
+                        <div className="font-medium">{m.label}</div>
+                        <div className="mt-1 text-sm text-muted">
+                          {m.value} {m.unit || ""}
+                        </div>
+                      </button>
+                      <button
+                        type="button"
+                        className="text-xs text-muted underline"
+                        onClick={() => handleDeleteMeasurement(m)}
+                      >
+                        Delete
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              ) : null}
+            </CollapsibleSection>
+
+            <SectionCard
+              size="lg"
+              title="Tasks"
+              description="Follow-ups and appointments for this job"
+              right={
+                <div className="flex min-w-0 max-w-full flex-wrap items-center justify-end gap-2">
+                  <ReturnLink href={`/tasks/new?job_id=${id}`} className="btn btn-sm">
+                    Full form
+                  </ReturnLink>
                   <button
                     type="button"
-                    className="btn px-3 py-2 text-xs"
+                    className="btn btn-primary btn-sm"
                     onClick={() => {
-                      if (measurementOpen) {
-                        setMeasurementOpen(false);
-                        setEditingMeasurement(null);
-                        setMeasurementForm({ label: "", value: "", unit: "" });
-                      } else {
-                        setMeasurementOpen(true);
-                        setEditingMeasurement(null);
-                        setMeasurementForm({ label: "", value: "", unit: "" });
+                      if (isTaskFormOpen && taskForm.kind !== "appointment") {
+                        setIsTaskFormOpen(false);
+                        return;
                       }
-                      setMeasurementsError("");
+                      openNewTaskForm();
                     }}
                   >
-                    {measurementOpen ? "Close" : "+ Add"}
+                    {isTaskFormOpen && taskForm.kind !== "appointment"
+                      ? "Hide"
+                      : "New task"}
                   </button>
-                }
-              >
-                {measurementsError ? (
-                  <Alert variant="inline">{measurementsError}</Alert>
-                ) : null}
-
-                {!isInitialLoading && loadingMeasurements ? (
-                  <SectionSkeleton rows={2} />
-                ) : measurements.length === 0 && !measurementOpen ? (
-                  <EmptyState
-                    title="No measurements yet"
-                    description="Add roof areas, pitch, or other fields you use when quoting."
-                  />
-                ) : null}
-
-                {measurementOpen ? (
-                  <form
-                    onSubmit={handleSaveMeasurement}
-                    className="list-row list-row-muted mb-4 space-y-3"
+                  <button
+                    type="button"
+                    className="btn btn-sm"
+                    onClick={() => {
+                      if (isTaskFormOpen && taskForm.kind === "appointment") {
+                        setIsTaskFormOpen(false);
+                        return;
+                      }
+                      openScheduleAppointmentForm();
+                    }}
                   >
-                    <div className="grid gap-3 sm:grid-cols-3">
-                      <Field label="Label">
+                    {isTaskFormOpen && taskForm.kind === "appointment"
+                      ? "Hide"
+                      : "Schedule"}
+                  </button>
+                </div>
+              }
+            >
+              <div className="space-y-4">
+                {isTaskFormOpen ? (
+                  <div className="space-y-3">
+                    <TaskForm
+                      form={taskForm}
+                      onChange={setTaskForm}
+                      onSubmit={handleCreateTask}
+                      saving={creatingTask}
+                      error=""
+                      submitLabel={
+                        taskForm.kind === "appointment"
+                          ? "Schedule appointment"
+                          : "Create task"
+                      }
+                      cancelLabel="Clear"
+                      onCancel={() =>
+                        setTaskForm(
+                          createEmptyTaskForm({
+                            job_id: String(id),
+                            status: "Pending",
+                            kind: taskForm.kind || "task",
+                          }),
+                        )
+                      }
+                      contextType="job"
+                      leads={[]}
+                      jobs={[
+                        {
+                          id: String(id),
+                          title: job?.title || `Job #${id}`,
+                        },
+                      ]}
+                      loadingLeads={false}
+                      loadingJobs={false}
+                      isContextLocked={true}
+                      layout="compact"
+                    />
+                    {taskForm.kind === "appointment" &&
+                    EARLY_JOB_STATUSES.has(job?.status) ? (
+                      <label className="flex items-center gap-2 text-sm text-muted">
                         <input
-                          className="input"
-                          value={measurementForm.label}
-                          onChange={(e) =>
-                            setMeasurementForm((f) => ({ ...f, label: e.target.value }))
-                          }
-                          placeholder="e.g. Main roof area"
+                          type="checkbox"
+                          checked={updateJobStatusOnSchedule}
+                          onChange={(e) => setUpdateJobStatusOnSchedule(e.target.checked)}
                         />
-                      </Field>
-                      <Field label="Value">
-                        <input
-                          className="input"
-                          value={measurementForm.value}
-                          onChange={(e) =>
-                            setMeasurementForm((f) => ({ ...f, value: e.target.value }))
-                          }
-                          placeholder="e.g. 2400"
-                        />
-                      </Field>
-                      <Field label="Unit">
-                        <input
-                          className="input"
-                          value={measurementForm.unit}
-                          onChange={(e) =>
-                            setMeasurementForm((f) => ({ ...f, unit: e.target.value }))
-                          }
-                          placeholder="sq ft"
-                        />
-                      </Field>
-                    </div>
-                    <FormActions>
-                      <button
-                        type="submit"
-                        className="btn btn-primary btn-sm"
-                        disabled={savingMeasurement}
-                      >
-                        {editingMeasurement ? "Update" : "Save"}
-                      </button>
-                      {editingMeasurement ? (
-                        <button
-                          type="button"
-                          className="btn btn-ghost btn-sm"
-                          onClick={() => {
-                            setEditingMeasurement(null);
-                            setMeasurementForm({ label: "", value: "", unit: "" });
-                          }}
-                        >
-                          Cancel edit
-                        </button>
-                      ) : null}
-                    </FormActions>
-                  </form>
+                        Set job status to Appointment Scheduled
+                      </label>
+                    ) : null}
+                  </div>
                 ) : null}
 
-                {measurements.length > 0 ? (
-                  <div className="space-y-2">
-                    {measurements.map((m) => (
+                {!loadingTasks && tasks.length > DEFAULT_VISIBLE_TASKS ? (
+                  <div className="flex items-center justify-between gap-3">
+                    <p className="text-xs text-muted">
+                      Showing {visibleTasks.length} of {sortedTasks.length} tasks
+                    </p>
+
+                    <button
+                      type="button"
+                      onClick={() => setShowAllTasks((prev) => !prev)}
+                      className="btn px-3 py-1.5 text-xs"
+                    >
+                      {showAllTasks
+                        ? "Show fewer"
+                        : `Show all tasks${hiddenTaskCount > 0 ? ` (${hiddenTaskCount} more)` : ""}`}
+                    </button>
+                  </div>
+                ) : null}
+
+                {!isInitialLoading && loadingTasks ? (
+                  <SectionSkeleton rows={4} />
+                ) : tasks.length === 0 ? (
+                  <EmptyState title="No tasks for this job yet" />
+                ) : (
+                  <div className="space-y-3">
+                    {visibleTasks.map((task) => (
                       <div
-                        key={m.id}
-                        className="list-row list-row-interactive flex items-start justify-between gap-3"
+                        key={task.id}
+                        className="list-row list-row-muted flex items-start justify-between gap-3"
                       >
-                        <button
-                          type="button"
-                          className="min-w-0 flex-1 text-left"
-                          onClick={() => startEditMeasurement(m)}
-                        >
-                          <div className="font-medium">{m.label}</div>
-                          <div className="text-muted mt-1 text-sm">
-                            {m.value} {m.unit || ""}
-                          </div>
-                        </button>
-                        <button
-                          type="button"
-                          className="text-muted text-xs underline"
-                          onClick={() => handleDeleteMeasurement(m)}
-                        >
-                          Delete
-                        </button>
+                        <div className="min-w-0">
+                          <ReturnLink
+                            href={`/tasks/${task.id}`}
+                            className="block hover:opacity-80"
+                          >
+                            <div className="font-medium underline underline-offset-4">
+                              {task.title}
+                              {task.kind === "appointment" ? (
+                                <span className="ml-2 text-xs font-normal text-muted no-underline">
+                                  Appointment
+                                </span>
+                              ) : null}
+                            </div>
+
+                            {task.description ? (
+                              <div className="mt-1 text-sm text-muted">
+                                {task.description}
+                              </div>
+                            ) : null}
+
+                            <div className="mt-2 text-xs text-muted">
+                              {task.kind === "appointment" ? "When" : "Due"}:{" "}
+                              {formatTaskSchedule(task)}
+                              {task.kind === "appointment" && task.location
+                                ? ` · ${task.location}`
+                                : null}
+                            </div>
+                          </ReturnLink>
+                        </div>
+
+                        <div className="flex shrink-0 items-center gap-2">
+                          <StatusBadge kind="task" status={task.status} />
+
+                          <button
+                            type="button"
+                            onClick={() => handleToggleTaskStatus(task)}
+                            className="btn px-3 py-2 text-xs"
+                          >
+                            {task.status === "Completed"
+                              ? "Mark pending"
+                              : "Mark completed"}
+                          </button>
+                        </div>
                       </div>
                     ))}
                   </div>
-                ) : null}
-              </CollapsibleSection>
+                )}
+              </div>
+            </SectionCard>
 
-              <SectionCard
-                size="lg"
-                title="Tasks"
-                description="Follow-ups and appointments for this job"
-                right={
-                  <div className="flex min-w-0 max-w-full flex-wrap items-center justify-end gap-2">
-                    <ReturnLink
-                      href={`/tasks/new?job_id=${id}`}
-                      className="btn btn-sm"
-                    >
-                      Full form
-                    </ReturnLink>
-                    <button
-                      type="button"
-                      className="btn btn-primary btn-sm"
-                      onClick={() => {
-                        if (isTaskFormOpen && taskForm.kind !== "appointment") {
-                          setIsTaskFormOpen(false);
-                          return;
-                        }
-                        openNewTaskForm();
-                      }}
-                    >
-                      {isTaskFormOpen && taskForm.kind !== "appointment"
-                        ? "Hide"
-                        : "New task"}
-                    </button>
-                    <button
-                      type="button"
-                      className="btn btn-sm"
-                      onClick={() => {
-                        if (isTaskFormOpen && taskForm.kind === "appointment") {
-                          setIsTaskFormOpen(false);
-                          return;
-                        }
-                        openScheduleAppointmentForm();
-                      }}
-                    >
-                      {isTaskFormOpen && taskForm.kind === "appointment"
-                        ? "Hide"
-                        : "Schedule"}
-                    </button>
-                  </div>
-                }
-              >
-                <div className="space-y-4">
-                    {isTaskFormOpen ? (
-                      <div className="space-y-3">
-                        <TaskForm
-                          form={taskForm}
-                          onChange={setTaskForm}
-                          onSubmit={handleCreateTask}
-                          saving={creatingTask}
-                          error=""
-                          submitLabel={
-                            taskForm.kind === "appointment"
-                              ? "Schedule appointment"
-                              : "Create task"
-                          }
-                          cancelLabel="Clear"
-                          onCancel={() =>
-                            setTaskForm(
-                              createEmptyTaskForm({
-                                job_id: String(id),
-                                status: "Pending",
-                                kind: taskForm.kind || "task",
-                              }),
-                            )
-                          }
-                          contextType="job"
-                          leads={[]}
-                          jobs={[
-                            {
-                              id: String(id),
-                              title: job?.title || `Job #${id}`,
-                            },
-                          ]}
-                          loadingLeads={false}
-                          loadingJobs={false}
-                          isContextLocked={true}
-                          layout="compact"
-                        />
-                        {taskForm.kind === "appointment" &&
-                        EARLY_JOB_STATUSES.has(job?.status) ? (
-                          <label className="text-muted flex items-center gap-2 text-sm">
-                            <input
-                              type="checkbox"
-                              checked={updateJobStatusOnSchedule}
-                              onChange={(e) =>
-                                setUpdateJobStatusOnSchedule(e.target.checked)
-                              }
-                            />
-                            Set job status to Appointment Scheduled
-                          </label>
-                        ) : null}
+            <SectionCard
+              id="section-files"
+              size="lg"
+              title="Attached Files"
+              description="Drop photos here or choose files. Tag before/after and hide internal shots from the portal."
+              right={
+                canManageFiles ? (
+                  <label className="btn cursor-pointer px-3 py-2 text-xs">
+                    {uploading ? "Uploading…" : "Upload files"}
+                    <input
+                      type="file"
+                      className="hidden"
+                      multiple
+                      onChange={handleFileUpload}
+                      disabled={uploading}
+                    />
+                  </label>
+                ) : null
+              }
+            >
+              {filesError ? (
+                <Alert variant="inline" className="mb-3">
+                  {filesError}
+                </Alert>
+              ) : null}
+
+              {canManageFiles ? (
+                <div
+                  onDragOver={(event) => {
+                    event.preventDefault();
+                    setFileDragOver(true);
+                  }}
+                  onDragLeave={() => setFileDragOver(false)}
+                  onDrop={handleFileDrop}
+                  className={`mb-3 rounded-lg border border-dashed p-4 text-sm ${
+                    fileDragOver ? "border-strong bg-accent" : "text-muted"
+                  }`}
+                >
+                  {uploading
+                    ? "Uploading…"
+                    : "Drop files here to attach them to this job."}
+                </div>
+              ) : null}
+
+              {!isInitialLoading && loadingFiles ? (
+                <SectionSkeleton rows={3} />
+              ) : files.length === 0 ? (
+                <div className="rounded-lg border border-dashed p-4 text-sm text-muted">
+                  No files attached to this job yet.
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {files.map((file) => (
+                    <div key={file.id} className="list-row space-y-3">
+                      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                        <div className="min-w-0">
+                          <div className="truncate font-medium">{file.original_name}</div>
+                          <div className="text-xs text-muted">
+                            {file.mime_type || "Unknown type"} •{" "}
+                            {formatBytes(file.size_bytes)}
+                          </div>
+                          <div className="text-xs text-muted">
+                            Uploaded: {formatDate(file.created_at)}
+                          </div>
+                          {!canManageFiles && file.caption ? (
+                            <div className="mt-1 text-xs text-muted">{file.caption}</div>
+                          ) : null}
+                        </div>
+
+                        <div className="flex shrink-0 flex-wrap items-center gap-2">
+                          {isPreviewableFile(file) ? (
+                            <button
+                              type="button"
+                              onClick={() => setPreviewFile(file)}
+                              className="btn px-3 py-1.5 text-xs"
+                            >
+                              Preview
+                            </button>
+                          ) : (
+                            <a
+                              href={buildFileUrl(file)}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="btn px-3 py-1.5 text-xs"
+                            >
+                              Open
+                            </a>
+                          )}
+
+                          {canManageFiles ? (
+                            <button
+                              onClick={() => handleDeleteFile(file.id)}
+                              disabled={busyFileId === file.id}
+                              className="btn btn-danger px-3 py-1.5 text-xs"
+                            >
+                              {busyFileId === file.id ? "Deleting..." : "Delete"}
+                            </button>
+                          ) : null}
+                        </div>
                       </div>
-                    ) : null}
 
-                  {!loadingTasks && tasks.length > DEFAULT_VISIBLE_TASKS ? (
-                    <div className="flex items-center justify-between gap-3">
-                      <p className="text-muted text-xs">
-                        Showing {visibleTasks.length} of {sortedTasks.length} tasks
-                      </p>
+                      {canManageFiles ? (
+                        <div className="space-y-3 border-t border-base pt-3">
+                          <label className="block min-w-0 text-xs text-muted">
+                            Caption
+                            <input
+                              className="input mt-1 w-full"
+                              value={file.caption || ""}
+                              onChange={(event) => {
+                                const caption = event.target.value;
+                                setFiles((prev) =>
+                                  prev.map((row) =>
+                                    row.id === file.id ? { ...row, caption } : row,
+                                  ),
+                                );
+                              }}
+                              onBlur={(event) => {
+                                const caption = event.target.value.trim() || null;
+                                saveFileMeta(file.id, { caption });
+                              }}
+                              placeholder="Shown in the gallery"
+                            />
+                          </label>
+                          <div className="flex flex-wrap items-end gap-3">
+                            <label className="block min-w-[9rem] flex-1 text-xs text-muted">
+                              Category
+                              <select
+                                className="input mt-1 w-full"
+                                value={file.category || "other"}
+                                onChange={(event) => {
+                                  saveFileMeta(file.id, {
+                                    category: event.target.value,
+                                  });
+                                }}
+                              >
+                                <option value="before">Before</option>
+                                <option value="after">After</option>
+                                <option value="other">Other</option>
+                              </select>
+                            </label>
+                            <label className="flex shrink-0 items-center gap-2 pb-2.5 text-xs text-muted">
+                              <input
+                                type="checkbox"
+                                checked={file.client_visible !== false}
+                                onChange={(event) => {
+                                  saveFileMeta(file.id, {
+                                    client_visible: event.target.checked,
+                                  });
+                                }}
+                              />
+                              Show in portal
+                            </label>
+                          </div>
+                        </div>
+                      ) : null}
+                    </div>
+                  ))}
+                </div>
+              )}
 
+              <div className="mt-4 border-t border-base pt-4">
+                <PhotoGallery
+                  files={files}
+                  loading={loadingFiles && files.length === 0}
+                />
+              </div>
+            </SectionCard>
+            <CollapsibleSection
+              id="section-activity"
+              title="Activity"
+              description="Recent changes and actions on this job"
+              syncKey={id}
+              ready={!loadingActivity}
+              empty={activity.length === 0}
+            >
+              {!isInitialLoading && loadingActivity ? (
+                <div className="space-y-2">
+                  <Skeleton className="h-4 w-40" />
+                  <Skeleton className="h-4 w-60" />
+                  <Skeleton className="h-4 w-32" />
+                </div>
+              ) : activity.length === 0 ? (
+                <div className="text-sm text-muted">No activity yet.</div>
+              ) : (
+                <>
+                  <ActivityList activity={activity} loading={loadingActivity} />
+
+                  {hasMoreActivity ? (
+                    <div className="mt-3 flex justify-between">
                       <button
                         type="button"
-                        onClick={() => setShowAllTasks((prev) => !prev)}
-                        className="btn px-3 py-1.5 text-xs"
+                        className="btn ml-auto px-3 text-xs"
+                        onClick={() => setLimit((prev) => prev + 50)}
                       >
-                        {showAllTasks
-                          ? "Show fewer"
-                          : `Show all tasks${hiddenTaskCount > 0 ? ` (${hiddenTaskCount} more)` : ""}`}
+                        {miniLoadingActivity ? (
+                          <div className="flex flex-row gap-4 px-3">
+                            <LoadingSpinner size={14} />
+                            Loading
+                          </div>
+                        ) : (
+                          "Load more activity"
+                        )}
                       </button>
                     </div>
                   ) : null}
-
-                  {!isInitialLoading && loadingTasks ? (
-                    <SectionSkeleton rows={4} />
-                  ) : tasks.length === 0 ? (
-                    <EmptyState title="No tasks for this job yet" />
-                  ) : (
-                    <div className="space-y-3">
-                      {visibleTasks.map((task) => (
-                        <div
-                          key={task.id}
-                          className="list-row list-row-muted flex items-start justify-between gap-3"
-                        >
-                          <div className="min-w-0">
-                            <ReturnLink
-                              href={`/tasks/${task.id}`}
-                              className="block hover:opacity-80"
-                            >
-                              <div className="font-medium underline underline-offset-4">
-                                {task.title}
-                                {task.kind === "appointment" ? (
-                                  <span className="text-muted ml-2 text-xs font-normal no-underline">
-                                    Appointment
-                                  </span>
-                                ) : null}
-                              </div>
-
-                              {task.description ? (
-                                <div className="text-muted mt-1 text-sm">
-                                  {task.description}
-                                </div>
-                              ) : null}
-
-                              <div className="text-muted mt-2 text-xs">
-                                {task.kind === "appointment" ? "When" : "Due"}:{" "}
-                                {formatTaskSchedule(task)}
-                                {task.kind === "appointment" && task.location
-                                  ? ` · ${task.location}`
-                                  : null}
-                              </div>
-                            </ReturnLink>
-                          </div>
-
-                          <div className="flex shrink-0 items-center gap-2">
-                            <StatusBadge kind="task" status={task.status} />
-
-                            <button
-                              type="button"
-                              onClick={() => handleToggleTaskStatus(task)}
-                              className="btn px-3 py-2 text-xs"
-                            >
-                              {task.status === "Completed"
-                                ? "Mark pending"
-                                : "Mark completed"}
-                            </button>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              </SectionCard>
-
-              <SectionCard
-                id="section-files"
-                size="lg"
-                title="Attached Files"
-                description="Drop photos here or choose files. Tag before/after and hide internal shots from the portal."
-                right={
-                  canManageFiles ? (
-                    <label className="btn cursor-pointer px-3 py-2 text-xs">
-                      {uploading ? "Uploading…" : "Upload files"}
-                      <input
-                        type="file"
-                        className="hidden"
-                        multiple
-                        onChange={handleFileUpload}
-                        disabled={uploading}
-                      />
-                    </label>
-                  ) : null
-                }
-              >
-                {filesError ? (
-                  <Alert variant="inline" className="mb-3">{filesError}</Alert>
-                ) : null}
-
-                {canManageFiles ? (
-                  <div
-                    onDragOver={(event) => {
-                      event.preventDefault();
-                      setFileDragOver(true);
-                    }}
-                    onDragLeave={() => setFileDragOver(false)}
-                    onDrop={handleFileDrop}
-                    className={`mb-3 rounded-lg border border-dashed p-4 text-sm ${
-                      fileDragOver ? "border-strong bg-accent" : "text-muted"
-                    }`}
-                  >
-                    {uploading
-                      ? "Uploading…"
-                      : "Drop files here to attach them to this job."}
-                  </div>
-                ) : null}
-
-                {!isInitialLoading && loadingFiles ? (
-                  <SectionSkeleton rows={3} />
-                ) : files.length === 0 ? (
-                  <div className="text-muted rounded-lg border border-dashed p-4 text-sm">
-                    No files attached to this job yet.
-                  </div>
-                ) : (
-                  <div className="space-y-3">
-                    {files.map((file) => (
-                      <div key={file.id} className="list-row space-y-3">
-                        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-                          <div className="min-w-0">
-                            <div className="truncate font-medium">
-                              {file.original_name}
-                            </div>
-                            <div className="text-muted text-xs">
-                              {file.mime_type || "Unknown type"} •{" "}
-                              {formatBytes(file.size_bytes)}
-                            </div>
-                            <div className="text-muted text-xs">
-                              Uploaded: {formatDate(file.created_at)}
-                            </div>
-                            {!canManageFiles && file.caption ? (
-                              <div className="text-muted mt-1 text-xs">
-                                {file.caption}
-                              </div>
-                            ) : null}
-                          </div>
-
-                          <div className="flex shrink-0 flex-wrap items-center gap-2">
-                            {isPreviewableFile(file) ? (
-                              <button
-                                type="button"
-                                onClick={() => setPreviewFile(file)}
-                                className="btn px-3 py-1.5 text-xs"
-                              >
-                                Preview
-                              </button>
-                            ) : (
-                              <a
-                                href={buildFileUrl(file)}
-                                target="_blank"
-                                rel="noreferrer"
-                                className="btn px-3 py-1.5 text-xs"
-                              >
-                                Open
-                              </a>
-                            )}
-
-                            {canManageFiles ? (
-                              <button
-                                onClick={() => handleDeleteFile(file.id)}
-                                disabled={busyFileId === file.id}
-                                className="btn btn-danger px-3 py-1.5 text-xs"
-                              >
-                                {busyFileId === file.id
-                                  ? "Deleting..."
-                                  : "Delete"}
-                              </button>
-                            ) : null}
-                          </div>
-                        </div>
-
-                        {canManageFiles ? (
-                          <div className="border-base space-y-3 border-t pt-3">
-                            <label className="text-muted block min-w-0 text-xs">
-                              Caption
-                              <input
-                                className="input mt-1 w-full"
-                                value={file.caption || ""}
-                                onChange={(event) => {
-                                  const caption = event.target.value;
-                                  setFiles((prev) =>
-                                    prev.map((row) =>
-                                      row.id === file.id
-                                        ? { ...row, caption }
-                                        : row,
-                                    ),
-                                  );
-                                }}
-                                onBlur={(event) => {
-                                  const caption =
-                                    event.target.value.trim() || null;
-                                  saveFileMeta(file.id, { caption });
-                                }}
-                                placeholder="Shown in the gallery"
-                              />
-                            </label>
-                            <div className="flex flex-wrap items-end gap-3">
-                              <label className="text-muted block min-w-[9rem] flex-1 text-xs">
-                                Category
-                                <select
-                                  className="input mt-1 w-full"
-                                  value={file.category || "other"}
-                                  onChange={(event) => {
-                                    saveFileMeta(file.id, {
-                                      category: event.target.value,
-                                    });
-                                  }}
-                                >
-                                  <option value="before">Before</option>
-                                  <option value="after">After</option>
-                                  <option value="other">Other</option>
-                                </select>
-                              </label>
-                              <label className="text-muted flex shrink-0 items-center gap-2 pb-2.5 text-xs">
-                                <input
-                                  type="checkbox"
-                                  checked={file.client_visible !== false}
-                                  onChange={(event) => {
-                                    saveFileMeta(file.id, {
-                                      client_visible: event.target.checked,
-                                    });
-                                  }}
-                                />
-                                Show in portal
-                              </label>
-                            </div>
-                          </div>
-                        ) : null}
-                      </div>
-                    ))}
-                  </div>
-                )}
-
-                <div className="border-base mt-4 border-t pt-4">
-                  <PhotoGallery
-                    files={files}
-                    loading={loadingFiles && files.length === 0}
-                  />
-                </div>
-              </SectionCard>
-              <CollapsibleSection
-                id="section-activity"
-                title="Activity"
-                description="Recent changes and actions on this job"
-                syncKey={id}
-                ready={!loadingActivity}
-                empty={activity.length === 0}
-              >
-                {!isInitialLoading && loadingActivity ? (
-                  <div className="space-y-2">
-                    <Skeleton className="h-4 w-40" />
-                    <Skeleton className="h-4 w-60" />
-                    <Skeleton className="h-4 w-32" />
-                  </div>
-                ) : activity.length === 0 ? (
-                  <div className="text-muted text-sm">No activity yet.</div>
-                ) : (
-                  <>
-                    <ActivityList activity={activity} loading={loadingActivity} />
-
-                    {hasMoreActivity ? (
-                      <div className="mt-3 flex justify-between">
-                        <button
-                          type="button"
-                          className="btn ml-auto px-3 text-xs"
-                          onClick={() => setLimit((prev) => prev + 50)}
-                        >
-                          {miniLoadingActivity ? (
-                            <div className="flex flex-row gap-4 px-3">
-                              <LoadingSpinner size={14} />
-                              Loading
-                            </div>
-                          ) : (
-                            "Load more activity"
-                          )}
-                        </button>
-                      </div>
-                    ) : null}
-                  </>
-                )}
-              </CollapsibleSection>
+                </>
+              )}
+            </CollapsibleSection>
           </div>
         ) : null}
       </div>

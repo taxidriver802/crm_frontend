@@ -169,10 +169,7 @@ export default function EditEstimatePage() {
   }
 
   return (
-    <AppShell
-      title="Edit estimate"
-      description={estimate?.title || undefined}
-    >
+    <AppShell title="Edit estimate" description={estimate?.title || undefined}>
       <section className="card p-4">
         {loadingEstimate ? (
           <EstimateFormSkeleton onCancel={() => router.back()} />

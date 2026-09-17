@@ -14,8 +14,7 @@ import { formatDate, formatDaysInStatus } from "@/lib/helper";
 
 function LeadRow({ lead, canViewAll, teamUsers, onOpen, onAssign, variant = "card" }) {
   const name = `${lead.first_name || ""} ${lead.last_name || ""}`.trim() || "Lead";
-  const contact =
-    (lead.email ?? "—") + (lead.phone ? ` • ${lead.phone}` : "");
+  const contact = (lead.email ?? "—") + (lead.phone ? ` • ${lead.phone}` : "");
   const daysInStatus = formatDaysInStatus(lead.status_changed_at);
 
   return (
@@ -33,9 +32,7 @@ function LeadRow({ lead, canViewAll, teamUsers, onOpen, onAssign, variant = "car
       <EntityListMetaStrip>
         <EntityListMeta label="Source">{lead.source ?? "—"}</EntityListMeta>
         <EntityListMeta label="Created">{formatDate(lead.created_at)}</EntityListMeta>
-        {daysInStatus ? (
-          <span className="text-muted text-xs">{daysInStatus}</span>
-        ) : null}
+        {daysInStatus ? <span className="text-xs text-muted">{daysInStatus}</span> : null}
         <EntityListAssignee
           canEdit={canViewAll}
           value={lead.assigned_to}

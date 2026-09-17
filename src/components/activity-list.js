@@ -68,11 +68,11 @@ export function ActivityList({
   }
 
   if (loading) {
-    return <div className="text-muted text-sm">Loading activity...</div>;
+    return <div className="text-sm text-muted">Loading activity...</div>;
   }
 
   if (!activity || activity.length === 0) {
-    return <div className="text-muted text-sm">{emptyText}</div>;
+    return <div className="text-sm text-muted">{emptyText}</div>;
   }
 
   if (!grouped) {
@@ -96,7 +96,7 @@ export function ActivityList({
         return (
           <div key={label} className="space-y-3">
             <div className="flex items-center justify-between gap-3">
-              <div className="text-muted text-[11px] font-semibold uppercase tracking-wider">
+              <div className="text-[11px] font-semibold uppercase tracking-wider text-muted">
                 {label}
               </div>
 
@@ -143,19 +143,19 @@ function ActivityItem({ item }) {
           ) : null}
 
           {formatted.detail ? (
-            <div className="text-muted line-clamp-2 text-sm leading-5">
+            <div className="line-clamp-2 text-sm leading-5 text-muted">
               {formatted.detail}
             </div>
           ) : null}
 
           {formatted.meta ? (
-            <div className="text-muted line-clamp-1 text-xs leading-5">
+            <div className="line-clamp-1 text-xs leading-5 text-muted">
               {formatted.meta}
             </div>
           ) : null}
         </div>
 
-        <div className="text-muted shrink-0 whitespace-nowrap pt-0.5 text-xs">
+        <div className="shrink-0 whitespace-nowrap pt-0.5 text-xs text-muted">
           {formatActivityTimestamp(item)}
         </div>
       </div>

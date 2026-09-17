@@ -119,10 +119,13 @@ export default function EditJobPage() {
   }
 
   return (
-    <AppShell title="Edit job" description={!loading && form.title ? form.title : undefined}>
+    <AppShell
+      title="Edit job"
+      description={!loading && form.title ? form.title : undefined}
+    >
       {loading ? (
         <section className="card p-4">
-          <div className="text-muted text-sm">Loading…</div>
+          <div className="text-sm text-muted">Loading…</div>
         </section>
       ) : (
         <section className="card p-4">

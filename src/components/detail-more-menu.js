@@ -42,7 +42,7 @@ export function DetailMoreMenu({ label = "More", children }) {
         <Icon
           name="chevronDown"
           className={cx(
-            "text-muted h-3.5 w-3.5 transition-transform duration-fast",
+            "h-3.5 w-3.5 text-muted transition-transform duration-fast",
             open && "rotate-180",
           )}
         />

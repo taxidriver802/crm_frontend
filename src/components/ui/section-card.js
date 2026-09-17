@@ -15,16 +15,14 @@ export function SectionCard({
       <div
         className={cx(
           "flex min-w-0 flex-wrap items-start justify-between gap-3 p-4",
-          !collapsed && "border-base border-b",
+          !collapsed && "border-b border-base",
         )}
       >
         <div className="min-w-0">
           <div className={size === "lg" ? "section-heading" : "text-sm font-medium"}>
             {title}
           </div>
-          {description ? (
-            <p className="text-muted mt-1 text-sm">{description}</p>
-          ) : null}
+          {description ? <p className="mt-1 text-sm text-muted">{description}</p> : null}
         </div>
         {right ? (
           <div className="flex min-w-0 max-w-full shrink-0 flex-wrap items-center justify-end gap-2 text-sm">

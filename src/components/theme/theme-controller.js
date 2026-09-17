@@ -1,6 +1,13 @@
 "use client";
 
-import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useState,
+} from "react";
 import { usePathname } from "next/navigation";
 import { useTheme } from "next-themes";
 import {
@@ -76,7 +83,9 @@ export function ThemeController({ children }) {
   );
 
   return (
-    <ThemeControllerContext.Provider value={value}>{children}</ThemeControllerContext.Provider>
+    <ThemeControllerContext.Provider value={value}>
+      {children}
+    </ThemeControllerContext.Provider>
   );
 }
 

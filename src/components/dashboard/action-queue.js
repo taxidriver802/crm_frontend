@@ -30,11 +30,7 @@ export function ActionQueue({
   const automaticOpen = empty ? false : defaultOpen;
   // null = follow automaticOpen; boolean = user has toggled
   const [userOpen, setUserOpen] = useState(null);
-  const open = !collapsible
-    ? true
-    : userOpen === null
-      ? automaticOpen
-      : userOpen;
+  const open = !collapsible ? true : userOpen === null ? automaticOpen : userOpen;
 
   function toggleOpen() {
     setUserOpen((prev) => {
@@ -69,7 +65,7 @@ export function ActionQueue({
               </div>
             ) : null}
             {href ? (
-              <ReturnLink className="text-muted text-xs hover:underline" href={href}>
+              <ReturnLink className="text-xs text-muted hover:underline" href={href}>
                 View all
               </ReturnLink>
             ) : null}
@@ -103,7 +99,7 @@ export function ActionQueue({
               >
                 <div className="min-w-0">
                   <div className="font-medium">{item.title}</div>
-                  <div className="text-muted mt-1 flex flex-wrap items-center gap-x-1 text-sm">
+                  <div className="mt-1 flex flex-wrap items-center gap-x-1 text-sm text-muted">
                     {item.subtitle ? <span>{item.subtitle}</span> : null}
                     {item.subtitle && item.reason ? <span>·</span> : null}
                     {item.reason ? <span>{item.reason}</span> : null}

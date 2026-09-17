@@ -3,7 +3,11 @@
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { AppShell } from "@/components/app-shell";
-import { TaskForm, createEmptyTaskForm, buildTaskApiPayload } from "@/components/forms/task-form";
+import {
+  TaskForm,
+  createEmptyTaskForm,
+  buildTaskApiPayload,
+} from "@/components/forms/task-form";
 import { api } from "@/lib/api";
 
 function toDatetimeLocal(value) {
@@ -154,14 +158,17 @@ export default function EditTaskPage() {
   }
 
   return (
-    <AppShell title="Edit task" description={!loading && task?.title ? task.title : undefined}>
+    <AppShell
+      title="Edit task"
+      description={!loading && task?.title ? task.title : undefined}
+    >
       {loading ? (
         <section className="card p-4">
-          <div className="text-muted text-sm">Loading…</div>
+          <div className="text-sm text-muted">Loading…</div>
         </section>
       ) : !task ? (
         <section className="card p-4">
-          <div className="text-muted text-sm">Task not found.</div>
+          <div className="text-sm text-muted">Task not found.</div>
         </section>
       ) : (
         <section className="card p-4">

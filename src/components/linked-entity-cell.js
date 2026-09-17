@@ -12,8 +12,11 @@ export function LinkedEntityCell({ task }) {
 
   return (
     <div className="flex flex-col">
-      <span className="text-muted text-[0.6875rem] sm:text-xs">{linked.kind}</span>
-      <ReturnLink className="underline underline-offset-4 hover:opacity-80" href={linked.href}>
+      <span className="text-[0.6875rem] text-muted sm:text-xs">{linked.kind}</span>
+      <ReturnLink
+        className="underline underline-offset-4 hover:opacity-80"
+        href={linked.href}
+      >
         {linked.label}
       </ReturnLink>
     </div>

@@ -76,7 +76,7 @@ export function PhotoGallery({
       {loading ? (
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
           {Array.from({ length: 6 }).map((_, i) => (
-            <div key={i} className="bg-accent h-28 animate-pulse rounded-md" />
+            <div key={i} className="h-28 animate-pulse rounded-md bg-accent" />
           ))}
         </div>
       ) : photos.length === 0 ? (
@@ -85,7 +85,7 @@ export function PhotoGallery({
         <div className="space-y-5">
           {groups.map((group) => (
             <div key={group.key} className="space-y-2">
-              <div className="text-muted text-xs font-medium uppercase tracking-wide">
+              <div className="text-xs font-medium uppercase tracking-wide text-muted">
                 {group.label}
               </div>
               <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
@@ -117,14 +117,10 @@ export function PhotoGallery({
       )}
 
       {activePhoto ? (
-        <Overlay
-          layer="lightbox"
-          strong
-          className="flex items-center justify-center p-4"
-        >
+        <Overlay layer="lightbox" strong className="flex items-center justify-center p-4">
           <button
             type="button"
-            className="bg-overlay text-on-overlay absolute right-4 top-4 rounded px-3 py-2 text-sm"
+            className="absolute right-4 top-4 rounded bg-overlay px-3 py-2 text-sm text-on-overlay"
             onClick={() => setActiveIndex(-1)}
           >
             Close
@@ -134,7 +130,7 @@ export function PhotoGallery({
             <>
               <button
                 type="button"
-                className="bg-overlay text-on-overlay absolute left-4 rounded px-3 py-2 text-sm"
+                className="absolute left-4 rounded bg-overlay px-3 py-2 text-sm text-on-overlay"
                 onClick={() =>
                   setActiveIndex((prev) => (prev - 1 + photos.length) % photos.length)
                 }
@@ -143,7 +139,7 @@ export function PhotoGallery({
               </button>
               <button
                 type="button"
-                className="bg-overlay text-on-overlay absolute right-4 rounded px-3 py-2 text-sm"
+                className="absolute right-4 rounded bg-overlay px-3 py-2 text-sm text-on-overlay"
                 onClick={() => setActiveIndex((prev) => (prev + 1) % photos.length)}
               >
                 Next
@@ -159,7 +155,7 @@ export function PhotoGallery({
               alt={photoCaption(activePhoto)}
               className="max-h-[85vh] max-w-[90vw] object-contain"
             />
-            <div className="text-on-overlay mt-2 text-center text-xs opacity-90">
+            <div className="mt-2 text-center text-xs text-on-overlay opacity-90">
               {photoCaption(activePhoto)}
               {photoDate(activePhoto) ? ` · ${photoDate(activePhoto)}` : ""}
             </div>

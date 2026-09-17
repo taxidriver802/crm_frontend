@@ -111,7 +111,7 @@ export default function PublicEstimatePage() {
       title={estimate?.title || "Estimate"}
       description={estimate?.job?.address || undefined}
       footer={
-        <Link href="/" className="hover:text-main underline-offset-4 hover:underline">
+        <Link href="/" className="underline-offset-4 hover:text-main hover:underline">
           Contractor sign in
         </Link>
       }
@@ -152,9 +152,7 @@ export default function PublicEstimatePage() {
             }
           >
             {estimate.job?.lead_name ? (
-              <p className="text-muted text-sm">
-                Prepared for: {estimate.job.lead_name}
-              </p>
+              <p className="text-sm text-muted">Prepared for: {estimate.job.lead_name}</p>
             ) : null}
             {estimate.notes ? (
               <div className={estimate.job?.lead_name ? "mt-4" : ""}>
@@ -167,16 +165,13 @@ export default function PublicEstimatePage() {
           <SectionCard title="Line items">
             <div className="space-y-2">
               {(estimate.line_items || []).map((item) => (
-                <ListRow
-                  key={item.id}
-                  className="flex items-start justify-between gap-3"
-                >
+                <ListRow key={item.id} className="flex items-start justify-between gap-3">
                   <div>
                     <div className="font-medium">{item.name}</div>
                     {item.description ? (
-                      <div className="text-muted mt-1 text-sm">{item.description}</div>
+                      <div className="mt-1 text-sm text-muted">{item.description}</div>
                     ) : null}
-                    <div className="text-muted mt-1 text-xs">
+                    <div className="mt-1 text-xs text-muted">
                       {Number(item.quantity).toLocaleString()} × $
                       {formatCurrency(item.unit_price)}
                     </div>
@@ -188,7 +183,7 @@ export default function PublicEstimatePage() {
               ))}
             </div>
 
-            <div className="border-base mt-4 flex justify-between border-t pt-4 text-lg font-semibold">
+            <div className="mt-4 flex justify-between border-t border-base pt-4 text-lg font-semibold">
               <span>Total</span>
               <span>${formatCurrency(estimate.grand_total)}</span>
             </div>
@@ -201,7 +196,7 @@ export default function PublicEstimatePage() {
                   {doneMessage}
                 </Alert>
               ) : null}
-              <p className="text-muted text-sm">
+              <p className="text-sm text-muted">
                 Recorded {new Date(estimate.client_responded_at).toLocaleString()}
               </p>
               {estimate.client_response_note ? (

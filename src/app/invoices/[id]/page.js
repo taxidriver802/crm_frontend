@@ -223,9 +223,7 @@ export default function InvoiceDetailPage() {
             : "Message logged on the job. Copy it from the communication log.",
         );
       } catch {
-        setShareHint(
-          copied ? "Message copied. Could not log communication." : message,
-        );
+        setShareHint(copied ? "Message copied. Could not log communication." : message);
       }
     } catch (e) {
       setError(e?.message || "Could not copy message");
@@ -372,7 +370,7 @@ export default function InvoiceDetailPage() {
 
         {!invoice ? (
           <section className="card p-4">
-            <p className="text-muted text-sm">Invoice not found.</p>
+            <p className="text-sm text-muted">Invoice not found.</p>
           </section>
         ) : (
           <DetailHeader
@@ -438,12 +436,13 @@ export default function InvoiceDetailPage() {
               </DetailMoreMenu>
             }
           >
-            {shareHint ? <div className="text-muted text-sm">{shareHint}</div> : null}
-            {qbHint ? <div className="text-muted text-sm">{qbHint}</div> : null}
+            {shareHint ? <div className="text-sm text-muted">{shareHint}</div> : null}
+            {qbHint ? <div className="text-sm text-muted">{qbHint}</div> : null}
 
             {invoice.share_expires_at ? (
-              <div className="text-muted text-xs">
-                Share link active until {new Date(invoice.share_expires_at).toLocaleString()}
+              <div className="text-xs text-muted">
+                Share link active until{" "}
+                {new Date(invoice.share_expires_at).toLocaleString()}
               </div>
             ) : null}
 
@@ -528,9 +527,9 @@ export default function InvoiceDetailPage() {
             ) : null}
 
             {loading ? (
-              <div className="text-muted text-sm">Loading items…</div>
+              <div className="text-sm text-muted">Loading items…</div>
             ) : lineItems.length === 0 ? (
-              <div className="text-muted rounded-lg border border-dashed p-4 text-sm">
+              <div className="rounded-lg border border-dashed p-4 text-sm text-muted">
                 No line items yet.
               </div>
             ) : (
@@ -547,14 +546,16 @@ export default function InvoiceDetailPage() {
                     <div>
                       <div className="font-medium">{item.name}</div>
                       {item.description ? (
-                        <div className="text-muted mt-1 text-sm">{item.description}</div>
+                        <div className="mt-1 text-sm text-muted">{item.description}</div>
                       ) : null}
-                      <div className="text-muted mt-1 text-xs">
+                      <div className="mt-1 text-xs text-muted">
                         {Number(item.quantity).toLocaleString("en-US")} × $
                         {formatCurrency(item.unit_price)}
                       </div>
                     </div>
-                    <div className="font-semibold">${formatCurrency(item.line_total)}</div>
+                    <div className="font-semibold">
+                      ${formatCurrency(item.line_total)}
+                    </div>
                   </ListRow>
                 ))}
               </div>
@@ -576,7 +577,7 @@ export default function InvoiceDetailPage() {
               <span className="text-muted">Discounts</span>
               <span>-${formatCurrency(invoice?.discount_total)}</span>
             </div>
-            <div className="border-base flex justify-between border-t pt-2 text-lg font-semibold">
+            <div className="flex justify-between border-t border-base pt-2 text-lg font-semibold">
               <span>Total Due</span>
               <span>${formatCurrency(invoice?.grand_total)}</span>
             </div>
@@ -625,7 +626,7 @@ export default function InvoiceDetailPage() {
                     }`}
                   />
                   {i < 3 ? (
-                    <div className="border-base absolute left-[-0.6875rem] top-4 h-full w-0 border-l" />
+                    <div className="absolute left-[-0.6875rem] top-4 h-full w-0 border-l border-base" />
                   ) : null}
                   <div>
                     <div
@@ -634,7 +635,7 @@ export default function InvoiceDetailPage() {
                       {step.label}
                       {step.warn ? " (overdue)" : ""}
                     </div>
-                    <div className="text-muted text-xs">
+                    <div className="text-xs text-muted">
                       {step.date ? formatDate(step.date) : "—"}
                     </div>
                   </div>

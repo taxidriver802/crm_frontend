@@ -27,7 +27,7 @@ Lead, Task, Invoice, and Estimate copy this Job pattern. `DetailHeader` keeps su
 
 ## Metrics
 
-- Use **3–4 urgency/action metrics** when the page’s primary slice is *when or whether it needs you now*. Dashboard: Overdue, Due today, Waiting, Invoices. **Tasks:** Overdue, Due today, Next 7 days (existing counts). Clicking a metric **filters the page list**; click again returns to All. Do not use `StatCard` `href` to bounce to a query string if the same list can filter in place.
+- Use **3–4 urgency/action metrics** when the page’s primary slice is _when or whether it needs you now_. Dashboard: Overdue, Due today, Waiting, Invoices. **Tasks:** Overdue, Due today, Next 7 days (existing counts). Clicking a metric **filters the page list**; click again returns to All. Do not use `StatCard` `href` to bounce to a query string if the same list can filter in place.
 - Overdue uses `--danger` (border and counts) only when the count is greater than zero.
 - Brand `--accent` is for primary buttons, selected nav, and selected chips — not urgency.
 - **Pipeline list pages** (Leads, Jobs) do **not** get an urgency strip. Their primary slice is stage; status tabs with live counts are the filter. Job health stays a row badge (see below).
@@ -43,7 +43,7 @@ Tasks differ from Leads/Jobs because a task’s job is a due date, not a pipelin
 
 ### EntityList vs DataTable
 
-- **`EntityList` `layout="flush"`** when the row’s job is *open this record and work it* (Leads, Jobs, Tasks, Invoices).
+- **`EntityList` `layout="flush"`** when the row’s job is _open this record and work it_ (Leads, Jobs, Tasks, Invoices).
 - **`DataTable`** when there is no dedicated record route, or the row is an admin/tool grid: many comparable columns, row-level admin actions, preview/download rather than a detail page. **Files** and **Users** stay DataTable (`DataTable` already stacks to labeled cards below `md`).
 - Threshold is the interaction, not column count: if you would build `/files/[id]` or `/users/[id]` as a work record, it would be EntityList. Today those are tools, not records.
 
@@ -75,7 +75,7 @@ Health (`Needs attention` / `Watch` / `On track`) is a **row badge only**. It is
 
 Record bodies use **always-open stacked sections** (`SectionCard` or equivalent), not accordions, for work blocks (tasks, estimates, invoices, notes, files, pipeline).
 
-Collapse is allowed only for **log-like** blocks (Activity) or a section that is empty *and* optional (e.g. measurements with nothing recorded). Do not hide primary work behind a disclosure.
+Collapse is allowed only for **log-like** blocks (Activity) or a section that is empty _and_ optional (e.g. measurements with nothing recorded). Do not hide primary work behind a disclosure.
 
 When Job is restyled, Estimates / Invoices / Tasks on that page stay visible without a click.
 
@@ -117,12 +117,12 @@ Login, accept-invite, and public pages use **different shells**. Do not put AppS
 
 ## Color
 
-| Use | Token |
-| --- | --- |
-| Overdue / needs-you-now | `--danger` |
-| Pipeline status chips | `--warning` / `StatusBadge` tones |
-| Primary CTA, selected nav, selected chips | `--accent` |
-| Informational counts | `--text` / `--text-muted` — no tint |
+| Use                                       | Token                               |
+| ----------------------------------------- | ----------------------------------- |
+| Overdue / needs-you-now                   | `--danger`                          |
+| Pipeline status chips                     | `--warning` / `StatusBadge` tones   |
+| Primary CTA, selected nav, selected chips | `--accent`                          |
+| Informational counts                      | `--text` / `--text-muted` — no tint |
 
 ## Primitives
 

@@ -80,10 +80,7 @@ export default function QuickBooksPage() {
       : "Not configured";
 
   return (
-    <AppShell
-      title="QuickBooks"
-      description={loading ? "Loading…" : connectionLabel}
-    >
+    <AppShell title="QuickBooks" description={loading ? "Loading…" : connectionLabel}>
       <div className="space-y-6">
         {error ? <Alert variant="inline">{error}</Alert> : null}
 
@@ -134,30 +131,30 @@ export default function QuickBooksPage() {
             <div className="space-y-4">
               <div className="grid gap-4 text-sm sm:grid-cols-2">
                 <div>
-                  <div className="text-muted text-xs">Client ID</div>
+                  <div className="text-xs text-muted">Client ID</div>
                   <div className="mt-1">
                     {status?.hasClientId ? "Configured" : "Not set"}
                   </div>
                 </div>
                 <div>
-                  <div className="text-muted text-xs">Client secret</div>
+                  <div className="text-xs text-muted">Client secret</div>
                   <div className="mt-1">
                     {status?.hasClientSecret ? "Configured" : "Not set"}
                   </div>
                 </div>
                 <div>
-                  <div className="text-muted text-xs">Status</div>
+                  <div className="text-xs text-muted">Status</div>
                   <div className="mt-1">{status?.status || "disconnected"}</div>
                 </div>
                 {status?.realm_id ? (
                   <div>
-                    <div className="text-muted text-xs">Realm ID</div>
+                    <div className="text-xs text-muted">Realm ID</div>
                     <div className="mt-1">{status.realm_id}</div>
                   </div>
                 ) : null}
                 {status?.token_expires_at ? (
                   <div>
-                    <div className="text-muted text-xs">Token expires</div>
+                    <div className="text-xs text-muted">Token expires</div>
                     <div className="mt-1">
                       {new Date(status.token_expires_at).toLocaleString()}
                     </div>
@@ -175,7 +172,7 @@ export default function QuickBooksPage() {
                   {busy ? "Disconnecting…" : "Disconnect"}
                 </button>
               ) : !isConfigured ? (
-                <div className="text-muted text-sm">
+                <div className="text-sm text-muted">
                   Set <code className="text-xs">QB_CLIENT_ID</code>,{" "}
                   <code className="text-xs">QB_CLIENT_SECRET</code>, and{" "}
                   <code className="text-xs">QB_REDIRECT_URI</code> in your backend
@@ -187,12 +184,12 @@ export default function QuickBooksPage() {
         </SectionCard>
 
         <SectionCard title="How it works" size="lg">
-          <div className="text-muted text-sm leading-relaxed">
+          <div className="text-sm leading-relaxed text-muted">
             Once connected, you can sync invoices from the CRM directly to QuickBooks
             Online. Payment status is pulled back automatically so your CRM invoice
             reflects the latest state.
           </div>
-          <ul className="text-muted mt-3 list-inside list-disc space-y-1 text-sm">
+          <ul className="mt-3 list-inside list-disc space-y-1 text-sm text-muted">
             <li>Open any invoice and click Sync to QuickBooks to push it</li>
             <li>Invoice line items, totals, and due dates are mapped automatically</li>
             <li>Payment status syncs back when checked</li>

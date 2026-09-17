@@ -16,9 +16,7 @@ export function WorkloadTable({ rows = [], loading = false }) {
   return (
     <SectionCard
       title="Team workload"
-      right={
-        <span className="text-muted text-xs">Open work by assignee</span>
-      }
+      right={<span className="text-xs text-muted">Open work by assignee</span>}
     >
       {loading ? (
         <SectionSkeleton rows={4} />
@@ -28,7 +26,7 @@ export function WorkloadTable({ rows = [], loading = false }) {
         <div className="overflow-x-auto">
           <table className="w-full min-w-[28rem] text-left text-sm">
             <thead>
-              <tr className="text-muted border-base border-b text-xs">
+              <tr className="border-b border-base text-xs text-muted">
                 <th className="py-2 pr-3 font-medium">Assignee</th>
                 <th className="py-2 pr-3 font-medium">Leads</th>
                 <th className="py-2 pr-3 font-medium">Jobs</th>
@@ -41,7 +39,7 @@ export function WorkloadTable({ rows = [], loading = false }) {
                 const key = row.user_id || "unassigned";
                 const assigned = assigneeQuery(row.user_id);
                 return (
-                  <tr key={key} className="border-base border-b last:border-0">
+                  <tr key={key} className="border-b border-base last:border-0">
                     <td className="py-2.5 pr-3 font-medium">{row.name}</td>
                     <td className="py-2.5 pr-3">
                       <Link
@@ -72,7 +70,7 @@ export function WorkloadTable({ rows = [], loading = false }) {
                         href={`/tasks?assignedTo=${encodeURIComponent(assigned)}&duePreset=overdue`}
                         className={
                           row.tasks_overdue > 0
-                            ? "text-danger font-medium hover:underline"
+                            ? "font-medium text-danger hover:underline"
                             : "hover:underline"
                         }
                       >

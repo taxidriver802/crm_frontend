@@ -3,7 +3,11 @@
 import { Suspense, useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { AppShell } from "@/components/app-shell";
-import { TaskForm, createEmptyTaskForm, buildTaskApiPayload } from "@/components/forms/task-form";
+import {
+  TaskForm,
+  createEmptyTaskForm,
+  buildTaskApiPayload,
+} from "@/components/forms/task-form";
 import { api } from "@/lib/api";
 
 function NewTaskPageInner() {
@@ -181,7 +185,7 @@ export default function NewTaskPage() {
       fallback={
         <AppShell title="New task">
           <section className="card p-4">
-            <div className="text-muted text-sm">Loading…</div>
+            <div className="text-sm text-muted">Loading…</div>
           </section>
         </AppShell>
       }

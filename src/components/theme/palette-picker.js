@@ -23,9 +23,7 @@ export function PalettePicker({ className = "", tone = "default", onPicked }) {
             aria-checked={selected}
             className={cx(
               "flex w-full items-center justify-start gap-2 rounded-theme-md px-2.5 py-2 text-left text-xs font-medium transition",
-              chrome
-                ? "text-chrome hover:bg-chrome-hover"
-                : "hover:bg-accent-soft",
+              chrome ? "text-chrome hover:bg-chrome-hover" : "hover:bg-accent-soft",
               selected && (chrome ? "bg-chrome-elevated" : "bg-accent-soft"),
             )}
             onClick={() => {

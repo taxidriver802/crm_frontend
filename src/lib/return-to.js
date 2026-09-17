@@ -167,8 +167,7 @@ function normalizeStackEntry(entry) {
   if (!isSafeReturnPath(href)) return null;
 
   const label =
-    (typeof entry.label === "string" ? entry.label.trim() : "") ||
-    inferReturnLabel(href);
+    (typeof entry.label === "string" ? entry.label.trim() : "") || inferReturnLabel(href);
 
   return { href, label };
 }
@@ -197,7 +196,10 @@ function writeReturnStack(stack) {
       sessionStorage.removeItem(RETURN_STACK_KEY);
       return;
     }
-    sessionStorage.setItem(RETURN_STACK_KEY, JSON.stringify(stack.slice(-RETURN_STACK_MAX)));
+    sessionStorage.setItem(
+      RETURN_STACK_KEY,
+      JSON.stringify(stack.slice(-RETURN_STACK_MAX)),
+    );
   } catch {
     // Ignore quota / private-mode failures.
   }

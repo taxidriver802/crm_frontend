@@ -184,14 +184,14 @@ export function NotesSection({ entityType, entityId, onLoadState }) {
       <form onSubmit={handleCreateNote} className="min-w-0 space-y-3">
         <Segmented
           aria-label="Communication type"
-          className="flex min-w-0 w-full max-w-full flex-wrap"
+          className="flex w-full min-w-0 max-w-full flex-wrap"
           value={type}
           onChange={handleTypeChange}
           options={TYPE_OPTIONS}
         />
         <Segmented
           aria-label="Direction"
-          className="flex min-w-0 w-full max-w-full flex-wrap"
+          className="flex w-full min-w-0 max-w-full flex-wrap"
           value={direction}
           onChange={setDirection}
           options={DIRECTION_OPTIONS}
@@ -213,7 +213,7 @@ export function NotesSection({ entityType, entityId, onLoadState }) {
           />
         </Field>
         <FormActions className="justify-between">
-          <span className="text-muted text-xs">{body.length}/2000</span>
+          <span className="text-xs text-muted">{body.length}/2000</span>
           <button
             type="submit"
             className="btn btn-primary btn-sm"
@@ -225,7 +225,7 @@ export function NotesSection({ entityType, entityId, onLoadState }) {
       </form>
 
       {loading ? (
-        <div className="text-muted text-sm">Loading communication...</div>
+        <div className="text-sm text-muted">Loading communication...</div>
       ) : notes.length === 0 ? (
         <EmptyState
           title="No communication yet"
@@ -237,7 +237,9 @@ export function NotesSection({ entityType, entityId, onLoadState }) {
             <ListRow key={note.id} className="min-w-0 max-w-full">
               <div className="flex min-w-0 flex-wrap items-center justify-between gap-2">
                 <div className="flex min-w-0 flex-wrap items-center gap-2">
-                  <StatusBadge>{TYPE_LABELS[note.type] || note.type || "Note"}</StatusBadge>
+                  <StatusBadge>
+                    {TYPE_LABELS[note.type] || note.type || "Note"}
+                  </StatusBadge>
                   <StatusBadge>
                     {DIRECTION_LABELS[note.direction] || note.direction || "Internal"}
                   </StatusBadge>
@@ -245,7 +247,7 @@ export function NotesSection({ entityType, entityId, onLoadState }) {
                     {note.author_name || "User"}
                   </div>
                 </div>
-                <div className="text-muted shrink-0 text-xs">
+                <div className="shrink-0 text-xs text-muted">
                   {formatRelativeTime(note.created_at)}
                 </div>
               </div>
@@ -256,7 +258,7 @@ export function NotesSection({ entityType, entityId, onLoadState }) {
                 <div className="mt-2 min-w-0 text-sm">
                   <Link
                     href={`/tasks/${note.follow_up_task.id}`}
-                    className="block min-w-0 break-words [overflow-wrap:anywhere] underline underline-offset-4"
+                    className="block min-w-0 break-words underline underline-offset-4 [overflow-wrap:anywhere]"
                   >
                     Follow-up: {note.follow_up_task.title}
                   </Link>
@@ -265,7 +267,7 @@ export function NotesSection({ entityType, entityId, onLoadState }) {
               <div className="mt-2 flex justify-end">
                 <button
                   type="button"
-                  className="text-muted text-xs underline hover:text-danger"
+                  className="text-xs text-muted underline hover:text-danger"
                   onClick={() => handleDeleteNote(note.id)}
                 >
                   Delete

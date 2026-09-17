@@ -59,7 +59,7 @@ function JobRow({
           <EntityListMeta label="Address" className="max-w-full sm:max-w-[22rem]">
             <button
               type="button"
-              className="hover:text-main truncate text-left underline decoration-dotted underline-offset-4"
+              className="truncate text-left underline decoration-dotted underline-offset-4 hover:text-main"
               title="Show full address"
               onClick={(e) => {
                 e.stopPropagation();
@@ -73,9 +73,7 @@ function JobRow({
 
         <EntityListMeta label="Created">{formatDate(job.created_at)}</EntityListMeta>
 
-        {daysInStatus ? (
-          <span className="text-muted text-xs">{daysInStatus}</span>
-        ) : null}
+        {daysInStatus ? <span className="text-xs text-muted">{daysInStatus}</span> : null}
 
         <EntityListAssignee
           canEdit={canViewAll}

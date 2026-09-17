@@ -6,10 +6,7 @@ import { Suspense, useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { AppShell } from "@/components/app-shell";
 import { api } from "@/lib/api";
-import {
-  Skeleton,
-  SectionSkeleton,
-} from "@/components/loading/loadingSkeletons";
+import { Skeleton, SectionSkeleton } from "@/components/loading/loadingSkeletons";
 
 function NewInvoicePageInner() {
   const router = useRouter();
@@ -105,16 +102,16 @@ function NewInvoicePageInner() {
         ) : (
           <form onSubmit={handleSubmit} className="space-y-5">
             {error ? (
-              <Alert variant="inline" className="font-medium">{error}</Alert>
+              <Alert variant="inline" className="font-medium">
+                {error}
+              </Alert>
             ) : null}
 
             <Field label="Job" required>
               <select
                 className="input"
                 value={form.job_id}
-                onChange={(e) =>
-                  setForm((f) => ({ ...f, job_id: e.target.value }))
-                }
+                onChange={(e) => setForm((f) => ({ ...f, job_id: e.target.value }))}
                 disabled={isContextLocked}
                 required
               >
@@ -132,9 +129,7 @@ function NewInvoicePageInner() {
                 type="date"
                 className="input"
                 value={form.due_date}
-                onChange={(e) =>
-                  setForm((f) => ({ ...f, due_date: e.target.value }))
-                }
+                onChange={(e) => setForm((f) => ({ ...f, due_date: e.target.value }))}
               />
             </Field>
 
@@ -143,26 +138,16 @@ function NewInvoicePageInner() {
                 className="input"
                 rows={3}
                 value={form.notes}
-                onChange={(e) =>
-                  setForm((f) => ({ ...f, notes: e.target.value }))
-                }
+                onChange={(e) => setForm((f) => ({ ...f, notes: e.target.value }))}
                 placeholder="Any notes for this invoice…"
               />
             </Field>
 
             <FormActions>
-              <button
-                type="submit"
-                className="btn btn-primary"
-                disabled={saving}
-              >
+              <button type="submit" className="btn btn-primary" disabled={saving}>
                 {saving ? "Creating…" : "Create invoice"}
               </button>
-              <button
-                type="button"
-                className="btn"
-                onClick={() => router.back()}
-              >
+              <button type="button" className="btn" onClick={() => router.back()}>
                 Cancel
               </button>
             </FormActions>
