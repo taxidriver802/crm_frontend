@@ -575,6 +575,31 @@ export function AppShell({ children, title, description, right, back }) {
     }
   }
 
+  async function handleDeleteNotification(notificationId) {
+    const wasUnread = notifications.some(
+      (item) => item.id === notificationId && !item.read_at,
+    );
+
+    try {
+      await api(`/notifications/${notificationId}`, {
+        method: "DELETE",
+        credentials: "include",
+      });
+
+      setNotifications((prev) => {
+        const next = prev.filter((item) => item.id !== notificationId);
+        prevNotificationsRef.current = next;
+        return next;
+      });
+
+      if (wasUnread) {
+        setUnreadCount((prev) => Math.max(0, prev - 1));
+      }
+    } catch (err) {
+      console.error("Failed to delete notification", err);
+    }
+  }
+
   const hasReadNotifications = notifications.some((n) => n.read_at);
 
   function renderNavLink(item, { onNavigate, tone = "chrome" } = {}) {
@@ -671,12 +696,10 @@ export function AppShell({ children, title, description, right, back }) {
               const iconName = getNotificationIconName(notification);
 
               return (
-                <button
+                <div
                   key={notification.id}
-                  type="button"
-                  onClick={() => handleNotificationClick(notification)}
                   className={cx(
-                    "group relative flex w-full items-start gap-2.5 px-3 py-2.5 text-left transition hover:bg-accent sm:px-3.5",
+                    "group relative flex w-full items-start gap-2.5 px-3 py-2.5 transition hover:bg-accent sm:px-3.5",
                     !unread && "opacity-60 hover:opacity-100",
                   )}
                 >
@@ -688,39 +711,67 @@ export function AppShell({ children, title, description, right, back }) {
                     )}
                   />
 
-                  <span
-                    className={cx(
-                      "mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-theme-md",
-                      unread ? "bg-surface text-muted" : "bg-surface text-soft",
-                    )}
+                  <button
+                    type="button"
+                    onClick={() => handleNotificationClick(notification)}
+                    className="flex min-w-0 flex-1 items-start gap-2.5 text-left"
                   >
-                    <Icon name={iconName} className="h-3.5 w-3.5" />
-                  </span>
+                    <span
+                      className={cx(
+                        "mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-theme-md",
+                        unread ? "bg-surface text-muted" : "bg-surface text-soft",
+                      )}
+                    >
+                      <Icon name={iconName} className="h-3.5 w-3.5" />
+                    </span>
 
-                  <div className="min-w-0 flex-1">
-                    <div className="flex items-baseline justify-between gap-2">
-                      <p
+                    <span className="min-w-0 flex-1">
+                      <span
                         className={cx(
-                          "truncate text-sm leading-snug",
+                          "block truncate text-sm leading-snug",
                           unread ? "font-semibold text-main" : "font-medium text-muted",
                         )}
                       >
                         {notification.title}
-                      </p>
-                      <span className="shrink-0 text-[11px] tabular-nums text-soft">
-                        {formatNotificationTime(notification.created_at)}
                       </span>
-                    </div>
-                    <p
+                      <span
+                        className={cx(
+                          "mt-0.5 line-clamp-2 block text-xs leading-relaxed",
+                          unread ? "text-muted" : "text-soft",
+                        )}
+                      >
+                        {notification.message}
+                      </span>
+                    </span>
+                  </button>
+
+                  <div className="flex shrink-0 flex-col items-end gap-0.5">
+                    <button
+                      type="button"
+                      aria-label="Delete notification"
+                      title="Delete"
+                      onClick={(event) => {
+                        event.preventDefault();
+                        event.stopPropagation();
+                        handleDeleteNotification(notification.id);
+                      }}
                       className={cx(
-                        "mt-0.5 line-clamp-2 text-xs leading-relaxed",
-                        unread ? "text-muted" : "text-soft",
+                        "inline-flex h-5 w-5 items-center justify-center rounded-theme-sm text-soft transition",
+                        "hover:bg-surface hover:text-main",
+                        "opacity-0 pointer-events-none",
+                        "group-hover:pointer-events-auto group-hover:opacity-100",
+                        "group-focus-within:pointer-events-auto group-focus-within:opacity-100",
+                        "focus-visible:pointer-events-auto focus-visible:opacity-100",
+                        "max-lg:pointer-events-auto max-lg:opacity-100",
                       )}
                     >
-                      {notification.message}
-                    </p>
+                      <Icon name="close" className="h-3 w-3" />
+                    </button>
+                    <span className="text-[11px] tabular-nums text-soft">
+                      {formatNotificationTime(notification.created_at)}
+                    </span>
                   </div>
-                </button>
+                </div>
               );
             })
           )}
