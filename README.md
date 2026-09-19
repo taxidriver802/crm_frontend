@@ -21,10 +21,10 @@ Also in the tree: `@dnd-kit` (kanban), `recharts`, `react-day-picker`.
 
 This folder is `crm_frontend`. Sibling checkouts expected next to it:
 
-| Repo | Role |
-| --- | --- |
-| `crm_backend` | Express + PostgreSQL API (`localhost:4000`) |
-| `crm_qa` | Playwright harness against a dedicated `crm_qa` database |
+| Repo          | Role                                                     |
+| ------------- | -------------------------------------------------------- |
+| `crm_backend` | Express + PostgreSQL API (`localhost:4000`)              |
+| `crm_qa`      | Playwright harness against a dedicated `crm_qa` database |
 
 ## Run locally
 
@@ -50,10 +50,10 @@ come in through invite → `/accept-invite`.
 
 ## Environment variables
 
-| Variable | Where it is read | Typical local value |
-| --- | --- | --- |
-| `NEXT_PUBLIC_API_BASE_URL` | Browser (`src/lib/api.js`, `src/lib/helper.js`) | `/api` |
-| `API_INTERNAL_BASE_URL` | Server (`next.config.mjs` rewrite, SSR, notifications proxy) | `http://localhost:4000` |
+| Variable                   | Where it is read                                             | Typical local value     |
+| -------------------------- | ------------------------------------------------------------ | ----------------------- |
+| `NEXT_PUBLIC_API_BASE_URL` | Browser (`src/lib/api.js`, `src/lib/helper.js`)              | `/api`                  |
+| `API_INTERNAL_BASE_URL`    | Server (`next.config.mjs` rewrite, SSR, notifications proxy) | `http://localhost:4000` |
 
 The browser calls `/api/...`. Next rewrites that to the backend so cookies stay
 same-origin. Do not point `NEXT_PUBLIC_API_BASE_URL` at `:4000` in local dev
@@ -61,12 +61,12 @@ unless you have also set up cross-site cookies.
 
 ## Scripts
 
-| Command | Purpose |
-| --- | --- |
-| `npm run dev` | Next dev server (port 3000) |
-| `npm run build` | Production build |
-| `npm start` | Serve the production build |
-| `npm run lint` | ESLint (`eslint-config-next`) |
+| Command          | Purpose                                           |
+| ---------------- | ------------------------------------------------- |
+| `npm run dev`    | Next dev server (port 3000)                       |
+| `npm run build`  | Production build                                  |
+| `npm start`      | Serve the production build                        |
+| `npm run lint`   | ESLint (`eslint-config-next`)                     |
 | `npm run format` | Prettier (includes `prettier-plugin-tailwindcss`) |
 
 ## Layout
@@ -86,7 +86,7 @@ There is no `hooks/`, `store/`, or Pages Router `pages/` tree. Almost every
 `page.js` is a client component. `src/app/layout.js` and `src/app/page.js`
 (`/` → dashboard or login) are server components.
 
-**`src/app/` routes:** dashboard, leads, jobs, tasks, invoices, estimates
+`src/app/` **routes:** dashboard, leads, jobs, tasks, invoices, estimates
 (detail / new / edit / templates — no estimates index), files, users, reports,
 automation, integrations (ABC, QuickBooks), login, accept-invite, and public
 portal / intake / estimate pages.
@@ -95,11 +95,11 @@ portal / intake / estimate pages.
 
 Three shells. Do not mix them.
 
-| Shell | Use on | Component |
-| --- | --- | --- |
-| App | Signed-in workspace | `AppShell` — the only page `h1` |
-| Auth | `/login`, `/accept-invite` | `AuthFrame` |
-| Public | `/public/portal`, `/public/intake`, `/public/estimate` | `PublicFrame` |
+| Shell  | Use on                                                 | Component                       |
+| ------ | ------------------------------------------------------ | ------------------------------- |
+| App    | Signed-in workspace                                    | `AppShell` — the only page `h1` |
+| Auth   | `/login`, `/accept-invite`                             | `AuthFrame`                     |
+| Public | `/public/portal`, `/public/intake`, `/public/estimate` | `PublicFrame`                   |
 
 `src/proxy.js` is Next 16’s proxy file (the old `middleware` convention). Its
 matcher only covers `/dashboard`, `/leads`, `/tasks`, `/files`, `/jobs`,
@@ -130,11 +130,11 @@ and unused. Prefer `PageToolbar` and `SectionCard`.
 
 Do not paste tokens or layout rules into new files — follow these:
 
-- [`docs/design-language.md`](docs/design-language.md) — locked page structure
+- `[docs/design-language.md](docs/design-language.md)` — locked page structure
   (headers, lists vs tool panels, Job as the detail template, forms, auth/public)
-- [`src/theme/tokens.md`](src/theme/tokens.md) — CSS variables, palettes, print/PWA
-- [`docs/VISUAL_OVERHAUL.md`](docs/VISUAL_OVERHAUL.md) — phased visual work
-- [`docs/crm-design-language.md`](docs/crm-design-language.md) — archive (classic vs new teardown)
+- `[src/theme/tokens.md](src/theme/tokens.md)` — CSS variables, palettes, print/PWA
+- `[docs/VISUAL_OVERHAUL.md](docs/VISUAL_OVERHAUL.md)` — phased visual work
+- `[docs/crm-design-language.md](docs/crm-design-language.md)` — archive (classic vs new teardown)
 
 Appearance goes through CSS variables from `src/theme` and Tailwind mappings in
 `tailwind.config.js`. No raw palette colors (`red-500`, `green-50`, …) for chrome
