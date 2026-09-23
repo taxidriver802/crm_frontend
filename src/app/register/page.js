@@ -9,6 +9,8 @@ import { MarkPicker, DEFAULT_COMPANY_MARK_ID } from "@/components/brand/company-
 import { useThemeController } from "@/components/theme/theme-controller";
 import { Alert } from "@/components/ui/alert";
 import { Field, FormActions } from "@/components/ui/field";
+import { EmailInput } from "@/components/ui/formatted-inputs";
+import { emailError } from "@/lib/input-format";
 import { AuthFrame } from "@/components/auth/auth-frame";
 
 export default function RegisterPage() {
@@ -24,10 +26,17 @@ export default function RegisterPage() {
   const [markId, setMarkId] = useState(DEFAULT_COMPANY_MARK_ID);
   const [showMark, setShowMark] = useState(false);
   const [error, setError] = useState("");
+  const [emailFieldError, setEmailFieldError] = useState("");
   const [submitting, setSubmitting] = useState(false);
 
   async function handleSubmit(e) {
     e.preventDefault();
+    const nextEmailError = emailError(email, { required: true });
+    if (nextEmailError) {
+      setEmailFieldError(nextEmailError);
+      return;
+    }
+    setEmailFieldError("");
     setError("");
 
     try {
@@ -138,16 +147,18 @@ export default function RegisterPage() {
           />
         </Field>
 
-        <Field label="Email" htmlFor="register-email" required>
-          <input
+        <Field label="Email" htmlFor="register-email" required error={emailFieldError}>
+          <EmailInput
             id="register-email"
-            type="email"
             placeholder="you@example.com"
-            className="input"
             value={email}
-            onChange={(e) => setEmail(e.target.value)}
+            invalid={Boolean(emailFieldError)}
+            onChange={(value) => {
+              setEmail(value);
+              if (emailFieldError) setEmailFieldError("");
+            }}
+            onBlur={() => setEmailFieldError(emailError(email, { required: true }))}
             required
-            autoComplete="email"
           />
         </Field>
 

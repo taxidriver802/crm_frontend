@@ -26,6 +26,7 @@ import { StatusBadge } from "@/components/ui/status-badge";
 import { DetailHeader } from "@/components/ui/detail-header";
 import { SectionCard } from "@/components/ui/section-card";
 import { MetaItem } from "@/components/ui/meta";
+import { formatPhoneDisplay, formatWholeDollarDisplay } from "@/lib/input-format";
 
 function isCompletedTask(task) {
   return String(task?.status || "").toLowerCase() === "completed";
@@ -255,7 +256,11 @@ export default function LeadDetailPage() {
   const leadName = lead
     ? `${lead.first_name || ""} ${lead.last_name || ""}`.trim() || `Lead #${id}`
     : `Lead #${id}`;
-  const leadContact = lead ? [lead.email, lead.phone].filter(Boolean).join(" • ") : "";
+  const leadContact = lead
+    ? [lead.email, lead.phone ? formatPhoneDisplay(lead.phone) : ""]
+        .filter(Boolean)
+        .join(" • ")
+    : "";
 
   return (
     <AppShell title={leadName} description={leadContact || undefined}>
@@ -302,7 +307,9 @@ export default function LeadDetailPage() {
                 {lead.urgency ? <StatusBadge>Urgency: {lead.urgency}</StatusBadge> : null}
                 {lead.budget_min != null || lead.budget_max != null ? (
                   <StatusBadge>
-                    Budget: {lead.budget_min ?? "—"} - {lead.budget_max ?? "—"}
+                    Budget:{" "}
+                    {lead.budget_min != null ? formatWholeDollarDisplay(lead.budget_min) : "—"} -{" "}
+                    {lead.budget_max != null ? formatWholeDollarDisplay(lead.budget_max) : "—"}
                   </StatusBadge>
                 ) : null}
               </>

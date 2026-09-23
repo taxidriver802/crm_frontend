@@ -32,6 +32,14 @@ import { CompanyBrandingModal } from "@/components/modals/company-branding-modal
 import { useThemeController } from "@/components/theme/theme-controller";
 import { api } from "@/lib/api";
 import { writeStoredCompanySlug } from "@/lib/company-slug";
+import {
+  NOTIFICATION_PANEL_LIMIT,
+  NOTIFICATIONS_CHANGED_EVENT,
+  buildNotificationsQuery,
+  formatNotificationTime,
+  getNotificationHref,
+  getNotificationIconName,
+} from "@/lib/notifications";
 
 const WORKFLOW_NAV = [
   { href: "/dashboard", label: "Dashboard", icon: "home", priority: "primary" },
@@ -117,24 +125,6 @@ function isActivePath(pathname, href) {
   return pathname === href || pathname.startsWith(href + "/");
 }
 
-function formatNotificationTime(value) {
-  if (!value) return "";
-  const date = new Date(value);
-  const diffMs = Date.now() - date.getTime();
-  const diffMin = Math.floor(diffMs / 60000);
-
-  if (diffMin < 1) return "Just now";
-  if (diffMin < 60) return `${diffMin}m ago`;
-
-  const diffHours = Math.floor(diffMin / 60);
-  if (diffHours < 24) return `${diffHours}h ago`;
-
-  const diffDays = Math.floor(diffHours / 24);
-  if (diffDays < 7) return `${diffDays}d ago`;
-
-  return date.toLocaleDateString();
-}
-
 function AccountSettings({
   tone = "default",
   isAdminUser,
@@ -215,59 +205,6 @@ function AccountSettings({
   );
 }
 
-function getNotificationHref(notification) {
-  if (!notification) return null;
-
-  if (notification.entity_type === "task" && notification.entity_id) {
-    return `/tasks/${notification.entity_id}`;
-  }
-
-  if (notification.entity_type === "lead" && notification.entity_id) {
-    return `/leads/${notification.entity_id}`;
-  }
-
-  if (notification.entity_type === "job" && notification.entity_id) {
-    return `/jobs/${notification.entity_id}`;
-  }
-
-  if (notification.entity_type === "estimate" && notification.entity_id) {
-    return `/estimates/${notification.entity_id}`;
-  }
-
-  if (notification.entity_type === "invoice" && notification.entity_id) {
-    return `/invoices/${notification.entity_id}`;
-  }
-
-  if (notification.type === "FILE_UPLOADED" && !notification.entity_type) {
-    return "/files";
-  }
-
-  return null;
-}
-
-function getNotificationIconName(notification) {
-  if (!notification) return "bell";
-
-  switch (notification.entity_type) {
-    case "task":
-      return "checklist";
-    case "lead":
-      return "users";
-    case "job":
-      return "briefcase";
-    case "estimate":
-    case "invoice":
-      return "invoice";
-    case "invite":
-      return "userPlus";
-    default:
-      break;
-  }
-
-  if (notification.type === "FILE_UPLOADED") return "folder";
-  return "bell";
-}
-
 function AppShellFrame({ children }) {
   const { title, description, right, back } = useContext(ChromeValueContext);
   const pathname = usePathname();
@@ -283,6 +220,7 @@ function AppShellFrame({ children }) {
   const [company, setCompany] = useState(null);
   const [notificationsOpen, setNotificationsOpen] = useState(false);
   const [notifications, setNotifications] = useState([]);
+  const [notificationsTotal, setNotificationsTotal] = useState(0);
   const [unreadCount, setUnreadCount] = useState(0);
   const [notificationsLoading, setNotificationsLoading] = useState(false);
   const [markingAllRead, setMarkingAllRead] = useState(false);
@@ -382,12 +320,22 @@ function AppShellFrame({ children }) {
   }, [mobileMenuOpen]);
 
   useEffect(() => {
+    function refreshFromOutside() {
+      loadUnreadCount();
+      loadNotifications({ silent: true, announce: false });
+    }
+
     const interval = setInterval(() => {
       loadUnreadCount();
       loadNotifications({ silent: true });
     }, 30000);
 
-    return () => clearInterval(interval);
+    window.addEventListener(NOTIFICATIONS_CHANGED_EVENT, refreshFromOutside);
+
+    return () => {
+      clearInterval(interval);
+      window.removeEventListener(NOTIFICATIONS_CHANGED_EVENT, refreshFromOutside);
+    };
     // Polling interval; loaders close over latest state via refs/setters.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -536,18 +484,22 @@ function AppShellFrame({ children }) {
 
   async function loadNotifications(options = {}) {
     const silent = Boolean(options.silent);
+    const announce = options.announce !== false;
     try {
       if (!silent) setNotificationsLoading(true);
 
-      const data = await api("/notifications?limit=8", {
-        credentials: "include",
-      });
+      const data = await api(
+        buildNotificationsQuery({ limit: NOTIFICATION_PANEL_LIMIT }),
+        {
+          credentials: "include",
+        },
+      );
 
       const newNotifications = data?.notifications ?? [];
       const prev = prevNotificationsRef.current;
       const newItems = newNotifications.filter((n) => !prev.some((p) => p.id === n.id));
 
-      if (prev.length > 0 && !notificationsOpenRef.current) {
+      if (announce && prev.length > 0 && !notificationsOpenRef.current) {
         newItems
           .filter((n) => !n.read_at)
           .forEach((n) => showToast(`${n.title}: ${n.message}`));
@@ -555,6 +507,9 @@ function AppShellFrame({ children }) {
 
       prevNotificationsRef.current = newNotifications;
       setNotifications(newNotifications);
+      setNotificationsTotal(
+        typeof data?.total === "number" ? data.total : newNotifications.length,
+      );
     } catch (err) {
       console.error("Failed to load notifications", err);
     } finally {
@@ -646,6 +601,7 @@ function AppShellFrame({ children }) {
       });
 
       setNotifications((prev) => prev.filter((item) => !item.read_at));
+      await loadNotifications({ silent: true, announce: false });
     } catch (err) {
       console.error("Failed to clear read notifications", err);
     }
@@ -671,6 +627,9 @@ function AppShellFrame({ children }) {
       if (wasUnread) {
         setUnreadCount((prev) => Math.max(0, prev - 1));
       }
+
+      setNotificationsTotal((prev) => Math.max(0, prev - 1));
+      await loadNotifications({ silent: true, announce: false });
     } catch (err) {
       console.error("Failed to delete notification", err);
     }
@@ -710,13 +669,13 @@ function AppShellFrame({ children }) {
     return (
       <div
         className={cx(
-          "dropdown-panel z-50 flex max-h-[min(85dvh,32rem)] min-h-0 flex-col overflow-hidden",
+          "dropdown-panel z-50 flex max-h-[min(24rem,calc(100dvh-8.5rem))] min-h-0 flex-col overflow-hidden",
           /* Stronger edge + elevation so the panel reads above page cards without a full-screen dim */
           "border-strong shadow-[0_12px_40px_rgb(15_20_23/0.16)] dark:shadow-[0_16px_48px_rgb(0_0_0/0.55)]",
           /* Small screens: pin to viewport so the panel never hangs off the left edge */
           "fixed inset-x-3 top-[max(4.25rem,calc(env(safe-area-inset-top,0px)+3.75rem))] w-auto",
           /* sm+: anchor to bell, cap width so medium layouts stay lighter */
-          "sm:absolute sm:inset-x-auto sm:left-auto sm:right-0 sm:top-full sm:mt-2 sm:max-h-[min(75vh,28rem)] sm:w-[min(20rem,calc(100vw-2rem))]",
+          "sm:absolute sm:inset-x-auto sm:left-auto sm:right-0 sm:top-full sm:mt-2 sm:max-h-[min(22rem,calc(100dvh-9rem))] sm:w-[min(20rem,calc(100vw-2rem))]",
           "lg:w-[min(22rem,calc(100vw-2rem))]",
         )}
       >
@@ -852,6 +811,27 @@ function AppShellFrame({ children }) {
             })
           )}
         </div>
+
+        {!notificationsLoading &&
+        notificationsTotal > 0 &&
+        pathname !== "/notifications" ? (
+          <div className="border-t border-base px-2 py-1.5">
+            <Link
+              href="/notifications"
+              onClick={() => {
+                clearReturnStack();
+                setNotificationsOpen(false);
+              }}
+              className="flex w-full items-center justify-center gap-1.5 rounded-theme-md px-2 py-1.5 text-xs font-medium text-muted transition hover:bg-accent hover:text-main"
+            >
+              <span>View all</span>
+              {notificationsTotal > notifications.length ? (
+                <span className="tabular-nums text-soft">{notificationsTotal}</span>
+              ) : null}
+              <Icon name="chevronLeft" className="h-3 w-3 rotate-180" />
+            </Link>
+          </div>
+        ) : null}
       </div>
     );
   }

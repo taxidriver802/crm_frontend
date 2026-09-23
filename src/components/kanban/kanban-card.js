@@ -4,6 +4,7 @@ import { CSS } from "@dnd-kit/utilities";
 import { useSortable } from "@dnd-kit/sortable";
 import { useReturnPush } from "@/components/return-to";
 import { formatDate, formatDaysInStatus } from "@/lib/helper";
+import { formatPhoneDisplay } from "@/lib/input-format";
 
 export function KanbanCard({ lead }) {
   const push = useReturnPush();
@@ -60,7 +61,8 @@ export function KanbanCard({ lead }) {
         </button>
       </div>
       <div className="mt-1 text-xs text-muted">
-        {(lead.email ?? "—") + (lead.phone ? ` • ${lead.phone}` : "")}
+        {(lead.email ?? "—") +
+          (lead.phone ? ` • ${formatPhoneDisplay(lead.phone)}` : "")}
       </div>
       <div className="mt-2 text-xs text-muted">
         {lead.source || "Unknown source"} • {formatDate(lead.created_at)}

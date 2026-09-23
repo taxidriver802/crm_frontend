@@ -11,10 +11,13 @@ import {
   formatAssigneeName,
 } from "@/components/ui/entity-list";
 import { formatDate, formatDaysInStatus } from "@/lib/helper";
+import { formatPhoneDisplay } from "@/lib/input-format";
 
 function LeadRow({ lead, canViewAll, teamUsers, onOpen, onAssign, variant = "card" }) {
   const name = `${lead.first_name || ""} ${lead.last_name || ""}`.trim() || "Lead";
-  const contact = (lead.email ?? "—") + (lead.phone ? ` • ${lead.phone}` : "");
+  const contact =
+    (lead.email ?? "—") +
+    (lead.phone ? ` • ${formatPhoneDisplay(lead.phone)}` : "");
   const daysInStatus = formatDaysInStatus(lead.status_changed_at);
 
   return (

@@ -36,6 +36,12 @@ const QUICK_NAV_ITEMS = [
   { href: "/tasks", label: "Tasks", icon: "checklist", keywords: "to do todo tk" },
   { href: "/invoices", label: "Invoices", icon: "invoice", keywords: "billing inv" },
   { href: "/files", label: "Files", icon: "folder", keywords: "documents docs fl" },
+  {
+    href: "/notifications",
+    label: "Notifications",
+    icon: "bell",
+    keywords: "alerts inbox bell unread",
+  },
   { href: "/reports", label: "Reports", icon: "chart", keywords: "analytics rpt" },
   { href: "/automation", label: "Automation", icon: "spark", keywords: "workflows auto" },
   {

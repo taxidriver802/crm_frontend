@@ -45,6 +45,8 @@ import { PageError } from "@/components/error-boundary";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { HealthBadge } from "@/components/ui/health-badge";
 import { Field, FormActions } from "@/components/ui/field";
+import { NumberInput } from "@/components/ui/formatted-inputs";
+import { formatNumberDisplay } from "@/lib/input-format";
 import { EmptyState } from "@/components/error-boundary";
 
 const JOB_STATUSES = [
@@ -1056,13 +1058,15 @@ export default function JobDetailPage() {
                       />
                     </Field>
                     <Field label="Value">
-                      <input
-                        className="input"
+                      <NumberInput
+                        allowDecimal
+                        group
+                        maxDecimals={4}
                         value={measurementForm.value}
-                        onChange={(e) =>
-                          setMeasurementForm((f) => ({ ...f, value: e.target.value }))
+                        onChange={(value) =>
+                          setMeasurementForm((f) => ({ ...f, value }))
                         }
-                        placeholder="e.g. 2400"
+                        placeholder="2,400"
                       />
                     </Field>
                     <Field label="Unit">
@@ -1114,7 +1118,7 @@ export default function JobDetailPage() {
                       >
                         <div className="font-medium">{m.label}</div>
                         <div className="mt-1 text-sm text-muted">
-                          {m.value} {m.unit || ""}
+                          {formatNumberDisplay(m.value)} {m.unit || ""}
                         </div>
                       </button>
                       <button

@@ -1,7 +1,17 @@
 "use client";
 
+import { useState } from "react";
 import { Alert } from "@/components/ui/alert";
 import { Field, FormActions } from "@/components/ui/field";
+import { CurrencyInput, EmailInput, PhoneInput } from "@/components/ui/formatted-inputs";
+import {
+  BUDGET_RANGE_ERROR,
+  NUMBER_ERROR,
+  PHONE_ERROR,
+  emailError,
+  isValidNumber,
+  isValidPhone,
+} from "@/lib/input-format";
 
 const STATUS_OPTIONS = ["New", "Contacted", "Qualified", "Closed", "Inactive"];
 const SOURCE_OPTIONS = ["Referral", "Website", "Repeat customer", "Door knock", "Other"];
@@ -23,6 +33,25 @@ const EMPTY_FORM = {
   preferred_contact_method: "",
   urgency: "",
 };
+
+function leadFieldErrors(form) {
+  const errors = {};
+  const emailMessage = emailError(form.email);
+  if (emailMessage) errors.email = emailMessage;
+  if (!isValidPhone(form.phone)) errors.phone = PHONE_ERROR;
+  if (!isValidNumber(form.budget_min)) errors.budget_min = NUMBER_ERROR;
+  if (!isValidNumber(form.budget_max)) errors.budget_max = NUMBER_ERROR;
+  if (
+    !errors.budget_min &&
+    !errors.budget_max &&
+    String(form.budget_min ?? "").trim() &&
+    String(form.budget_max ?? "").trim() &&
+    Number(form.budget_min) > Number(form.budget_max)
+  ) {
+    errors.budget_max = BUDGET_RANGE_ERROR;
+  }
+  return errors;
+}
 
 function withCurrentValue(options, value) {
   if (value && !options.includes(value)) {
@@ -47,13 +76,45 @@ export function LeadForm({
   layout = "default", // "default" | "compact"
 }) {
   const isCompact = layout === "compact";
+  const [errors, setErrors] = useState({});
 
   function setField(key, value) {
     onChange((prev) => ({ ...prev, [key]: value }));
+    setErrors((prev) => {
+      if (!prev[key] && !((key === "budget_min" || key === "budget_max") && prev.budget_max)) {
+        return prev;
+      }
+      const next = { ...prev };
+      delete next[key];
+      if (key === "budget_min" || key === "budget_max") delete next.budget_max;
+      return next;
+    });
+  }
+
+  function showFieldError(key) {
+    const next = leadFieldErrors(form);
+    setErrors((prev) => {
+      const updated = { ...prev };
+      if (next[key]) updated[key] = next[key];
+      else delete updated[key];
+      if (key === "budget_min" || key === "budget_max") {
+        if (next.budget_max === BUDGET_RANGE_ERROR) updated.budget_max = BUDGET_RANGE_ERROR;
+        else if (updated.budget_max === BUDGET_RANGE_ERROR) delete updated.budget_max;
+      }
+      return updated;
+    });
+  }
+
+  function handleSubmit(event) {
+    event.preventDefault();
+    const next = leadFieldErrors(form);
+    setErrors(next);
+    if (Object.keys(next).length) return;
+    onSubmit(event);
   }
 
   return (
-    <form onSubmit={onSubmit} className="space-y-4">
+    <form onSubmit={handleSubmit} className="space-y-4">
       {error ? <Alert variant="inline">{error}</Alert> : null}
 
       <div className={`grid gap-4 ${isCompact ? "md:grid-cols-2" : "sm:grid-cols-2"}`}>
@@ -73,20 +134,22 @@ export function LeadForm({
           />
         </Field>
 
-        <Field label="Email">
-          <input
-            className="input"
+        <Field label="Email" error={errors.email}>
+          <EmailInput
             value={form.email}
-            onChange={(e) => setField("email", e.target.value)}
-            inputMode="email"
+            invalid={Boolean(errors.email)}
+            onChange={(value) => setField("email", value)}
+            onBlur={() => showFieldError("email")}
           />
         </Field>
 
-        <Field label="Phone">
-          <input
-            className="input"
+        <Field label="Phone" error={errors.phone}>
+          <PhoneInput
             value={form.phone}
-            onChange={(e) => setField("phone", e.target.value)}
+            invalid={Boolean(errors.phone)}
+            placeholder="(555) 123-4567"
+            onChange={(value) => setField("phone", value)}
+            onBlur={() => showFieldError("phone")}
           />
         </Field>
 
@@ -166,23 +229,23 @@ export function LeadForm({
           </select>
         </Field>
 
-        <Field label="Budget min">
-          <input
-            className="input"
+        <Field label="Budget min" error={errors.budget_min}>
+          <CurrencyInput
             value={form.budget_min}
-            onChange={(e) => setField("budget_min", e.target.value)}
-            inputMode="numeric"
-            placeholder="e.g. 250000"
+            invalid={Boolean(errors.budget_min)}
+            placeholder="$250,000"
+            onChange={(value) => setField("budget_min", value)}
+            onBlur={() => showFieldError("budget_min")}
           />
         </Field>
 
-        <Field label="Budget max">
-          <input
-            className="input"
+        <Field label="Budget max" error={errors.budget_max}>
+          <CurrencyInput
             value={form.budget_max}
-            onChange={(e) => setField("budget_max", e.target.value)}
-            inputMode="numeric"
-            placeholder="e.g. 400000"
+            invalid={Boolean(errors.budget_max)}
+            placeholder="$400,000"
+            onChange={(value) => setField("budget_max", value)}
+            onBlur={() => showFieldError("budget_max")}
           />
         </Field>
 

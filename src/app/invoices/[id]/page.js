@@ -13,6 +13,7 @@ import { PageError } from "@/components/error-boundary";
 import { API_BASE, formatDate } from "@/lib/helper";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { Field, FormActions } from "@/components/ui/field";
+import { CurrencyInput, NumberInput } from "@/components/ui/formatted-inputs";
 import { DetailHeader } from "@/components/ui/detail-header";
 import { SectionCard } from "@/components/ui/section-card";
 import { MetaItem } from "@/components/ui/meta";
@@ -61,23 +62,28 @@ function InvoiceLineItemForm({
       </div>
       <div className="grid gap-3 sm:grid-cols-2">
         <Field label="Quantity">
-          <input
-            type="number"
-            className="input"
+          <NumberInput
+            allowDecimal
             value={form.quantity}
-            onChange={(e) => onChange({ ...form, quantity: e.target.value })}
-            min="0"
-            step="any"
+            onChange={(value) => {
+              if (value === "" || String(value).endsWith(".")) {
+                onChange({ ...form, quantity: value });
+                return;
+              }
+              const parsed = Number(value);
+              onChange({
+                ...form,
+                quantity: Number.isFinite(parsed) ? parsed : value,
+              });
+            }}
           />
         </Field>
         <Field label="Unit Price">
-          <input
-            type="number"
-            className="input"
+          <CurrencyInput
+            cents
+            placeholder="$0.00"
             value={form.unit_price}
-            onChange={(e) => onChange({ ...form, unit_price: e.target.value })}
-            min="0"
-            step="any"
+            onChange={(value) => onChange({ ...form, unit_price: value })}
           />
         </Field>
       </div>
