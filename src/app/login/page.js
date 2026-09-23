@@ -6,6 +6,8 @@ import { useRouter } from "next/navigation";
 import { api } from "@/lib/api";
 import { Alert } from "@/components/ui/alert";
 import { Field, FormActions } from "@/components/ui/field";
+import { EmailInput } from "@/components/ui/formatted-inputs";
+import { emailError } from "@/lib/input-format";
 import { AuthFrame } from "@/components/auth/auth-frame";
 import { useThemeController } from "@/components/theme/theme-controller";
 import {
@@ -26,6 +28,7 @@ export default function LoginPage() {
   const [resolvedCompany, setResolvedCompany] = useState(null);
   const [unknownSlug, setUnknownSlug] = useState("");
   const [error, setError] = useState("");
+  const [emailFieldError, setEmailFieldError] = useState("");
   const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
@@ -89,6 +92,12 @@ export default function LoginPage() {
   async function handleSubmit(e) {
     e.preventDefault();
     if (!canSubmit) return;
+    const nextEmailError = emailError(email, { required: true });
+    if (nextEmailError) {
+      setEmailFieldError(nextEmailError);
+      return;
+    }
+    setEmailFieldError("");
     setError("");
 
     try {
@@ -152,16 +161,18 @@ export default function LoginPage() {
           />
         </Field>
 
-        <Field label="Email" htmlFor="login-email" required>
-          <input
+        <Field label="Email" htmlFor="login-email" required error={emailFieldError}>
+          <EmailInput
             id="login-email"
-            type="email"
             placeholder="you@example.com"
-            className="input"
             value={email}
-            onChange={(e) => setEmail(e.target.value)}
+            invalid={Boolean(emailFieldError)}
+            onChange={(value) => {
+              setEmail(value);
+              if (emailFieldError) setEmailFieldError("");
+            }}
+            onBlur={() => setEmailFieldError(emailError(email, { required: true }))}
             required
-            autoComplete="email"
           />
         </Field>
 

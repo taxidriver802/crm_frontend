@@ -1,6 +1,7 @@
 "use client";
 
 import { Field, FormActions } from "@/components/ui/field";
+import { CurrencyInput, NumberInput } from "@/components/ui/formatted-inputs";
 
 export function createEmptyLineItem() {
   return {
@@ -25,29 +26,15 @@ export function EstimateLineItemForm({
     onChange((prev) => ({ ...prev, [key]: value }));
   }
 
-  function handleNumberChange(key, rawValue, min, defaultValue) {
+  function handleQuantityChange(rawValue) {
     if (rawValue === "") {
-      setField(key, "");
+      setField("quantity", "");
       return;
     }
 
     const parsed = Number(rawValue);
-    if (Number.isNaN(parsed)) {
-      setField(key, defaultValue);
-      return;
-    }
-
-    let value = Math.max(min, parsed);
-
-    if (key === "quantity") {
-      value = Math.max(min, Math.trunc(value));
-    }
-
-    if (key === "unit_price") {
-      value = Math.max(min, Math.round(value * 100) / 100);
-    }
-
-    setField(key, value);
+    if (!Number.isFinite(parsed)) return;
+    setField("quantity", Math.max(1, Math.trunc(parsed)));
   }
 
   return (
@@ -72,26 +59,19 @@ export function EstimateLineItemForm({
 
       <div className="grid grid-cols-2 gap-3">
         <Field label="Quantity">
-          <input
-            className="input"
+          <NumberInput
             placeholder="1"
-            type="number"
-            min="1"
-            step="1"
             value={form.quantity}
-            onChange={(e) => handleNumberChange("quantity", e.target.value, 1, 1)}
+            onChange={handleQuantityChange}
           />
         </Field>
 
         <Field label="Unit price">
-          <input
-            className="input"
-            type="number"
-            min="0"
-            step="0.01"
-            placeholder="0.00"
+          <CurrencyInput
+            cents
+            placeholder="$0.00"
             value={form.unit_price}
-            onChange={(e) => handleNumberChange("unit_price", e.target.value, 0, 0)}
+            onChange={(value) => setField("unit_price", value)}
           />
         </Field>
       </div>

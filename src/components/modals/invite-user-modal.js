@@ -4,6 +4,8 @@ import { useEffect, useState } from "react";
 import { Alert } from "@/components/ui/alert";
 import { ModalFrame } from "@/components/ui/overlay";
 import { Field, FormActions } from "@/components/ui/field";
+import { EmailInput } from "@/components/ui/formatted-inputs";
+import { emailError } from "@/lib/input-format";
 
 const ROLE_OPTIONS = [
   { value: "agent", label: "Agent" },
@@ -20,6 +22,7 @@ export function InviteUserModal({ open, onClose }) {
 
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
+  const [emailFieldError, setEmailFieldError] = useState("");
   const [successUser, setSuccessUser] = useState(null);
   const [inviteUrl, setInviteUrl] = useState("");
   const [hasCopied, setHasCopied] = useState(false);
@@ -35,6 +38,7 @@ export function InviteUserModal({ open, onClose }) {
       });
       setSubmitting(false);
       setError("");
+      setEmailFieldError("");
       setSuccessUser(null);
       setInviteUrl("");
       setEmailSent(false);
@@ -43,6 +47,12 @@ export function InviteUserModal({ open, onClose }) {
 
   async function handleSubmit(e) {
     e.preventDefault();
+    const nextEmailError = emailError(form.email, { required: true });
+    if (nextEmailError) {
+      setEmailFieldError(nextEmailError);
+      return;
+    }
+    setEmailFieldError("");
     setSubmitting(true);
     setError("");
     setSuccessUser(null);
@@ -136,12 +146,15 @@ export function InviteUserModal({ open, onClose }) {
               </Field>
             </div>
 
-            <Field label="Email" required>
-              <input
-                type="email"
+            <Field label="Email" required error={emailFieldError}>
+              <EmailInput
                 value={form.email}
-                onChange={(e) => setForm((prev) => ({ ...prev, email: e.target.value }))}
-                className="input"
+                invalid={Boolean(emailFieldError)}
+                onChange={(value) => {
+                  setForm((prev) => ({ ...prev, email: value }));
+                  if (emailFieldError) setEmailFieldError("");
+                }}
+                onBlur={() => setEmailFieldError(emailError(form.email, { required: true }))}
                 required
               />
             </Field>

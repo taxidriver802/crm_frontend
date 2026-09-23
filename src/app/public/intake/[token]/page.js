@@ -7,8 +7,10 @@ import { PublicFrame } from "@/components/public/public-frame";
 import { publicBrandProps, usePublicCompanyTheme } from "@/components/brand/company-mark";
 import { SectionCard } from "@/components/ui/section-card";
 import { Field, FormActions } from "@/components/ui/field";
+import { EmailInput, PhoneInput } from "@/components/ui/formatted-inputs";
 import { Alert } from "@/components/ui/alert";
 import { EmptyState } from "@/components/error-boundary";
+import { PHONE_ERROR, emailError, isValidPhone } from "@/lib/input-format";
 
 const SERVICE_OPTIONS = ["Inspection", "Repair", "Replacement", "Gutters", "Maintenance"];
 const CONTACT_OPTIONS = ["Call", "Text", "Email"];
@@ -32,6 +34,7 @@ export default function PublicIntakePage() {
   );
 
   const [form, setForm] = useState(EMPTY_FORM);
+  const [fieldErrors, setFieldErrors] = useState({});
   const [company, setCompany] = useState(null);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
@@ -39,6 +42,20 @@ export default function PublicIntakePage() {
 
   function setField(key, value) {
     setForm((prev) => ({ ...prev, [key]: value }));
+    setFieldErrors((prev) => {
+      if (!prev[key]) return prev;
+      const next = { ...prev };
+      delete next[key];
+      return next;
+    });
+  }
+
+  function contactErrors(current = form) {
+    const errors = {};
+    const emailMessage = emailError(current.email);
+    if (emailMessage) errors.email = emailMessage;
+    if (!isValidPhone(current.phone)) errors.phone = PHONE_ERROR;
+    return errors;
   }
 
   async function onSubmit(event) {
@@ -50,8 +67,14 @@ export default function PublicIntakePage() {
       setError("Please enter your first and last name.");
       return;
     }
+    const nextFieldErrors = contactErrors();
     if (!form.email.trim() && !form.phone.trim()) {
       setError("Please provide an email or phone number.");
+      setFieldErrors(nextFieldErrors);
+      return;
+    }
+    if (Object.keys(nextFieldErrors).length) {
+      setFieldErrors(nextFieldErrors);
       return;
     }
 
@@ -187,22 +210,29 @@ export default function PublicIntakePage() {
           </div>
 
           <div className="grid gap-4 sm:grid-cols-2">
-            <Field label="Email" help="Email or phone is required">
-              <input
-                className="input"
-                type="email"
+            <Field
+              label="Email"
+              error={fieldErrors.email}
+              help={fieldErrors.email ? undefined : "Email or phone is required"}
+            >
+              <EmailInput
                 value={form.email}
-                onChange={(e) => setField("email", e.target.value)}
-                autoComplete="email"
+                invalid={Boolean(fieldErrors.email)}
+                onChange={(value) => setField("email", value)}
+                onBlur={() =>
+                  setFieldErrors((prev) => ({ ...prev, ...contactErrors() }))
+                }
               />
             </Field>
-            <Field label="Phone">
-              <input
-                className="input"
-                type="tel"
+            <Field label="Phone" error={fieldErrors.phone}>
+              <PhoneInput
                 value={form.phone}
-                onChange={(e) => setField("phone", e.target.value)}
-                autoComplete="tel"
+                invalid={Boolean(fieldErrors.phone)}
+                placeholder="(555) 123-4567"
+                onChange={(value) => setField("phone", value)}
+                onBlur={() =>
+                  setFieldErrors((prev) => ({ ...prev, ...contactErrors() }))
+                }
               />
             </Field>
           </div>
