@@ -1374,6 +1374,14 @@
   overscroll-behavior: none;
 }
 
+/* Applied before paint when the sidebar was saved closed, so the first HTML
+   frame does not show it open. The shell removes this once it has read storage. */
+html[data-sidebar="closed"] #desktop-sidebar {
+  width: 0 !important;
+  border-width: 0 !important;
+  transition: none !important;
+}
+
 @supports (padding: max(0px)) {
   body {
     padding-left: env(safe-area-inset-left, 0px);
@@ -1392,5 +1400,156 @@
 
   .status-chip {
     min-height: 32px;
+  }
+}
+
+/* Sidebar toggle with the back segment attached to its trailing edge. */
+.shell-nav-cluster {
+  --shell-back-duration: 240ms;
+  position: relative;
+  display: inline-flex;
+  align-items: stretch;
+  flex-shrink: 0;
+  height: 2.25rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--surface-elevated);
+  overflow: hidden;
+}
+
+.shell-nav-toggle {
+  display: none;
+  width: calc(2.25rem - 2px);
+  height: 100%;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+}
+
+.shell-nav-toggle:hover {
+  background: var(--accent-soft);
+}
+
+.shell-back-slot {
+  display: grid;
+  grid-template-columns: 0fr;
+  min-width: 0;
+  transition: grid-template-columns var(--shell-back-duration) var(--ease-standard);
+}
+
+.shell-back-slot.is-open {
+  grid-template-columns: 1fr;
+}
+
+.shell-back-slot:not(.is-open) {
+  pointer-events: none;
+}
+
+.shell-back-clip {
+  overflow: hidden;
+  min-width: 0;
+}
+
+.shell-back-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  height: 100%;
+  margin: 0;
+  padding: 0 0.75rem 0 0.45rem;
+  border: 0;
+  border-left: 1px solid var(--border);
+  border-radius: 0;
+  background: transparent;
+  color: var(--text-muted);
+  font-size: 0.75rem;
+  font-weight: 500;
+  line-height: 1;
+  white-space: nowrap;
+  cursor: pointer;
+  transform: translateX(-0.55rem);
+  opacity: 0;
+  transition:
+    transform var(--shell-back-duration) var(--ease-standard),
+    opacity calc(var(--shell-back-duration) * 0.85) var(--ease-standard),
+    background var(--duration-fast) var(--ease-standard),
+    color var(--duration-fast) var(--ease-standard);
+}
+
+.shell-back-slot.is-open .shell-back-btn {
+  transform: none;
+  opacity: 1;
+}
+
+.shell-back-btn:hover {
+  background: var(--accent-soft);
+  color: var(--text);
+}
+
+.shell-nav-toggle:focus-visible,
+.shell-back-btn:focus-visible {
+  outline: none;
+  box-shadow: inset 0 0 0 2px var(--accent);
+  position: relative;
+  z-index: 1;
+}
+
+@media (min-width: 1024px) {
+  .shell-nav-toggle {
+    display: inline-flex;
+  }
+}
+
+@media (max-width: 1023px) {
+  .shell-back-btn {
+    border-left: 0;
+  }
+
+  .shell-nav-cluster:not(:has(.shell-back-slot)) {
+    position: absolute;
+    width: 0;
+    height: 0;
+    min-height: 0;
+    overflow: hidden;
+    border: 0;
+    pointer-events: none;
+  }
+
+  .shell-nav-cluster:has(.shell-back-slot.is-open) + .shell-header-title {
+    margin-left: 0.5rem;
+  }
+
+  .shell-header-title {
+    transition: margin-left var(--shell-back-duration, 240ms) var(--ease-standard);
+  }
+}
+
+@media (hover: none) and (pointer: coarse) {
+  .shell-nav-cluster {
+    height: 44px;
+  }
+
+  .shell-nav-toggle {
+    width: calc(44px - 2px);
+    min-width: calc(44px - 2px);
+  }
+
+  .shell-back-btn {
+    min-width: 0;
+    min-height: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .shell-back-slot,
+  .shell-back-btn,
+  .shell-header-title {
+    transition: none;
   }
 }

@@ -4,6 +4,7 @@ import {
   createContext,
   useCallback,
   useContext,
+  useEffect,
   useLayoutEffect,
   useMemo,
   useState,
@@ -12,6 +13,8 @@ import {
 } from "react";
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { Icon } from "@/components/icons";
+import { cx } from "@/lib/cx";
 import {
   currentOriginHref,
   originLabelFromTitle,
@@ -109,10 +112,22 @@ export function useReturnPush() {
   );
 }
 
+const BACK_REVEAL_MS = 240;
+
 export function ReturnBackButton({ back }) {
   const pathname = usePathname();
   const router = useRouter();
-  const parsed = useReturnTo();
+  // Read the query without useSearchParams. That hook suspends, and the
+  // fallback unmounts this button before it can slide closed.
+  const search = useSyncExternalStore(
+    () => () => {},
+    () => window.location.search,
+    () => "",
+  );
+  const parsed = useMemo(
+    () => parseReturnTo(new URLSearchParams(search), pathname),
+    [search, pathname],
+  );
   // sessionStorage is client-only; read after mount. Cache with useMemo so the
   // peeked entry keeps a stable identity (useSyncExternalStore + a fresh object
   // from peekReturnStack each call caused React error #185 / max update depth
@@ -128,25 +143,61 @@ export function ReturnBackButton({ back }) {
   );
 
   const resolved = resolveReturnBack(back, parsed, stackEntry);
+  const resolvedKey = resolved
+    ? `${resolved.href}|${resolved.text}|${resolved.fromStack ? "1" : "0"}`
+    : "";
 
-  if (!resolved) return null;
+  // Keep the last target mounted through the close animation so the segment
+  // can slide back into the sidebar toggle instead of unmounting instantly.
+  const [presented, setPresented] = useState(null);
+  const [open, setOpen] = useState(false);
+
+  useLayoutEffect(() => {
+    if (resolved) {
+      setPresented(resolved);
+      return undefined;
+    }
+
+    setOpen(false);
+    const timeout = window.setTimeout(() => {
+      setPresented(null);
+    }, BACK_REVEAL_MS + 60);
+    return () => window.clearTimeout(timeout);
+    // resolvedKey is the identity of the back target. Depending on `resolved`
+    // would restart the close timer on every render.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [resolvedKey]);
+
+  useEffect(() => {
+    if (!resolvedKey || !presented) return undefined;
+    const frame = window.requestAnimationFrame(() => setOpen(true));
+    return () => window.cancelAnimationFrame(frame);
+  }, [resolvedKey, presented]);
+
+  if (!presented) return null;
 
   return (
-    <button
-      type="button"
-      className="btn shrink-0 px-3 py-2 text-xs"
-      title={resolved.text}
-      onClick={() => {
-        if (resolved.fromStack) {
-          const fromStack = popReturnStack(pathname);
-          const target = fromStack?.href || resolved.href;
-          if (target) router.push(target);
-          return;
-        }
-        router.push(resolved.href);
-      }}
-    >
-      <span className="max-w-[10rem] truncate sm:max-w-[16rem]">{resolved.text}</span>
-    </button>
+    <div className={cx("shell-back-slot", open && "is-open")}>
+      <div className="shell-back-clip">
+        <button
+          type="button"
+          className="shell-back-btn"
+          title={presented.text}
+          tabIndex={open ? 0 : -1}
+          onClick={() => {
+            if (presented.fromStack) {
+              const fromStack = popReturnStack(pathname);
+              const target = fromStack?.href || presented.href;
+              if (target) router.push(target);
+              return;
+            }
+            router.push(presented.href);
+          }}
+        >
+          <Icon name="chevronLeft" className="h-3.5 w-3.5" />
+          <span className="max-w-[9rem] truncate sm:max-w-[14rem]">{presented.text}</span>
+        </button>
+      </div>
+    </div>
   );
 }

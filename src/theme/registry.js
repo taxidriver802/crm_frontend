@@ -1,4 +1,4 @@
-import { DEFAULT_PALETTE_ID, PALETTE_STORAGE_KEY } from "./constants";
+import { DEFAULT_PALETTE_ID, PALETTE_STORAGE_KEY, COMPANY_PALETTE_STORAGE_KEY } from "./constants";
 import { rooftop } from "./themes/rooftop";
 import { azure } from "./themes/azure";
 import { slate } from "./themes/slate";
@@ -65,9 +65,32 @@ export function readStoredPaletteId() {
   if (typeof window === "undefined") return DEFAULT_PALETTE_ID;
   try {
     const id = window.localStorage.getItem(PALETTE_STORAGE_KEY);
-    return isPaletteId(id) ? id : DEFAULT_PALETTE_ID;
+    return isPaletteId(id) ? id : null;
   } catch {
-    return DEFAULT_PALETTE_ID;
+    return null;
+  }
+}
+
+export function readStoredCompanyPaletteId() {
+  if (typeof window === "undefined") return null;
+  try {
+    const id = window.localStorage.getItem(COMPANY_PALETTE_STORAGE_KEY);
+    return isPaletteId(id) ? id : null;
+  } catch {
+    return null;
+  }
+}
+
+export function writeStoredCompanyPaletteId(id) {
+  if (typeof window === "undefined") return;
+  try {
+    if (!isPaletteId(id)) {
+      window.localStorage.removeItem(COMPANY_PALETTE_STORAGE_KEY);
+      return;
+    }
+    window.localStorage.setItem(COMPANY_PALETTE_STORAGE_KEY, id);
+  } catch {
+    // ignore quota / private mode
   }
 }
 
@@ -98,9 +121,10 @@ export function buildAllPalettesCss() {
 
 export function getPaletteBootstrapScript() {
   const known = JSON.stringify(Object.keys(palettes));
-  const key = JSON.stringify(PALETTE_STORAGE_KEY);
+  const personalKey = JSON.stringify(PALETTE_STORAGE_KEY);
+  const companyKey = JSON.stringify(COMPANY_PALETTE_STORAGE_KEY);
   const fallback = JSON.stringify(DEFAULT_PALETTE_ID);
-  return `(function(){try{var known=${known};var id=localStorage.getItem(${key})||${fallback};if(known.indexOf(id)<0)id=${fallback};document.documentElement.setAttribute("data-palette",id);}catch(e){document.documentElement.setAttribute("data-palette",${fallback});}})();`;
+  return `(function(){try{var known=${known};var personal=localStorage.getItem(${personalKey});var company=localStorage.getItem(${companyKey});var id=(personal&&known.indexOf(personal)>=0)?personal:(company&&known.indexOf(company)>=0)?company:${fallback};document.documentElement.setAttribute("data-palette",id);}catch(e){document.documentElement.setAttribute("data-palette",${fallback});}})();`;
 }
 
-export { DEFAULT_PALETTE_ID, PALETTE_STORAGE_KEY };
+export { DEFAULT_PALETTE_ID, PALETTE_STORAGE_KEY, COMPANY_PALETTE_STORAGE_KEY };

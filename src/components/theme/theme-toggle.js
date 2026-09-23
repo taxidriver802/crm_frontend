@@ -113,7 +113,11 @@ export function ThemeToggle({ className = "", variant = "button", tone = "defaul
             !iconOnly && !chrome && "rounded-theme-md border border-base p-1",
           )}
         >
-          <PalettePicker tone={tone} onPicked={() => setPaletteOpen(false)} />
+          <PalettePicker
+            tone={tone}
+            companyDefault={!iconOnly}
+            onPicked={() => setPaletteOpen(false)}
+          />
         </div>
       ) : null}
     </div>

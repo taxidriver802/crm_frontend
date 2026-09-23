@@ -92,6 +92,8 @@ function LeadsPageInner() {
   }, []);
 
   const canViewAll = currentUser?.role === "owner" || currentUser?.role === "admin";
+  const summaryPath =
+    canViewAll && viewScope === "all" ? "/leads/summary?view=all" : "/leads/summary";
   const currentFiltersForSave = useMemo(
     () => ({ q, status, assignedFilter, viewScope, viewMode }),
     [q, status, assignedFilter, viewScope, viewMode],
@@ -160,7 +162,7 @@ function LeadsPageInner() {
   async function loadSummary() {
     setLoadingSummary(true);
     try {
-      const data = await api("/leads/summary");
+      const data = await api(summaryPath);
       setSummary(data);
     } catch (e) {
       setError(e.message || "Failed to load leads summary");
@@ -195,6 +197,11 @@ function LeadsPageInner() {
     loadLeads();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [queryString]);
+
+  useEffect(() => {
+    loadSummary();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [summaryPath]);
 
   async function handleCreateLead(e) {
     e.preventDefault();

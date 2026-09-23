@@ -11,6 +11,7 @@ import { MetaItem, MetaList } from "@/components/ui/meta";
 import { EmptyState } from "@/components/error-boundary";
 import { Skeleton } from "@/components/loading/loadingSkeletons";
 import { PublicFrame } from "@/components/public/public-frame";
+import { publicBrandProps, usePublicCompanyTheme } from "@/components/brand/company-mark";
 
 function formatDate(input) {
   if (!input) return "—";
@@ -59,6 +60,8 @@ export default function CustomerPortalPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [token]);
 
+  usePublicCompanyTheme(data?.company);
+
   if (loading) {
     return (
       <PublicFrame eyebrow="Customer portal" title="Your project">
@@ -84,15 +87,16 @@ export default function CustomerPortalPage() {
     );
   }
 
-  const { job, estimates, invoices, files, timeline = [] } = data;
+  const { job, estimates, invoices, files, timeline = [], company } = data;
 
   return (
-    <PublicFrame
-      eyebrow="Customer portal"
-      title={job.title}
-      description={job.address || undefined}
-      footer="This portal was generated for your convenience. Contact your project manager for questions."
-    >
+      <PublicFrame
+        eyebrow="Customer portal"
+        title={job.title}
+        description={job.address || undefined}
+        footer="This portal was generated for your convenience. Contact your project manager for questions."
+        {...publicBrandProps(company)}
+      >
       <SectionCard
         title="Project status"
         right={<StatusBadge kind="job" status={job.status} />}
@@ -175,7 +179,10 @@ export default function CustomerPortalPage() {
 
       <SectionCard title="Project photos">
         <PhotoGallery
-          files={files}
+          files={files.map((file) => ({
+            ...file,
+            url: `${API_BASE}/public/portal/${token}/files/${file.id}`,
+          }))}
           loading={false}
           emptyTitle="No photos shared yet."
           emptyDescription=""

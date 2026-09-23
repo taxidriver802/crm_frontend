@@ -1,5 +1,5 @@
-import MainLogo from "@/assets/mainlogo.svg";
 import { ThemeToggle } from "@/components/theme/theme-toggle";
+import { CompanyMark } from "@/components/brand/company-mark";
 import { cx } from "@/lib/cx";
 
 export function PublicFrame({
@@ -9,6 +9,9 @@ export function PublicFrame({
   width = "default",
   children,
   footer,
+  companyName,
+  markId,
+  logoUrl,
 }) {
   const maxWidth = width === "narrow" ? "max-w-2xl" : "max-w-4xl";
 
@@ -22,9 +25,21 @@ export function PublicFrame({
           )}
         >
           <div className="flex min-w-0 items-start gap-3">
-            <MainLogo className="mt-0.5 h-8 w-8 shrink-0 text-main" />
+            <CompanyMark
+              markId={markId}
+              logoUrl={logoUrl}
+              className="mt-0.5 h-8 w-8 shrink-0 text-main"
+              alt=""
+            />
             <div className="min-w-0">
-              {eyebrow ? <div className="text-xs text-muted">{eyebrow}</div> : null}
+              {companyName ? (
+                <div className="text-xs font-medium text-muted">{companyName}</div>
+              ) : eyebrow ? (
+                <div className="text-xs text-muted">{eyebrow}</div>
+              ) : null}
+              {companyName && eyebrow ? (
+                <div className="text-xs text-muted">{eyebrow}</div>
+              ) : null}
               <h1 className="truncate text-base font-semibold tracking-tight">{title}</h1>
               {description ? (
                 <p className="mt-0.5 text-sm text-muted">{description}</p>

@@ -9,6 +9,8 @@ export {
   resolvePrintTheme,
   resolvePwaTheme,
   readStoredPaletteId,
+  readStoredCompanyPaletteId,
+  writeStoredCompanyPaletteId,
   buildAllPalettesCss,
   getPaletteBootstrapScript,
 } from "./registry";

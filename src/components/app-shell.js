@@ -1,7 +1,10 @@
 "use client";
 
 import {
-  Suspense,
+  createContext,
+  memo,
+  useCallback,
+  useContext,
   useEffect,
   useId,
   useLayoutEffect,
@@ -24,8 +27,11 @@ import { clearReturnStack } from "@/lib/return-to";
 import { recordRecentFromPathname, parseEntityContext } from "@/lib/search-recents";
 import { cx } from "@/lib/cx";
 
-import MainLogo from "@/assets/mainlogo.svg";
+import { CompanyMark } from "@/components/brand/company-mark";
+import { CompanyBrandingModal } from "@/components/modals/company-branding-modal";
+import { useThemeController } from "@/components/theme/theme-controller";
 import { api } from "@/lib/api";
+import { writeStoredCompanySlug } from "@/lib/company-slug";
 
 const WORKFLOW_NAV = [
   { href: "/dashboard", label: "Dashboard", icon: "home", priority: "primary" },
@@ -73,6 +79,40 @@ function writeDesktopSidebarOpen(open) {
   }
 }
 
+const EMPTY_CHROME = {
+  title: undefined,
+  description: undefined,
+  right: null,
+  back: undefined,
+};
+
+const ChromeDispatchContext = createContext(() => {});
+const ChromeValueContext = createContext(EMPTY_CHROME);
+
+function sameChrome(a, b) {
+  return (
+    a.title === b.title &&
+    a.description === b.description &&
+    a.right === b.right &&
+    a.back === b.back
+  );
+}
+
+function isBarePath(pathname) {
+  if (!pathname || pathname === "/") return true;
+  return (
+    pathname === "/login" ||
+    pathname === "/register" ||
+    pathname === "/accept-invite" ||
+    pathname === "/public" ||
+    pathname.startsWith("/public/")
+  );
+}
+
+const StablePage = memo(function StablePage({ children }) {
+  return children;
+});
+
 function isActivePath(pathname, href) {
   return pathname === href || pathname.startsWith(href + "/");
 }
@@ -95,7 +135,13 @@ function formatNotificationTime(value) {
   return date.toLocaleDateString();
 }
 
-function AccountSettings({ tone = "default", isAdminUser, onInvite, onLogout }) {
+function AccountSettings({
+  tone = "default",
+  isAdminUser,
+  onInvite,
+  onCompanyLook,
+  onLogout,
+}) {
   const [open, setOpen] = useState(false);
   const panelId = useId();
   const chrome = tone === "chrome";
@@ -136,6 +182,17 @@ function AccountSettings({ tone = "default", isAdminUser, onInvite, onLogout }) 
             >
               <Icon name="userPlus" className="h-4 w-4" />
               Invite user
+            </button>
+          ) : null}
+
+          {isAdminUser ? (
+            <button
+              type="button"
+              onClick={onCompanyLook}
+              className={cx("btn w-full justify-start", chrome && "btn-chrome")}
+            >
+              <Icon name="spark" className="h-4 w-4" />
+              Company look
             </button>
           ) : null}
 
@@ -211,21 +268,26 @@ function getNotificationIconName(notification) {
   return "bell";
 }
 
-export function AppShell({ children, title, description, right, back }) {
+function AppShellFrame({ children }) {
+  const { title, description, right, back } = useContext(ChromeValueContext);
   const pathname = usePathname();
   const router = useRouter();
   const { showToast } = useToast();
+  const { setCompanyPaletteId } = useThemeController();
 
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [desktopSidebarOpen, setDesktopSidebarOpen] = useState(true);
+  const [sidebarMotion, setSidebarMotion] = useState(false);
 
   const [user, setUser] = useState(null);
+  const [company, setCompany] = useState(null);
   const [notificationsOpen, setNotificationsOpen] = useState(false);
   const [notifications, setNotifications] = useState([]);
   const [unreadCount, setUnreadCount] = useState(0);
   const [notificationsLoading, setNotificationsLoading] = useState(false);
   const [markingAllRead, setMarkingAllRead] = useState(false);
   const [inviteModalOpen, setInviteModalOpen] = useState(false);
+  const [brandingOpen, setBrandingOpen] = useState(false);
   const [logoutConfirmOpen, setLogoutConfirmOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
@@ -240,13 +302,24 @@ export function AppShell({ children, title, description, right, back }) {
     notificationsOpenRef.current = notificationsOpen;
   }, [notificationsOpen]);
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     setDesktopSidebarOpen(readDesktopSidebarOpen());
+    delete document.documentElement.dataset.sidebar;
+  }, []);
+
+  useEffect(() => {
+    setSidebarMotion(true);
   }, []);
 
   useEffect(() => {
     setMobileMenuOpen(false);
     setNotificationsOpen(false);
+    setSearchOpen(false);
+    setSearchQuery("");
+    setSearchSurface("palette");
+    setInviteModalOpen(false);
+    setBrandingOpen(false);
+    setLogoutConfirmOpen(false);
     recordRecentFromPathname(pathname);
   }, [pathname]);
 
@@ -442,6 +515,9 @@ export function AppShell({ children, title, description, right, back }) {
       if (!res.ok) return;
       const data = await res.json();
       setUser(data.user);
+      setCompany(data.company || null);
+      if (data.company?.slug) writeStoredCompanySlug(data.company.slug);
+      if (data.company?.palette_id) setCompanyPaletteId(data.company.palette_id);
     } catch (err) {
       console.error("Failed to load user", err);
     }
@@ -575,6 +651,31 @@ export function AppShell({ children, title, description, right, back }) {
     }
   }
 
+  async function handleDeleteNotification(notificationId) {
+    const wasUnread = notifications.some(
+      (item) => item.id === notificationId && !item.read_at,
+    );
+
+    try {
+      await api(`/notifications/${notificationId}`, {
+        method: "DELETE",
+        credentials: "include",
+      });
+
+      setNotifications((prev) => {
+        const next = prev.filter((item) => item.id !== notificationId);
+        prevNotificationsRef.current = next;
+        return next;
+      });
+
+      if (wasUnread) {
+        setUnreadCount((prev) => Math.max(0, prev - 1));
+      }
+    } catch (err) {
+      console.error("Failed to delete notification", err);
+    }
+  }
+
   const hasReadNotifications = notifications.some((n) => n.read_at);
 
   function renderNavLink(item, { onNavigate, tone = "chrome" } = {}) {
@@ -671,12 +772,10 @@ export function AppShell({ children, title, description, right, back }) {
               const iconName = getNotificationIconName(notification);
 
               return (
-                <button
+                <div
                   key={notification.id}
-                  type="button"
-                  onClick={() => handleNotificationClick(notification)}
                   className={cx(
-                    "group relative flex w-full items-start gap-2.5 px-3 py-2.5 text-left transition hover:bg-accent sm:px-3.5",
+                    "group relative flex w-full items-start gap-2.5 px-3 py-2.5 transition hover:bg-accent sm:px-3.5",
                     !unread && "opacity-60 hover:opacity-100",
                   )}
                 >
@@ -688,39 +787,67 @@ export function AppShell({ children, title, description, right, back }) {
                     )}
                   />
 
-                  <span
-                    className={cx(
-                      "mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-theme-md",
-                      unread ? "bg-surface text-muted" : "bg-surface text-soft",
-                    )}
+                  <button
+                    type="button"
+                    onClick={() => handleNotificationClick(notification)}
+                    className="flex min-w-0 flex-1 items-start gap-2.5 text-left"
                   >
-                    <Icon name={iconName} className="h-3.5 w-3.5" />
-                  </span>
+                    <span
+                      className={cx(
+                        "mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-theme-md",
+                        unread ? "bg-surface text-muted" : "bg-surface text-soft",
+                      )}
+                    >
+                      <Icon name={iconName} className="h-3.5 w-3.5" />
+                    </span>
 
-                  <div className="min-w-0 flex-1">
-                    <div className="flex items-baseline justify-between gap-2">
-                      <p
+                    <span className="min-w-0 flex-1">
+                      <span
                         className={cx(
-                          "truncate text-sm leading-snug",
+                          "block truncate text-sm leading-snug",
                           unread ? "font-semibold text-main" : "font-medium text-muted",
                         )}
                       >
                         {notification.title}
-                      </p>
-                      <span className="shrink-0 text-[11px] tabular-nums text-soft">
-                        {formatNotificationTime(notification.created_at)}
                       </span>
-                    </div>
-                    <p
+                      <span
+                        className={cx(
+                          "mt-0.5 line-clamp-2 block text-xs leading-relaxed",
+                          unread ? "text-muted" : "text-soft",
+                        )}
+                      >
+                        {notification.message}
+                      </span>
+                    </span>
+                  </button>
+
+                  <div className="flex shrink-0 flex-col items-end gap-0.5">
+                    <button
+                      type="button"
+                      aria-label="Delete notification"
+                      title="Delete"
+                      onClick={(event) => {
+                        event.preventDefault();
+                        event.stopPropagation();
+                        handleDeleteNotification(notification.id);
+                      }}
                       className={cx(
-                        "mt-0.5 line-clamp-2 text-xs leading-relaxed",
-                        unread ? "text-muted" : "text-soft",
+                        "inline-flex h-5 w-5 items-center justify-center rounded-theme-sm text-soft transition",
+                        "hover:bg-surface hover:text-main",
+                        "opacity-0 pointer-events-none",
+                        "group-hover:pointer-events-auto group-hover:opacity-100",
+                        "group-focus-within:pointer-events-auto group-focus-within:opacity-100",
+                        "focus-visible:pointer-events-auto focus-visible:opacity-100",
+                        "max-lg:pointer-events-auto max-lg:opacity-100",
                       )}
                     >
-                      {notification.message}
-                    </p>
+                      <Icon name="close" className="h-3 w-3" />
+                    </button>
+                    <span className="text-[11px] tabular-nums text-soft">
+                      {formatNotificationTime(notification.created_at)}
+                    </span>
                   </div>
-                </button>
+                </div>
               );
             })
           )}
@@ -742,8 +869,8 @@ export function AppShell({ children, title, description, right, back }) {
             desktopSidebarOpen ? "w-64 border-r border-chrome" : "w-0 border-0",
           )}
           style={{
-            transitionProperty: "width, border-width",
-            transitionDuration: "var(--duration-fast)",
+            transitionProperty: sidebarMotion ? "width, border-width" : "none",
+            transitionDuration: sidebarMotion ? "var(--duration-fast)" : "0s",
             transitionTimingFunction: "var(--ease-standard)",
           }}
         >
@@ -753,8 +880,15 @@ export function AppShell({ children, title, description, right, back }) {
               className="flex items-center gap-3 px-5 py-5"
               onClick={() => clearReturnStack()}
             >
-              <MainLogo className="h-8 w-8" />
-              <span className="text-sm font-semibold tracking-tight">CRM</span>
+              <CompanyMark
+                markId={company?.mark_id}
+                logoUrl={company?.logo_url}
+                className="h-8 w-8"
+                alt=""
+              />
+              <span className="truncate text-sm font-semibold tracking-tight">
+                {company?.name || "CRM"}
+              </span>
             </Link>
 
             <nav className="flex-1 space-y-5 overflow-y-auto px-3 pb-2">
@@ -775,6 +909,7 @@ export function AppShell({ children, title, description, right, back }) {
                 tone="chrome"
                 isAdminUser={isAdminUser}
                 onInvite={() => setInviteModalOpen(true)}
+                onCompanyLook={() => setBrandingOpen(true)}
                 onLogout={() => setLogoutConfirmOpen(true)}
               />
             </div>
@@ -792,35 +927,38 @@ export function AppShell({ children, title, description, right, back }) {
           >
             <div
               className={cx(
-                "flex h-full min-w-0 flex-row gap-2",
+                "flex h-full min-w-0 flex-row gap-0 lg:gap-2",
                 !description ? "items-center" : "items-start",
               )}
             >
-              <button
-                type="button"
-                onClick={() => {
-                  setDesktopSidebarOpen((open) => {
-                    const next = !open;
-                    writeDesktopSidebarOpen(next);
-                    return next;
-                  });
-                }}
-                className="icon-btn hidden lg:inline-flex"
-                aria-label={desktopSidebarOpen ? "Collapse menu" : "Open menu"}
-                aria-expanded={desktopSidebarOpen}
-                aria-controls="desktop-sidebar"
-                title={desktopSidebarOpen ? "Collapse menu" : "Open menu"}
-              >
-                <Icon
-                  name={desktopSidebarOpen ? "panelLeft" : "menu"}
-                  className="h-4 w-4"
-                />
-              </button>
-              <Suspense fallback={null}>
+              <div className="shell-nav-cluster">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setDesktopSidebarOpen((open) => {
+                      const next = !open;
+                      writeDesktopSidebarOpen(next);
+                      return next;
+                    });
+                  }}
+                  className="shell-nav-toggle"
+                  aria-label={desktopSidebarOpen ? "Collapse menu" : "Open menu"}
+                  aria-expanded={desktopSidebarOpen}
+                  aria-controls="desktop-sidebar"
+                  title={desktopSidebarOpen ? "Collapse menu" : "Open menu"}
+                >
+                  <Icon
+                    name={desktopSidebarOpen ? "panelLeft" : "menu"}
+                    className="h-4 w-4"
+                  />
+                </button>
                 <ReturnBackButton back={back} />
-              </Suspense>
+              </div>
               <div
-                className={cx("flex min-w-0 flex-col", !description && "justify-center")}
+                className={cx(
+                  "shell-header-title flex min-w-0 flex-col",
+                  !description && "justify-center",
+                )}
               >
                 {title ? (
                   <h1 className="truncate text-[15px] font-semibold tracking-tight">
@@ -975,6 +1113,10 @@ export function AppShell({ children, title, description, right, back }) {
                         setMobileMenuOpen(false);
                         setInviteModalOpen(true);
                       }}
+                      onCompanyLook={() => {
+                        setMobileMenuOpen(false);
+                        setBrandingOpen(true);
+                      }}
                       onLogout={() => {
                         setMobileMenuOpen(false);
                         setLogoutConfirmOpen(true);
@@ -1031,6 +1173,16 @@ export function AppShell({ children, title, description, right, back }) {
           open={inviteModalOpen}
           onClose={() => setInviteModalOpen(false)}
         />
+        <CompanyBrandingModal
+          open={brandingOpen}
+          company={company}
+          onClose={() => setBrandingOpen(false)}
+          onSaved={(next) => {
+            setCompany(next);
+            if (next?.palette_id) setCompanyPaletteId(next.palette_id);
+            if (next?.slug) writeStoredCompanySlug(next.slug);
+          }}
+        />
         <ConfirmModal
           open={logoutConfirmOpen}
           onClose={() => setLogoutConfirmOpen(false)}
@@ -1056,5 +1208,42 @@ export function AppShell({ children, title, description, right, back }) {
         />
       </div>
     </ReturnToProvider>
+  );
+}
+
+export function AppShell({ children, title, description, right, back }) {
+  const setChrome = useContext(ChromeDispatchContext);
+
+  useLayoutEffect(() => {
+    setChrome({
+      title,
+      description,
+      right: right ?? null,
+      back,
+    });
+  }, [title, description, right, back, setChrome]);
+
+  useLayoutEffect(() => () => setChrome(EMPTY_CHROME), [setChrome]);
+
+  return children;
+}
+
+export function ShellGate({ children }) {
+  const pathname = usePathname();
+  const [chrome, setChrome] = useState(EMPTY_CHROME);
+  const setChromeStable = useCallback((next) => {
+    setChrome((prev) => (sameChrome(prev, next) ? prev : next));
+  }, []);
+
+  if (isBarePath(pathname)) return children;
+
+  return (
+    <ChromeDispatchContext.Provider value={setChromeStable}>
+      <ChromeValueContext.Provider value={chrome}>
+        <AppShellFrame>
+          <StablePage>{children}</StablePage>
+        </AppShellFrame>
+      </ChromeValueContext.Provider>
+    </ChromeDispatchContext.Provider>
   );
 }

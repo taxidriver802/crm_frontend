@@ -103,7 +103,7 @@ export default function LeadDetailPage() {
       try {
         setLoadingTasks(true);
         setTasksError("");
-        const res = await api(`/tasks?leadId=${id}&limit=50&offset=0`);
+        const res = await api(`/tasks?leadId=${id}&limit=50&offset=0&view=all`);
         if (!alive) return;
         setTasks(res.tasks || []);
       } catch (e) {
@@ -136,7 +136,7 @@ export default function LeadDetailPage() {
         setLoadingJobs(true);
         setJobsError("");
 
-        const res = await api(`/jobs?leadId=${id}&limit=50&offset=0`);
+        const res = await api(`/jobs?leadId=${id}&limit=50&offset=0&view=all`);
         if (!alive) return;
 
         setJobs(res.jobs || []);

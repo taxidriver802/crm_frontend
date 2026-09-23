@@ -12,6 +12,7 @@ import { EmptyState } from "@/components/error-boundary";
 import { ListRow } from "@/components/ui/list-row";
 import { Skeleton } from "@/components/loading/loadingSkeletons";
 import { PublicFrame } from "@/components/public/public-frame";
+import { publicBrandProps, usePublicCompanyTheme } from "@/components/brand/company-mark";
 
 async function publicFetchJson(path, options = {}) {
   const res = await fetch(`${API_BASE}${path}`, {
@@ -39,6 +40,7 @@ function formatCurrency(num) {
 export default function PublicEstimatePage() {
   const { token } = useParams();
   const [estimate, setEstimate] = useState(null);
+  const [company, setCompany] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [note, setNote] = useState("");
@@ -56,6 +58,7 @@ export default function PublicEstimatePage() {
         `/public/estimates/${encodeURIComponent(rawToken)}`,
       );
       setEstimate(res.estimate);
+      setCompany(res.company || null);
     } catch (e) {
       setError(e?.message || "Could not load estimate");
       setEstimate(null);
@@ -68,6 +71,8 @@ export default function PublicEstimatePage() {
     load();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [rawToken]);
+
+  usePublicCompanyTheme(company);
 
   async function respond(decision) {
     if (!rawToken) return;
@@ -110,6 +115,7 @@ export default function PublicEstimatePage() {
       eyebrow="Shared estimate"
       title={estimate?.title || "Estimate"}
       description={estimate?.job?.address || undefined}
+      {...publicBrandProps(company)}
       footer={
         <Link href="/" className="underline-offset-4 hover:text-main hover:underline">
           Contractor sign in
