@@ -1,7 +1,10 @@
 "use client";
 
 import {
-  Suspense,
+  createContext,
+  memo,
+  useCallback,
+  useContext,
   useEffect,
   useId,
   useLayoutEffect,
@@ -75,6 +78,40 @@ function writeDesktopSidebarOpen(open) {
     /* ignore quota / private mode */
   }
 }
+
+const EMPTY_CHROME = {
+  title: undefined,
+  description: undefined,
+  right: null,
+  back: undefined,
+};
+
+const ChromeDispatchContext = createContext(() => {});
+const ChromeValueContext = createContext(EMPTY_CHROME);
+
+function sameChrome(a, b) {
+  return (
+    a.title === b.title &&
+    a.description === b.description &&
+    a.right === b.right &&
+    a.back === b.back
+  );
+}
+
+function isBarePath(pathname) {
+  if (!pathname || pathname === "/") return true;
+  return (
+    pathname === "/login" ||
+    pathname === "/register" ||
+    pathname === "/accept-invite" ||
+    pathname === "/public" ||
+    pathname.startsWith("/public/")
+  );
+}
+
+const StablePage = memo(function StablePage({ children }) {
+  return children;
+});
 
 function isActivePath(pathname, href) {
   return pathname === href || pathname.startsWith(href + "/");
@@ -231,7 +268,8 @@ function getNotificationIconName(notification) {
   return "bell";
 }
 
-export function AppShell({ children, title, description, right, back }) {
+function AppShellFrame({ children }) {
+  const { title, description, right, back } = useContext(ChromeValueContext);
   const pathname = usePathname();
   const router = useRouter();
   const { showToast } = useToast();
@@ -239,6 +277,7 @@ export function AppShell({ children, title, description, right, back }) {
 
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [desktopSidebarOpen, setDesktopSidebarOpen] = useState(true);
+  const [sidebarMotion, setSidebarMotion] = useState(false);
 
   const [user, setUser] = useState(null);
   const [company, setCompany] = useState(null);
@@ -263,13 +302,24 @@ export function AppShell({ children, title, description, right, back }) {
     notificationsOpenRef.current = notificationsOpen;
   }, [notificationsOpen]);
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     setDesktopSidebarOpen(readDesktopSidebarOpen());
+    delete document.documentElement.dataset.sidebar;
+  }, []);
+
+  useEffect(() => {
+    setSidebarMotion(true);
   }, []);
 
   useEffect(() => {
     setMobileMenuOpen(false);
     setNotificationsOpen(false);
+    setSearchOpen(false);
+    setSearchQuery("");
+    setSearchSurface("palette");
+    setInviteModalOpen(false);
+    setBrandingOpen(false);
+    setLogoutConfirmOpen(false);
     recordRecentFromPathname(pathname);
   }, [pathname]);
 
@@ -819,8 +869,8 @@ export function AppShell({ children, title, description, right, back }) {
             desktopSidebarOpen ? "w-64 border-r border-chrome" : "w-0 border-0",
           )}
           style={{
-            transitionProperty: "width, border-width",
-            transitionDuration: "var(--duration-fast)",
+            transitionProperty: sidebarMotion ? "width, border-width" : "none",
+            transitionDuration: sidebarMotion ? "var(--duration-fast)" : "0s",
             transitionTimingFunction: "var(--ease-standard)",
           }}
         >
@@ -877,35 +927,38 @@ export function AppShell({ children, title, description, right, back }) {
           >
             <div
               className={cx(
-                "flex h-full min-w-0 flex-row gap-2",
+                "flex h-full min-w-0 flex-row gap-0 lg:gap-2",
                 !description ? "items-center" : "items-start",
               )}
             >
-              <button
-                type="button"
-                onClick={() => {
-                  setDesktopSidebarOpen((open) => {
-                    const next = !open;
-                    writeDesktopSidebarOpen(next);
-                    return next;
-                  });
-                }}
-                className="icon-btn hidden lg:inline-flex"
-                aria-label={desktopSidebarOpen ? "Collapse menu" : "Open menu"}
-                aria-expanded={desktopSidebarOpen}
-                aria-controls="desktop-sidebar"
-                title={desktopSidebarOpen ? "Collapse menu" : "Open menu"}
-              >
-                <Icon
-                  name={desktopSidebarOpen ? "panelLeft" : "menu"}
-                  className="h-4 w-4"
-                />
-              </button>
-              <Suspense fallback={null}>
+              <div className="shell-nav-cluster">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setDesktopSidebarOpen((open) => {
+                      const next = !open;
+                      writeDesktopSidebarOpen(next);
+                      return next;
+                    });
+                  }}
+                  className="shell-nav-toggle"
+                  aria-label={desktopSidebarOpen ? "Collapse menu" : "Open menu"}
+                  aria-expanded={desktopSidebarOpen}
+                  aria-controls="desktop-sidebar"
+                  title={desktopSidebarOpen ? "Collapse menu" : "Open menu"}
+                >
+                  <Icon
+                    name={desktopSidebarOpen ? "panelLeft" : "menu"}
+                    className="h-4 w-4"
+                  />
+                </button>
                 <ReturnBackButton back={back} />
-              </Suspense>
+              </div>
               <div
-                className={cx("flex min-w-0 flex-col", !description && "justify-center")}
+                className={cx(
+                  "shell-header-title flex min-w-0 flex-col",
+                  !description && "justify-center",
+                )}
               >
                 {title ? (
                   <h1 className="truncate text-[15px] font-semibold tracking-tight">
@@ -1155,5 +1208,42 @@ export function AppShell({ children, title, description, right, back }) {
         />
       </div>
     </ReturnToProvider>
+  );
+}
+
+export function AppShell({ children, title, description, right, back }) {
+  const setChrome = useContext(ChromeDispatchContext);
+
+  useLayoutEffect(() => {
+    setChrome({
+      title,
+      description,
+      right: right ?? null,
+      back,
+    });
+  }, [title, description, right, back, setChrome]);
+
+  useLayoutEffect(() => () => setChrome(EMPTY_CHROME), [setChrome]);
+
+  return children;
+}
+
+export function ShellGate({ children }) {
+  const pathname = usePathname();
+  const [chrome, setChrome] = useState(EMPTY_CHROME);
+  const setChromeStable = useCallback((next) => {
+    setChrome((prev) => (sameChrome(prev, next) ? prev : next));
+  }, []);
+
+  if (isBarePath(pathname)) return children;
+
+  return (
+    <ChromeDispatchContext.Provider value={setChromeStable}>
+      <ChromeValueContext.Provider value={chrome}>
+        <AppShellFrame>
+          <StablePage>{children}</StablePage>
+        </AppShellFrame>
+      </ChromeValueContext.Provider>
+    </ChromeDispatchContext.Provider>
   );
 }

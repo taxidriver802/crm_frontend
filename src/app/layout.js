@@ -4,6 +4,7 @@ import { ThemeProvider } from "@/components/theme/theme-provider";
 import { ToastProvider } from "@/components/toast/toast-provider";
 import { ErrorBoundary } from "@/components/error-boundary";
 import { ServiceWorkerRegistrar } from "@/components/service-worker-registrar";
+import { ShellGate } from "@/components/app-shell";
 import {
   DEFAULT_PALETTE_ID,
   buildAllPalettesCss,
@@ -54,6 +55,11 @@ export default function RootLayout({ children }) {
           dangerouslySetInnerHTML={{ __html: buildAllPalettesCss() }}
         />
         <script dangerouslySetInnerHTML={{ __html: getPaletteBootstrapScript() }} />
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `(function(){try{if(localStorage.getItem("crm-desktop-sidebar")==="0"){document.documentElement.dataset.sidebar="closed";}}catch(e){}})();`,
+          }}
+        />
         <meta name="apple-mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
       </head>
@@ -62,7 +68,9 @@ export default function RootLayout({ children }) {
       >
         <ThemeProvider>
           <ToastProvider>
-            <ErrorBoundary>{children}</ErrorBoundary>
+            <ErrorBoundary>
+              <ShellGate>{children}</ShellGate>
+            </ErrorBoundary>
           </ToastProvider>
         </ThemeProvider>
         <ServiceWorkerRegistrar />
