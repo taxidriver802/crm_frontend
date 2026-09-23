@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useParams } from "next/navigation";
 import { API_BASE } from "@/lib/helper";
 import { PublicFrame } from "@/components/public/public-frame";
+import { publicBrandProps, usePublicCompanyTheme } from "@/components/brand/company-mark";
 import { SectionCard } from "@/components/ui/section-card";
 import { Field, FormActions } from "@/components/ui/field";
 import { Alert } from "@/components/ui/alert";
@@ -31,6 +32,7 @@ export default function PublicIntakePage() {
   );
 
   const [form, setForm] = useState(EMPTY_FORM);
+  const [company, setCompany] = useState(null);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   const [done, setDone] = useState(false);
@@ -95,9 +97,35 @@ export default function PublicIntakePage() {
     setError("");
   }, [rawToken]);
 
+  useEffect(() => {
+    if (!rawToken) return undefined;
+    let cancelled = false;
+    async function loadBrand() {
+      try {
+        const res = await fetch(
+          `${API_BASE}/public/intake/${encodeURIComponent(rawToken)}`,
+        );
+        const body = await res.json().catch(() => ({}));
+        if (!cancelled && res.ok) setCompany(body.company || null);
+      } catch {
+        if (!cancelled) setCompany(null);
+      }
+    }
+    loadBrand();
+    return () => {
+      cancelled = true;
+    };
+  }, [rawToken]);
+
+  usePublicCompanyTheme(company);
+
   if (!rawToken) {
     return (
-      <PublicFrame eyebrow="Request a quote" title="Form unavailable">
+      <PublicFrame
+        eyebrow="Request a quote"
+        title="Form unavailable"
+        {...publicBrandProps(company)}
+      >
         <EmptyState
           title="This form is unavailable"
           description="The intake link is missing or invalid."
@@ -113,6 +141,7 @@ export default function PublicIntakePage() {
         title="Thanks — we got it"
         description="Someone from our team will follow up soon."
         width="narrow"
+        {...publicBrandProps(company)}
       >
         <SectionCard title="Submission received">
           <p className="text-sm leading-relaxed">
@@ -130,6 +159,7 @@ export default function PublicIntakePage() {
       description="Share a few details and we will get back to you."
       width="narrow"
       footer="Your information is sent securely to our team."
+      {...publicBrandProps(company)}
     >
       <SectionCard title="Contact details">
         <form onSubmit={onSubmit} className="space-y-4">

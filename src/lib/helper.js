@@ -9,6 +9,7 @@ export function getFileTypeLabel(file) {
 }
 
 export function buildFileUrl(file) {
+  if (file?.url) return file.url;
   if (!file?.storage_key) return "#";
   return `${API_BASE}/uploads/${file.storage_key}`;
 }

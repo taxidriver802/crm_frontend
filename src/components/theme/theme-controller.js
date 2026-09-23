@@ -16,9 +16,11 @@ import {
   isPaletteId,
   listPalettes,
   readStoredPaletteId,
+  readStoredCompanyPaletteId,
+  writeStoredCompanyPaletteId,
   resolveTokens,
 } from "@/theme/registry";
-import { isPublicCustomerPath } from "@/theme/public-path";
+import { isAuthEntryPath, isPublicCustomerPath } from "@/theme/public-path";
 import { syncThemeColorMeta } from "@/theme/sync-theme-color";
 
 const ThemeControllerContext = createContext(null);
@@ -31,18 +33,23 @@ function applyPaletteAttribute(paletteId) {
 export function ThemeController({ children }) {
   const pathname = usePathname();
   const { resolvedTheme } = useTheme();
-  const [paletteId, setPaletteIdState] = useState(DEFAULT_PALETTE_ID);
+  const [personalPaletteId, setPersonalPaletteId] = useState(null);
+  const [companyPaletteId, setCompanyPaletteIdState] = useState(null);
   const [ready, setReady] = useState(false);
-  const publicSurface = isPublicCustomerPath(pathname);
-  const activePaletteId = publicSurface ? DEFAULT_PALETTE_ID : paletteId;
+  const brandedSurface =
+    isPublicCustomerPath(pathname) || isAuthEntryPath(pathname);
+
+  const activePaletteId = brandedSurface
+    ? companyPaletteId || DEFAULT_PALETTE_ID
+    : personalPaletteId || companyPaletteId || DEFAULT_PALETTE_ID;
+  const usingCompanyDefault = !personalPaletteId;
 
   useEffect(() => {
-    const stored = readStoredPaletteId();
-    setPaletteIdState(stored);
-    applyPaletteAttribute(publicSurface ? DEFAULT_PALETTE_ID : stored);
+    const personal = readStoredPaletteId();
+    const company = readStoredCompanyPaletteId();
+    setPersonalPaletteId(personal);
+    setCompanyPaletteIdState(company);
     setReady(true);
-    // publicSurface is applied via the effect below after ready
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {
@@ -56,12 +63,27 @@ export function ThemeController({ children }) {
 
   const setPaletteId = useCallback((nextId) => {
     const id = isPaletteId(nextId) ? nextId : DEFAULT_PALETTE_ID;
-    setPaletteIdState(id);
+    setPersonalPaletteId(id);
     try {
       window.localStorage.setItem(PALETTE_STORAGE_KEY, id);
     } catch {
       /* ignore quota / private mode */
     }
+  }, []);
+
+  const clearPersonalPalette = useCallback(() => {
+    setPersonalPaletteId(null);
+    try {
+      window.localStorage.removeItem(PALETTE_STORAGE_KEY);
+    } catch {
+      /* ignore */
+    }
+  }, []);
+
+  const setCompanyPaletteId = useCallback((nextId) => {
+    const id = isPaletteId(nextId) ? nextId : null;
+    setCompanyPaletteIdState(id);
+    writeStoredCompanyPaletteId(id);
   }, []);
 
   const scheme = resolvedTheme === "dark" ? "dark" : "light";
@@ -74,12 +96,26 @@ export function ThemeController({ children }) {
   const value = useMemo(
     () => ({
       paletteId: activePaletteId,
+      companyPaletteId: companyPaletteId || DEFAULT_PALETTE_ID,
+      usingCompanyDefault,
       setPaletteId,
+      clearPersonalPalette,
+      setCompanyPaletteId,
       palettes,
       tokens,
       scheme,
     }),
-    [activePaletteId, setPaletteId, palettes, tokens, scheme],
+    [
+      activePaletteId,
+      companyPaletteId,
+      usingCompanyDefault,
+      setPaletteId,
+      clearPersonalPalette,
+      setCompanyPaletteId,
+      palettes,
+      tokens,
+      scheme,
+    ],
   );
 
   return (

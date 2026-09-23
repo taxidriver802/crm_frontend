@@ -24,8 +24,11 @@ import { clearReturnStack } from "@/lib/return-to";
 import { recordRecentFromPathname, parseEntityContext } from "@/lib/search-recents";
 import { cx } from "@/lib/cx";
 
-import MainLogo from "@/assets/mainlogo.svg";
+import { CompanyMark } from "@/components/brand/company-mark";
+import { CompanyBrandingModal } from "@/components/modals/company-branding-modal";
+import { useThemeController } from "@/components/theme/theme-controller";
 import { api } from "@/lib/api";
+import { writeStoredCompanySlug } from "@/lib/company-slug";
 
 const WORKFLOW_NAV = [
   { href: "/dashboard", label: "Dashboard", icon: "home", priority: "primary" },
@@ -95,7 +98,13 @@ function formatNotificationTime(value) {
   return date.toLocaleDateString();
 }
 
-function AccountSettings({ tone = "default", isAdminUser, onInvite, onLogout }) {
+function AccountSettings({
+  tone = "default",
+  isAdminUser,
+  onInvite,
+  onCompanyLook,
+  onLogout,
+}) {
   const [open, setOpen] = useState(false);
   const panelId = useId();
   const chrome = tone === "chrome";
@@ -136,6 +145,17 @@ function AccountSettings({ tone = "default", isAdminUser, onInvite, onLogout }) 
             >
               <Icon name="userPlus" className="h-4 w-4" />
               Invite user
+            </button>
+          ) : null}
+
+          {isAdminUser ? (
+            <button
+              type="button"
+              onClick={onCompanyLook}
+              className={cx("btn w-full justify-start", chrome && "btn-chrome")}
+            >
+              <Icon name="spark" className="h-4 w-4" />
+              Company look
             </button>
           ) : null}
 
@@ -215,17 +235,20 @@ export function AppShell({ children, title, description, right, back }) {
   const pathname = usePathname();
   const router = useRouter();
   const { showToast } = useToast();
+  const { setCompanyPaletteId } = useThemeController();
 
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [desktopSidebarOpen, setDesktopSidebarOpen] = useState(true);
 
   const [user, setUser] = useState(null);
+  const [company, setCompany] = useState(null);
   const [notificationsOpen, setNotificationsOpen] = useState(false);
   const [notifications, setNotifications] = useState([]);
   const [unreadCount, setUnreadCount] = useState(0);
   const [notificationsLoading, setNotificationsLoading] = useState(false);
   const [markingAllRead, setMarkingAllRead] = useState(false);
   const [inviteModalOpen, setInviteModalOpen] = useState(false);
+  const [brandingOpen, setBrandingOpen] = useState(false);
   const [logoutConfirmOpen, setLogoutConfirmOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
@@ -442,6 +465,9 @@ export function AppShell({ children, title, description, right, back }) {
       if (!res.ok) return;
       const data = await res.json();
       setUser(data.user);
+      setCompany(data.company || null);
+      if (data.company?.slug) writeStoredCompanySlug(data.company.slug);
+      if (data.company?.palette_id) setCompanyPaletteId(data.company.palette_id);
     } catch (err) {
       console.error("Failed to load user", err);
     }
@@ -804,8 +830,15 @@ export function AppShell({ children, title, description, right, back }) {
               className="flex items-center gap-3 px-5 py-5"
               onClick={() => clearReturnStack()}
             >
-              <MainLogo className="h-8 w-8" />
-              <span className="text-sm font-semibold tracking-tight">CRM</span>
+              <CompanyMark
+                markId={company?.mark_id}
+                logoUrl={company?.logo_url}
+                className="h-8 w-8"
+                alt=""
+              />
+              <span className="truncate text-sm font-semibold tracking-tight">
+                {company?.name || "CRM"}
+              </span>
             </Link>
 
             <nav className="flex-1 space-y-5 overflow-y-auto px-3 pb-2">
@@ -826,6 +859,7 @@ export function AppShell({ children, title, description, right, back }) {
                 tone="chrome"
                 isAdminUser={isAdminUser}
                 onInvite={() => setInviteModalOpen(true)}
+                onCompanyLook={() => setBrandingOpen(true)}
                 onLogout={() => setLogoutConfirmOpen(true)}
               />
             </div>
@@ -1026,6 +1060,10 @@ export function AppShell({ children, title, description, right, back }) {
                         setMobileMenuOpen(false);
                         setInviteModalOpen(true);
                       }}
+                      onCompanyLook={() => {
+                        setMobileMenuOpen(false);
+                        setBrandingOpen(true);
+                      }}
                       onLogout={() => {
                         setMobileMenuOpen(false);
                         setLogoutConfirmOpen(true);
@@ -1081,6 +1119,16 @@ export function AppShell({ children, title, description, right, back }) {
         <InviteUserModal
           open={inviteModalOpen}
           onClose={() => setInviteModalOpen(false)}
+        />
+        <CompanyBrandingModal
+          open={brandingOpen}
+          company={company}
+          onClose={() => setBrandingOpen(false)}
+          onSaved={(next) => {
+            setCompany(next);
+            if (next?.palette_id) setCompanyPaletteId(next.palette_id);
+            if (next?.slug) writeStoredCompanySlug(next.slug);
+          }}
         />
         <ConfirmModal
           open={logoutConfirmOpen}

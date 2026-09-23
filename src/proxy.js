@@ -4,7 +4,7 @@ export function proxy(request) {
   const token = request.cookies.get("access_token")?.value;
 
   const pathname = request.nextUrl.pathname;
-  const isLogin = pathname === "/login";
+  const isAuthEntry = pathname === "/login" || pathname === "/register";
 
   // If not logged in, block protected routes
   const protectedRoutes = [
@@ -23,7 +23,7 @@ export function proxy(request) {
   }
 
   // Optional: if logged in, don’t allow /login
-  if (token && isLogin) {
+  if (token && isAuthEntry) {
     return NextResponse.redirect(new URL("/dashboard", request.url));
   }
 
@@ -39,5 +39,6 @@ export const config = {
     "/jobs/:path*",
     "/notifications",
     "/login",
+    "/register",
   ],
 };

@@ -3,8 +3,20 @@
 import { useThemeController } from "@/components/theme/theme-controller";
 import { cx } from "@/lib/cx";
 
-export function PalettePicker({ className = "", tone = "default", onPicked }) {
-  const { paletteId, setPaletteId, palettes } = useThemeController();
+export function PalettePicker({
+  className = "",
+  tone = "default",
+  onPicked,
+  companyDefault = false,
+}) {
+  const {
+    paletteId,
+    setPaletteId,
+    palettes,
+    usingCompanyDefault,
+    clearPersonalPalette,
+    companyPaletteId,
+  } = useThemeController();
   const chrome = tone === "chrome";
 
   return (
@@ -13,8 +25,28 @@ export function PalettePicker({ className = "", tone = "default", onPicked }) {
       role="radiogroup"
       aria-label="Color palette"
     >
+      {companyDefault ? (
+        <button
+          type="button"
+          role="radio"
+          aria-checked={usingCompanyDefault}
+          className={cx(
+            "flex w-full items-center justify-start gap-2 rounded-theme-md px-2.5 py-2 text-left text-xs font-medium transition",
+            chrome ? "text-chrome hover:bg-chrome-hover" : "hover:bg-accent-soft",
+            usingCompanyDefault && (chrome ? "bg-chrome-elevated" : "bg-accent-soft"),
+          )}
+          onClick={() => {
+            clearPersonalPalette();
+            onPicked?.();
+          }}
+        >
+          Company default
+        </button>
+      ) : null}
       {palettes.map((palette) => {
-        const selected = paletteId === palette.id;
+        const selected = companyDefault
+          ? !usingCompanyDefault && paletteId === palette.id
+          : paletteId === palette.id;
         return (
           <button
             key={palette.id}
@@ -37,6 +69,11 @@ export function PalettePicker({ className = "", tone = "default", onPicked }) {
               aria-hidden
             />
             {palette.label}
+            {palette.id === companyPaletteId ? (
+              <span className="ml-auto text-[10px] font-normal opacity-70">
+                company
+              </span>
+            ) : null}
           </button>
         );
       })}
