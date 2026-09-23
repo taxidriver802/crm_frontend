@@ -7,7 +7,6 @@ import {
   useEffect,
   useLayoutEffect,
   useMemo,
-  useRef,
   useState,
   Suspense,
   useSyncExternalStore,
@@ -147,8 +146,6 @@ export function ReturnBackButton({ back }) {
   const resolvedKey = resolved
     ? `${resolved.href}|${resolved.text}|${resolved.fromStack ? "1" : "0"}`
     : "";
-  const resolvedRef = useRef(resolved);
-  resolvedRef.current = resolved;
 
   // Keep the last target mounted through the close animation so the segment
   // can slide back into the sidebar toggle instead of unmounting instantly.
@@ -156,9 +153,8 @@ export function ReturnBackButton({ back }) {
   const [open, setOpen] = useState(false);
 
   useLayoutEffect(() => {
-    const next = resolvedRef.current;
-    if (next) {
-      setPresented(next);
+    if (resolved) {
+      setPresented(resolved);
       return undefined;
     }
 
@@ -167,6 +163,9 @@ export function ReturnBackButton({ back }) {
       setPresented(null);
     }, BACK_REVEAL_MS + 60);
     return () => window.clearTimeout(timeout);
+    // resolvedKey is the identity of the back target. Depending on `resolved`
+    // would restart the close timer on every render.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [resolvedKey]);
 
   useEffect(() => {
