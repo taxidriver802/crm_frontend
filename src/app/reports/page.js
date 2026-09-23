@@ -5,12 +5,21 @@ import Link from "next/link";
 import { AppShell } from "@/components/app-shell";
 import { api } from "@/lib/api";
 import { PageError, EmptyState } from "@/components/error-boundary";
+import { ReturnLink } from "@/components/return-to";
 import { Skeleton, StatCardSkeleton } from "@/components/loading/loadingSkeletons";
 import { StatCard } from "@/components/ui/stat-card";
 import { SectionCard } from "@/components/ui/section-card";
 import { GroupedVerticalBars, HorizontalBars } from "@/components/ui/chart";
 import { PageToolbar } from "@/components/page-toolbar";
 import { Icon } from "@/components/icons";
+
+function QuietLink({ href, children }) {
+  return (
+    <ReturnLink href={href} className="text-link">
+      {children}
+    </ReturnLink>
+  );
+}
 
 export default function ReportsPage() {
   const [loading, setLoading] = useState(true);
@@ -78,6 +87,19 @@ export default function ReportsPage() {
     };
   }, [trends]);
 
+  const estimateCount = (estimateOutcomes.byStatus || []).reduce(
+    (sum, row) => sum + Number(row.count || 0),
+    0,
+  );
+  const hasEstimates = estimateCount > 0;
+  const reportsEmpty =
+    !loading &&
+    !error &&
+    leadFunnel.length === 0 &&
+    !hasEstimates &&
+    jobPipeline.length === 0 &&
+    trendSeries.labels.length === 0;
+
   return (
     <AppShell
       title="Reports"
@@ -106,6 +128,12 @@ export default function ReportsPage() {
           }
         />
 
+        {reportsEmpty ? (
+          <p className="text-sm text-muted">
+            These fill in as you add leads, estimates, and jobs.
+          </p>
+        ) : null}
+
         {loading ? (
           <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
             {Array.from({ length: 4 }).map((_, i) => (
@@ -122,7 +150,12 @@ export default function ReportsPage() {
             <StatCard
               size="metric"
               label="Estimate approval rate"
-              value={`${Math.round((estimateOutcomes.approvedRate || 0) * 100)}%`}
+              value={
+                hasEstimates
+                  ? `${Math.round((estimateOutcomes.approvedRate || 0) * 100)}%`
+                  : "—"
+              }
+              sub={hasEstimates ? undefined : "No estimates yet"}
             />
             <StatCard
               size="metric"
@@ -149,7 +182,16 @@ export default function ReportsPage() {
             {loading ? (
               <Skeleton className="h-28 w-full" />
             ) : (
-              <HorizontalBars rows={leadFunnel} emptyTitle="No lead data yet" />
+              <HorizontalBars
+                rows={leadFunnel}
+                emptyTitle="No lead data yet"
+                emptyDescription={
+                  <>
+                    <QuietLink href="/leads/new">Add a lead</QuietLink> to start the
+                    funnel.
+                  </>
+                }
+              />
             )}
           </SectionCard>
 
@@ -163,6 +205,12 @@ export default function ReportsPage() {
                   count: row.count,
                 }))}
                 emptyTitle="No estimate data yet"
+                emptyDescription={
+                  <>
+                    <QuietLink href="/estimates/new">Create an estimate</QuietLink> to
+                    see outcomes.
+                  </>
+                }
               />
             )}
           </SectionCard>
@@ -171,7 +219,16 @@ export default function ReportsPage() {
             {loading ? (
               <Skeleton className="h-28 w-full" />
             ) : (
-              <HorizontalBars rows={jobPipeline} emptyTitle="No job data yet" />
+              <HorizontalBars
+                rows={jobPipeline}
+                emptyTitle="No job data yet"
+                emptyDescription={
+                  <>
+                    <QuietLink href="/jobs/new">Add a job</QuietLink> to see the
+                    pipeline.
+                  </>
+                }
+              />
             )}
           </SectionCard>
         </div>
@@ -183,6 +240,7 @@ export default function ReportsPage() {
             <EmptyState
               icon={<Icon name="chart" className="h-5 w-5" />}
               title="No trend data yet"
+              description="Shows up after the first lead or estimate."
             />
           ) : (
             <GroupedVerticalBars
