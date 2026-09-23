@@ -46,6 +46,7 @@ import { StatusBadge } from "@/components/ui/status-badge";
 import { HealthBadge } from "@/components/ui/health-badge";
 import { Field, FormActions } from "@/components/ui/field";
 import { NumberInput } from "@/components/ui/formatted-inputs";
+import { formatNumberDisplay } from "@/lib/input-format";
 import { EmptyState } from "@/components/error-boundary";
 
 const JOB_STATUSES = [
@@ -1117,7 +1118,7 @@ export default function JobDetailPage() {
                       >
                         <div className="font-medium">{m.label}</div>
                         <div className="mt-1 text-sm text-muted">
-                          {m.value} {m.unit || ""}
+                          {formatNumberDisplay(m.value)} {m.unit || ""}
                         </div>
                       </button>
                       <button
