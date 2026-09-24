@@ -25,6 +25,9 @@ export async function api(path, options = {}) {
       },
     });
   } catch (networkErr) {
+    if (typeof window !== "undefined") {
+      window.dispatchEvent(new CustomEvent("crm-offline"));
+    }
     throw new ApiError(
       "Network error — please check your connection and try again.",
       0,

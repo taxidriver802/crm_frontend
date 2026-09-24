@@ -171,6 +171,13 @@ const ICONS = {
       <circle cx="19" cy="12" r="1.25" fill="currentColor" stroke="none" />
     </>
   ),
+  download: (
+    <>
+      <path d="M12 4v10" />
+      <path d="m8 10 4 4 4-4" />
+      <path d="M5 19h14" />
+    </>
+  ),
 };
 
 export function Icon({ name, className = "h-4 w-4", strokeWidth = 1.75 }) {

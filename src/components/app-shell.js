@@ -25,6 +25,8 @@ import { Icon } from "@/components/icons";
 import { ReturnBackButton, ReturnToProvider } from "@/components/return-to";
 import { clearReturnStack } from "@/lib/return-to";
 import { recordRecentFromPathname, parseEntityContext } from "@/lib/search-recents";
+import { Alert } from "@/components/ui/alert";
+import { usePwaInstall } from "@/lib/pwa";
 import { cx } from "@/lib/cx";
 
 import { CompanyMark } from "@/components/brand/company-mark";
@@ -135,6 +137,7 @@ function AccountSettings({
   const [open, setOpen] = useState(false);
   const panelId = useId();
   const chrome = tone === "chrome";
+  const { canInstall, promptInstall } = usePwaInstall();
 
   return (
     <div>
@@ -188,6 +191,17 @@ function AccountSettings({
 
           <ThemeToggle tone={tone} />
 
+          {canInstall ? (
+            <button
+              type="button"
+              onClick={() => promptInstall()}
+              className={cx("btn w-full justify-start", chrome && "btn-chrome")}
+            >
+              <Icon name="download" className="h-4 w-4" />
+              Install app
+            </button>
+          ) : null}
+
           <button
             type="button"
             onClick={onLogout}
@@ -201,6 +215,47 @@ function AccountSettings({
           </button>
         </div>
       ) : null}
+    </div>
+  );
+}
+
+function OfflineBanner() {
+  const [offline, setOffline] = useState(false);
+
+  useEffect(() => {
+    function syncOnline() {
+      setOffline(typeof navigator !== "undefined" && navigator.onLine === false);
+    }
+
+    function onApiOffline() {
+      setOffline(true);
+    }
+
+    syncOnline();
+    window.addEventListener("offline", syncOnline);
+    window.addEventListener("online", syncOnline);
+    window.addEventListener("crm-offline", onApiOffline);
+    return () => {
+      window.removeEventListener("offline", syncOnline);
+      window.removeEventListener("online", syncOnline);
+      window.removeEventListener("crm-offline", onApiOffline);
+    };
+  }, []);
+
+  if (!offline) return null;
+
+  return (
+    <div className="shrink-0 border-b border-base px-4 py-2 sm:px-6">
+      <Alert tone="warning" className="flex flex-wrap items-center justify-between gap-2">
+        <span>You&apos;re offline. Data needs a connection.</span>
+        <button
+          type="button"
+          className="btn px-3 py-1.5 text-xs"
+          onClick={() => window.location.reload()}
+        >
+          Retry
+        </button>
+      </Alert>
     </div>
   );
 }
@@ -901,7 +956,8 @@ function AppShellFrame({ children }) {
           {/* TOPBAR */}
           <header
             className={cx(
-              "sticky top-0 z-10 flex shrink-0 items-center justify-between gap-4 border-b border-base bg-surface-elevated px-4 py-2.5 sm:px-6",
+              "sticky top-0 z-10 flex shrink-0 items-center justify-between gap-4 border-b border-base bg-surface-elevated px-4 pb-2.5 sm:px-6",
+              "pt-[calc(env(safe-area-inset-top,0px)+0.625rem)]",
               searchOpen && searchSurface === "topbar" && "z-[85]",
             )}
           >
@@ -1036,6 +1092,8 @@ function AppShellFrame({ children }) {
               </button>
             </div>
           </header>
+
+          <OfflineBanner />
 
           {mobileMenuOpen && (
             <>

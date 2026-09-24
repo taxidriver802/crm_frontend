@@ -68,6 +68,7 @@ unless you have also set up cross-site cookies.
 | `npm start`      | Serve the production build                        |
 | `npm run lint`   | ESLint (`eslint-config-next`)                     |
 | `npm run format` | Prettier (includes `prettier-plugin-tailwindcss`) |
+| `npm run icons:pwa` | Rasterize PWA PNGs from `public/icons/*.svg`   |
 
 ## Layout
 
@@ -174,6 +175,18 @@ Phase 11 polish (reduced motion, high-contrast, focus audit, …).
 Command-palette expansion (recents, actions, aliases, create-from-query,
 filters, contextual results) is done. Job is the detail template; Measurements
 and Activity still collapse, as does Invoice Timeline.
+
+## PWA
+
+Staff install only. Customer portal, intake, and estimate pages stay normal web pages and do not register the service worker.
+
+Install icons and manifest colors are the product (Rooftop), not a company logo or palette. `npm run icons:pwa` regenerates the PNGs from `public/icons/icon-192.svg` and `icon-512.svg` (`apple-touch-icon.png`, `icon-192.png`, `icon-512.png`, `icon-512-maskable.png`).
+
+`public/sw.js` precaches `public/offline.html` and caches same-origin scripts, styles, images, and fonts. It does not cache `/api`, `/uploads`, `/public/*`, or App Router RSC requests. `/sw.js` is served with `Cache-Control: no-cache`.
+
+Chromium shows **Install app** in Settings when the browser offers a prompt. iOS Safari shows a dismissible Add to Home Screen hint on `/login` only. A real-device install needs HTTPS (or a trusted local tunnel; `allowedDevOrigins` in `next.config.mjs` lists the current ngrok host).
+
+Playwright cannot prove install, iOS cookie persistence, or notched safe areas. That checklist is in `crm_qa/docs/pwa-manual.md`.
 
 ## Tests
 

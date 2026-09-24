@@ -10,8 +10,8 @@ export function AuthFrame({
   logoUrl,
 }) {
   return (
-    <main className="relative flex min-h-screen items-center justify-center bg-app px-4 py-16 text-main">
-      <div className="absolute right-4 top-4 sm:right-6 sm:top-6">
+    <main className="relative flex min-h-dvh items-center justify-center bg-app px-4 pb-[max(4rem,env(safe-area-inset-bottom,0px))] pt-[max(4rem,calc(env(safe-area-inset-top,0px)+1rem))] text-main">
+      <div className="absolute right-4 top-[max(1rem,env(safe-area-inset-top,0px))] sm:right-6">
         <ThemeToggle variant="icon" />
       </div>
 

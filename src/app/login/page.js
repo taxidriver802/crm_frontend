@@ -10,6 +10,7 @@ import { EmailInput } from "@/components/ui/formatted-inputs";
 import { emailError } from "@/lib/input-format";
 import { AuthFrame } from "@/components/auth/auth-frame";
 import { useThemeController } from "@/components/theme/theme-controller";
+import { usePwaInstall } from "@/lib/pwa";
 import {
   COMPANY_SLUG_RE,
   clearStoredCompanySlug,
@@ -208,6 +209,23 @@ export default function LoginPage() {
           Create a company
         </Link>
       </p>
+      <IosInstallHint />
     </AuthFrame>
+  );
+}
+
+function IosInstallHint() {
+  const { showIosHint, dismiss } = usePwaInstall();
+  if (!showIosHint) return null;
+
+  return (
+    <div className="mt-4">
+      <Alert tone="info">
+        <p>Install CRM from Safari: tap Share, then Add to Home Screen.</p>
+        <button type="button" className="btn mt-2 px-3 py-1.5 text-xs" onClick={dismiss}>
+          Dismiss
+        </button>
+      </Alert>
+    </div>
   );
 }

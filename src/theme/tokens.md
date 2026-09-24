@@ -106,16 +106,21 @@ Light-only hex from `resolvePrintTheme(paletteId)` / palette `print`. No dark mo
 
 Estimate and invoice PDFs share `PRINT_PDF` + `pdf-layout.ts`. Invite HTML interpolates the same hex.
 
-## PWA (Phase 9)
+## PWA
 
-`resolvePwaTheme()` reads light `--bg` / `--accent` / `--on-accent`.
+Install chrome stays on the product identity. Company palette and logo do not change the home-screen icon or manifest colors.
+
+`resolvePwaTheme()` reads the Rooftop light `--bg` / `--accent` / `--on-accent`.
 
 | Use                                                            | Token                      | Hex                   |
 | -------------------------------------------------------------- | -------------------------- | --------------------- |
 | Manifest `theme_color` / `background_color`, viewport fallback | `--bg`                     | `#f4f5f7`             |
-| App icons                                                      | `--accent` / `--on-accent` | `#f97316` / `#111318` |
+| App icons (SVG source and generated PNG)                       | `--accent` / `--on-accent` | `#f97316` / `#111318` |
+| Offline shell (`public/offline.html`)                          | same light tokens          | hardcoded, no CSS vars |
 
-Runtime `theme-color` still follows computed `--bg` (light or dark) via `syncThemeColorMeta()`.
+PNG sizes: 180 (`apple-touch-icon.png`), 192, 512, and a maskable 512 with extra safe-zone padding. Regenerate with `npm run icons:pwa` (`sharp`, devDependency). SVGs stay in `public/icons/` as the source.
+
+Runtime `theme-color` still follows computed `--bg` (light or dark) via `syncThemeColorMeta()`. That meta tag is the browser chrome while the site is open. The installed icon does not follow it.
 
 ## Public customer surfaces (Phase 7)
 

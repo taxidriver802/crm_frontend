@@ -477,6 +477,7 @@ export default function LeadDetailPage() {
                 <input
                   type="file"
                   className="hidden"
+                  capture="environment"
                   onChange={handleFileUpload}
                   disabled={uploading}
                 />

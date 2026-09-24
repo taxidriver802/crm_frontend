@@ -1319,6 +1319,7 @@ export default function JobDetailPage() {
                       type="file"
                       className="hidden"
                       multiple
+                      capture="environment"
                       onChange={handleFileUpload}
                       disabled={uploading}
                     />
