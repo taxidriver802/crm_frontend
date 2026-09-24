@@ -32,6 +32,7 @@ export default function ReportsPage() {
   });
   const [jobPipeline, setJobPipeline] = useState([]);
   const [trends, setTrends] = useState({ leads: [], estimates: [] });
+  const [canViewTeam, setCanViewTeam] = useState(false);
 
   async function loadReports() {
     setLoading(true);
@@ -43,6 +44,13 @@ export default function ReportsPage() {
         api("/reports/job-pipeline"),
         api("/reports/trends?period=monthly"),
       ]);
+      try {
+        const authRes = await api("/auth/me", { credentials: "include" });
+        const role = authRes?.user?.role;
+        setCanViewTeam(role === "owner" || role === "admin");
+      } catch {
+        setCanViewTeam(false);
+      }
       setLeadFunnel(leadRes.data || []);
       setEstimateOutcomes({
         byStatus: estimateRes.byStatus || [],
@@ -105,9 +113,16 @@ export default function ReportsPage() {
       title="Reports"
       description={loading ? "Loading…" : "Pipeline, estimates, and trends"}
       right={
-        <Link href="/reports/product" className="btn px-3 py-2 text-xs">
-          Product metrics
-        </Link>
+        <div className="flex flex-wrap items-center gap-2">
+          {canViewTeam ? (
+            <Link href="/reports/team" className="btn px-3 py-2 text-xs">
+              Team
+            </Link>
+          ) : null}
+          <Link href="/reports/product" className="btn px-3 py-2 text-xs">
+            Product metrics
+          </Link>
+        </div>
       }
     >
       <div className="space-y-6">

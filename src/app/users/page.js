@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useLayoutEffect, useMemo, useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 
 import { AppShell } from "@/components/app-shell";
@@ -531,6 +532,14 @@ export default function UsersPage() {
                         <div className="text-xs text-muted sm:text-sm md:truncate">
                           {user.email}
                         </div>
+                        {user.status === "active" ? (
+                          <Link
+                            href={`/reports/team/${user.id}`}
+                            className="mt-1 inline-block text-xs text-link"
+                          >
+                            Performance
+                          </Link>
+                        ) : null}
                       </div>
                     </Td>
 

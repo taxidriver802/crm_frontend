@@ -185,7 +185,7 @@ export function FunnelBars({ steps = [] }) {
   );
 }
 
-export function GroupedVerticalBars({ labels = [], series = [] }) {
+export function GroupedVerticalBars({ labels = [], series = [], formatLabel }) {
   const shown = labels.slice(-6);
   const offset = labels.length - shown.length;
   const data = shown.map((label, index) => {
@@ -220,7 +220,9 @@ export function GroupedVerticalBars({ labels = [], series = [] }) {
           axisLine={false}
           tickLine={false}
           tickMargin={8}
-          tickFormatter={(value) => value.slice(5)}
+          tickFormatter={(value) =>
+            formatLabel ? formatLabel(String(value)) : String(value).slice(5)
+          }
           tick={{ fill: "var(--text-muted)", fontSize: 11 }}
         />
         <YAxis axisLine={false} tickLine={false} allowDecimals={false} hide />

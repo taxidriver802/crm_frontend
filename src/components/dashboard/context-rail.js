@@ -85,7 +85,7 @@ export function ContextRail({
       ) : null}
 
       {canViewTeam ? (
-        <RailCard title="Team" href="/users">
+        <RailCard title="Team" href="/reports/team">
           {loading ? (
             <div className="space-y-3 p-4">
               <Skeleton className="h-4 w-40" />
@@ -110,7 +110,16 @@ export function ContextRail({
                   >
                     <div className="min-w-0">
                       <div className="flex items-center gap-1.5">
-                        <div className="truncate text-sm font-medium">{row.name}</div>
+                        {row.user_id ? (
+                          <ReturnLink
+                            href={`/reports/team/${row.user_id}`}
+                            className="truncate text-sm font-medium hover:underline"
+                          >
+                            {row.name}
+                          </ReturnLink>
+                        ) : (
+                          <div className="truncate text-sm font-medium">{row.name}</div>
+                        )}
                         {isCurrentUser ? (
                           <span
                             className="h-1.5 w-1.5 shrink-0 rounded-full bg-accent-solid"
