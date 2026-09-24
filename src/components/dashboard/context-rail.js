@@ -56,6 +56,7 @@ export function ContextRail({
   workload = [],
   activity = [],
   canViewTeam = false,
+  currentUserId = null,
   loading = false,
   loadingActivity = false,
 }) {
@@ -98,13 +99,26 @@ export function ContextRail({
             <div className="divide-y divide-[var(--border)]">
               {workload.map((row) => {
                 const assigned = assigneeQuery(row.user_id);
+                const isCurrentUser =
+                  currentUserId != null &&
+                  row.user_id != null &&
+                  String(row.user_id) === String(currentUserId);
                 return (
                   <div
                     key={row.user_id || "unassigned"}
                     className="flex items-center justify-between gap-3 px-4 py-2.5"
                   >
                     <div className="min-w-0">
-                      <div className="truncate text-sm font-medium">{row.name}</div>
+                      <div className="flex items-center gap-1.5">
+                        <div className="truncate text-sm font-medium">{row.name}</div>
+                        {isCurrentUser ? (
+                          <span
+                            className="h-1.5 w-1.5 shrink-0 rounded-full bg-accent-solid"
+                            title="You"
+                            aria-label="You"
+                          />
+                        ) : null}
+                      </div>
                       <div className="text-xs text-muted">
                         {row.leads_open} leads · {row.jobs_open} jobs
                       </div>

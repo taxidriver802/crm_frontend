@@ -375,6 +375,7 @@ export default function DashboardPage() {
             workload={workload}
             activity={activity}
             canViewTeam={canViewAll}
+            currentUserId={user?.id}
             loading={isInitialLoading}
             loadingActivity={loadingActivity}
           />
