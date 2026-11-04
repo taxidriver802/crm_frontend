@@ -2,15 +2,13 @@
 
 import { Alert } from "@/components/ui/alert";
 import { Field, FormActions } from "@/components/ui/field";
+import { JOB_STATUSES } from "@/lib/job-lifecycle";
 
-const JOB_STATUS_OPTIONS = [
-  "New",
-  "Contacted",
-  "Appointment Scheduled",
-  "Proposal Sent",
-  "Closed Won",
-  "Closed Lost",
-];
+// A job cannot start closed; it closes when it is paid. An already-closed
+// job keeps its own status in the list so editing it does not move it.
+function statusOptionsFor(current) {
+  return JOB_STATUSES.filter((status) => status !== "Closed" || current === "Closed");
+}
 
 const EMPTY_JOB_FORM = {
   lead_id: "",
@@ -104,7 +102,7 @@ export function JobForm({
             value={form.status}
             onChange={(e) => setField("status", e.target.value)}
           >
-            {JOB_STATUS_OPTIONS.map((status) => (
+            {statusOptionsFor(form.status).map((status) => (
               <option key={status} value={status}>
                 {status}
               </option>

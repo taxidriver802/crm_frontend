@@ -46,6 +46,12 @@ function InvoiceRow({ invoice, onOpen, variant = "card" }) {
           <span className="font-semibold">${formatCurrency(invoice.grand_total)}</span>
         </EntityListMeta>
 
+        <EntityListMeta label="Balance">
+          {invoice.status === "Draft" || invoice.status === "Void"
+            ? "—"
+            : `$${formatCurrency(invoice.balance_due)}`}
+        </EntityListMeta>
+
         <EntityListMeta label="Due">
           {invoice.due_date ? formatDate(invoice.due_date) : "—"}
         </EntityListMeta>

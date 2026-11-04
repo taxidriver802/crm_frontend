@@ -12,6 +12,16 @@ import { SectionCard } from "@/components/ui/section-card";
 import { GroupedVerticalBars, HorizontalBars } from "@/components/ui/chart";
 import { PageToolbar } from "@/components/page-toolbar";
 import { Icon } from "@/components/icons";
+import { ListRow } from "@/components/ui/list-row";
+import { formatMoney } from "@/lib/job-lifecycle";
+
+const AGING_LABEL = {
+  current: "Not yet due",
+  "1_30": "1–30 days late",
+  "31_60": "31–60 days late",
+  "61_90": "61–90 days late",
+  "90_plus": "90+ days late",
+};
 
 function QuietLink({ href, children }) {
   return (
@@ -32,18 +42,29 @@ export default function ReportsPage() {
   });
   const [jobPipeline, setJobPipeline] = useState([]);
   const [trends, setTrends] = useState({ leads: [], estimates: [] });
+  const [collections, setCollections] = useState({
+    monthly: [],
+    aging: [],
+    outstanding_total: 0,
+  });
   const [canViewTeam, setCanViewTeam] = useState(false);
 
   async function loadReports() {
     setLoading(true);
     setError("");
     try {
-      const [leadRes, estimateRes, jobRes, trendsRes] = await Promise.all([
+      const [leadRes, estimateRes, jobRes, trendsRes, collectionsRes] = await Promise.all([
         api("/reports/lead-funnel"),
         api("/reports/estimate-outcomes"),
         api("/reports/job-pipeline"),
         api("/reports/trends?period=monthly"),
+        api("/reports/collections"),
       ]);
+      setCollections({
+        monthly: collectionsRes.monthly || [],
+        aging: collectionsRes.aging || [],
+        outstanding_total: collectionsRes.outstanding_total || 0,
+      });
       try {
         const authRes = await api("/auth/me", { credentials: "include" });
         const role = authRes?.user?.role;
@@ -95,6 +116,22 @@ export default function ReportsPage() {
     };
   }, [trends]);
 
+  const collectedThisMonth = Number(
+    collections.monthly[collections.monthly.length - 1]?.collected || 0,
+  );
+  const lateTotal = (collections.aging || [])
+    .filter((bucket) => bucket.bucket !== "current")
+    .reduce((sum, bucket) => sum + Number(bucket.amount || 0), 0);
+  const moneySeries = {
+    labels: collections.monthly.map((row) => row.month_key),
+    signed: collections.monthly.map((row) => Number(row.signed || 0)),
+    billed: collections.monthly.map((row) => Number(row.billed || 0)),
+    collected: collections.monthly.map((row) => Number(row.collected || 0)),
+  };
+  const hasMoney = moneySeries.signed.concat(moneySeries.billed, moneySeries.collected).some(
+    (value) => value > 0,
+  );
+
   const estimateCount = (estimateOutcomes.byStatus || []).reduce(
     (sum, row) => sum + Number(row.count || 0),
     0,
@@ -111,7 +148,7 @@ export default function ReportsPage() {
   return (
     <AppShell
       title="Reports"
-      description={loading ? "Loading…" : "Pipeline, estimates, and trends"}
+      description={loading ? "Loading…" : "Pipeline, money, and trends"}
       right={
         <div className="flex flex-wrap items-center gap-2">
           {canViewTeam ? (
@@ -247,6 +284,87 @@ export default function ReportsPage() {
             )}
           </SectionCard>
         </div>
+
+        <SectionCard
+          title="Money after the sale"
+          description="Work signed, billed, and collected — and what is still owed."
+        >
+          {loading ? (
+            <Skeleton className="h-36 w-full" />
+          ) : (
+            <div className="space-y-5">
+              <div className="grid gap-4 sm:grid-cols-3">
+                <StatCard
+                  size="metric"
+                  label="Outstanding"
+                  value={formatMoney(collections.outstanding_total)}
+                  sub="Sent and unpaid"
+                  href="/invoices?status=Open"
+                />
+                <StatCard
+                  size="metric"
+                  label="Past due"
+                  value={formatMoney(lateTotal)}
+                  sub="Balance on late invoices"
+                  href="/invoices?status=Overdue"
+                />
+                <StatCard
+                  size="metric"
+                  label="Collected this month"
+                  value={formatMoney(collectedThisMonth)}
+                />
+              </div>
+
+              <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,2fr)]">
+                <div className="space-y-2" data-testid="ar-aging">
+                  <div className="text-xs font-medium uppercase tracking-wide text-muted">
+                    Receivables aging
+                  </div>
+                  {(collections.aging || []).map((bucket) => (
+                    <ListRow key={bucket.bucket} className="flex items-center justify-between gap-3">
+                      <div className="min-w-0 text-sm">
+                        {AGING_LABEL[bucket.bucket] || bucket.bucket}
+                        <span className="text-muted"> · {bucket.count}</span>
+                      </div>
+                      <div
+                        className={
+                          bucket.bucket !== "current" && bucket.amount > 0
+                            ? "shrink-0 font-semibold text-danger"
+                            : "shrink-0 font-semibold"
+                        }
+                      >
+                        {formatMoney(bucket.amount)}
+                      </div>
+                    </ListRow>
+                  ))}
+                </div>
+                <div className="min-w-0">
+                  {hasMoney ? (
+                    <GroupedVerticalBars
+                      labels={moneySeries.labels}
+                      series={[
+                        { key: "signed", label: "Signed", values: moneySeries.signed, series: 1 },
+                        { key: "billed", label: "Billed", values: moneySeries.billed, series: 2 },
+                        {
+                          key: "collected",
+                          label: "Collected",
+                          values: moneySeries.collected,
+                          series: 3,
+                        },
+                      ]}
+                    />
+                  ) : (
+                    <EmptyState
+                      icon={<Icon name="chart" className="h-5 w-5" />}
+                      title="No money moved yet"
+                      description="Fills in as estimates are approved, invoices go out, and payments come in."
+                    />
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
+        </SectionCard>
 
         <SectionCard title="Monthly trends">
           {loading ? (

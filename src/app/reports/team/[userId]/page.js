@@ -297,7 +297,7 @@ export default function UserPerformancePage() {
                 emptyTitle="No lead status changes in this window"
               />
             </SectionCard>
-            <SectionCard title="Proposal to decision" description="First Proposal Sent to Closed Won or Closed Lost.">
+            <SectionCard title="Proposal to decision" description="First Proposal Sent to Sold or Lost.">
               <div className="text-2xl font-semibold tabular-nums">
                 {formatDays(user.medianProposalToDecision?.days)}
               </div>

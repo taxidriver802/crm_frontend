@@ -3,6 +3,7 @@
 import { ReturnLink } from "@/components/return-to";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { HealthBadge } from "@/components/ui/health-badge";
+import { formatMoney } from "@/lib/job-lifecycle";
 import {
   EntityList,
   EntityListAssignee,
@@ -72,6 +73,20 @@ function JobRow({
         ) : null}
 
         <EntityListMeta label="Created">{formatDate(job.created_at)}</EntityListMeta>
+
+        {job.money?.contract_total > 0 ? (
+          <EntityListMeta label="Contract">
+            {formatMoney(job.money.contract_total)}
+          </EntityListMeta>
+        ) : null}
+
+        {job.money?.outstanding_total > 0 ? (
+          <EntityListMeta label="Owed">
+            <span className={job.money.overdue_total > 0 ? "text-danger" : undefined}>
+              {formatMoney(job.money.outstanding_total)}
+            </span>
+          </EntityListMeta>
+        ) : null}
 
         {daysInStatus ? <span className="text-xs text-muted">{daysInStatus}</span> : null}
 

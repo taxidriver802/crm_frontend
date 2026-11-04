@@ -11,8 +11,18 @@ import { PageToolbar } from "@/components/page-toolbar";
 import { Segmented } from "@/components/ui/segmented";
 import { Icon } from "@/components/icons";
 import { InvoicesList } from "@/components/lists/invoices-list";
+import { formatMoney } from "@/lib/job-lifecycle";
 
-const INVOICE_STATUSES = ["Draft", "Sent", "Paid", "Overdue"];
+/** Open = sent and not yet paid in full (Sent, Partially Paid, Overdue). */
+const OPEN_STATUSES = new Set(["Sent", "Partially Paid", "Overdue"]);
+const INVOICE_FILTERS = [
+  { value: "Draft", label: "Draft", match: (inv) => inv.status === "Draft" },
+  { value: "Open", label: "Open", match: (inv) => OPEN_STATUSES.has(inv.status) },
+  { value: "Overdue", label: "Overdue", short: "Late", match: (inv) => inv.status === "Overdue" },
+  { value: "Paid", label: "Paid", match: (inv) => inv.status === "Paid" },
+  { value: "Void", label: "Void", match: (inv) => inv.status === "Void" },
+];
+const INVOICE_STATUSES = INVOICE_FILTERS.map((f) => f.value);
 
 const DUE_OPTIONS = [
   { value: "", label: "Any due date" },
@@ -75,17 +85,28 @@ function InvoicesPageInner() {
   }, [queryString]);
 
   const byStatus = useMemo(() => {
-    const counts = { Draft: 0, Sent: 0, Paid: 0, Overdue: 0 };
+    const counts = Object.fromEntries(INVOICE_FILTERS.map((f) => [f.value, 0]));
     for (const invoice of invoices) {
-      if (counts[invoice.status] != null) counts[invoice.status] += 1;
+      for (const filter of INVOICE_FILTERS) {
+        if (filter.match(invoice)) counts[filter.value] += 1;
+      }
     }
     return counts;
   }, [invoices]);
 
+  const outstanding = useMemo(
+    () =>
+      invoices
+        .filter((inv) => OPEN_STATUSES.has(inv.status))
+        .reduce((sum, inv) => sum + Number(inv.balance_due || 0), 0),
+    [invoices],
+  );
+
   const needle = q.trim().toLowerCase();
   const visible = useMemo(() => {
     return invoices.filter((invoice) => {
-      if (status && invoice.status !== status) return false;
+      const activeFilter = INVOICE_FILTERS.find((f) => f.value === status);
+      if (activeFilter && !activeFilter.match(invoice)) return false;
       if (!needle) return true;
       const hay = [invoice.invoice_number, invoice.lead_name, invoice.job_title]
         .filter(Boolean)
@@ -102,19 +123,24 @@ function InvoicesPageInner() {
       label: "All",
       count: loading ? undefined : invoices.length,
     },
-    ...INVOICE_STATUSES.map((column) => ({
-      value: column,
-      label: column,
-      count: loading ? undefined : (byStatus[column] ?? 0),
+    ...INVOICE_FILTERS.map((filter) => ({
+      value: filter.value,
+      label: filter.label,
+      short: filter.short,
+      count: loading ? undefined : (byStatus[filter.value] ?? 0),
       countTone:
-        column === "Overdue" && !loading && overdueCount > 0 ? "danger" : undefined,
+        filter.value === "Overdue" && !loading && overdueCount > 0 ? "danger" : undefined,
     })),
   ];
 
   return (
     <AppShell
       title="Invoices"
-      description={loading ? "Loading…" : `${visible.length} in this view`}
+      description={
+        loading
+          ? "Loading…"
+          : `${visible.length} in this view · ${formatMoney(outstanding)} outstanding`
+      }
     >
       <div className="space-y-6">
         {error ? <Alert variant="inline">{error}</Alert> : null}

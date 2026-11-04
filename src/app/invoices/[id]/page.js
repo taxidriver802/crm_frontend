@@ -26,8 +26,8 @@ import {
   formatMessageAmount,
   logOutboundEmailOnJob,
 } from "@/lib/message-templates";
-
-const INVOICE_STATUSES = ["Draft", "Sent", "Paid", "Overdue"];
+import { InvoicePayments } from "@/components/invoices/invoice-payments";
+import { INVOICE_KIND_LABEL, formatMoney } from "@/lib/job-lifecycle";
 
 function InvoiceLineItemForm({
   form,
@@ -128,6 +128,10 @@ export default function InvoiceDetailPage() {
   const [statusBusy, setStatusBusy] = useState(false);
   const [qbBusy, setQbBusy] = useState(false);
   const [qbHint, setQbHint] = useState("");
+  const [currentUser, setCurrentUser] = useState(null);
+  const [paymentBusy, setPaymentBusy] = useState(false);
+  const [paymentError, setPaymentError] = useState("");
+  const [paymentNotice, setPaymentNotice] = useState("");
 
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [lineItemForm, setLineItemForm] = useState(createEmptyLineItem());
@@ -157,6 +161,71 @@ export default function InvoiceDetailPage() {
     if (id) loadPage();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id]);
+
+  useEffect(() => {
+    let alive = true;
+    api("/auth/me")
+      .then((res) => {
+        if (alive) setCurrentUser(res?.user || null);
+      })
+      .catch(() => {});
+    return () => {
+      alive = false;
+    };
+  }, []);
+
+  const canRemovePayments =
+    currentUser?.role === "owner" || currentUser?.role === "admin";
+
+  async function recordPayment(body) {
+    setPaymentBusy(true);
+    setPaymentError("");
+    setPaymentNotice("");
+    try {
+      const res = await api(`/invoices/${id}/payments`, {
+        method: "POST",
+        body: JSON.stringify(body),
+      });
+      setInvoice(res.invoice);
+      if (res.job?.status === "Closed") {
+        setPaymentNotice("Paid in full. The job is settled and now closed.");
+      } else if (res.invoice?.status === "Paid") {
+        setPaymentNotice("Paid in full.");
+      } else {
+        setPaymentNotice(`Payment saved. ${formatMoney(res.invoice?.balance_due)} still due.`);
+      }
+      return true;
+    } catch (e) {
+      setPaymentError(e?.message || "Could not record the payment");
+      return false;
+    } finally {
+      setPaymentBusy(false);
+    }
+  }
+
+  function removePayment(payment) {
+    askConfirm({
+      title: `Remove the ${formatMoney(payment.amount)} payment?`,
+      description:
+        "Use this to correct a mistake. The balance goes back up and a closed job reopens.",
+      confirmLabel: "Remove payment",
+      onConfirm: async () => {
+        setPaymentBusy(true);
+        setPaymentError("");
+        setPaymentNotice("");
+        try {
+          const res = await api(`/invoices/${id}/payments/${payment.id}`, {
+            method: "DELETE",
+          });
+          setInvoice(res.invoice);
+        } catch (e) {
+          setPaymentError(e?.message || "Could not remove the payment");
+        } finally {
+          setPaymentBusy(false);
+        }
+      },
+    });
+  }
 
   async function downloadPdf() {
     setPdfBusy(true);
@@ -269,6 +338,16 @@ export default function InvoiceDetailPage() {
     } finally {
       setStatusBusy(false);
     }
+  }
+
+  function handleVoidInvoice() {
+    askConfirm({
+      title: "Void this invoice?",
+      description:
+        "A void invoice stays on record but no longer counts toward what the client owes.",
+      confirmLabel: "Void invoice",
+      onConfirm: () => handleStatusChange("Void"),
+    });
   }
 
   function handleDeleteInvoice() {
@@ -395,13 +474,20 @@ export default function InvoiceDetailPage() {
                       href={`/estimates/${invoice.estimate_id}`}
                       className="underline underline-offset-4 hover:opacity-80"
                     >
-                      Estimate #{invoice.estimate_id}
+                      {invoice.estimate_title || `Estimate #${invoice.estimate_id}`}
                     </ReturnLink>
                   </div>
                 ) : null}
               </>
             }
-            badges={<StatusBadge kind="invoice" status={invoice.status} />}
+            badges={
+              <>
+                <StatusBadge kind="invoice" status={invoice.status} />
+                {invoice.kind && invoice.kind !== "standard" ? (
+                  <StatusBadge>{INVOICE_KIND_LABEL[invoice.kind]}</StatusBadge>
+                ) : null}
+              </>
+            }
             actions={
               <DetailMoreMenu label="More">
                 <DetailMoreMenuItem
@@ -432,13 +518,24 @@ export default function InvoiceDetailPage() {
                 >
                   {qbBusy ? "Syncing…" : "Sync to QuickBooks"}
                 </DetailMoreMenuItem>
-                <DetailMoreMenuItem
-                  type="button"
-                  className="text-danger"
-                  onClick={handleDeleteInvoice}
-                >
-                  Delete invoice
-                </DetailMoreMenuItem>
+                {invoice.status !== "Void" && !(invoice.payments || []).length ? (
+                  <DetailMoreMenuItem
+                    type="button"
+                    className="text-danger"
+                    onClick={handleVoidInvoice}
+                  >
+                    Void invoice
+                  </DetailMoreMenuItem>
+                ) : null}
+                {!(invoice.payments || []).length ? (
+                  <DetailMoreMenuItem
+                    type="button"
+                    className="text-danger"
+                    onClick={handleDeleteInvoice}
+                  >
+                    Delete invoice
+                  </DetailMoreMenuItem>
+                ) : null}
               </DetailMoreMenu>
             }
           >
@@ -452,9 +549,12 @@ export default function InvoiceDetailPage() {
               </div>
             ) : null}
 
-            <div className="grid gap-4 sm:grid-cols-3">
+            <div className="grid gap-4 sm:grid-cols-4">
               <MetaItem label="Due date">
                 {invoice.due_date ? formatDate(invoice.due_date) : "—"}
+              </MetaItem>
+              <MetaItem label="Balance due">
+                <span data-testid="invoice-balance">{formatMoney(invoice.balance_due)}</span>
               </MetaItem>
               <MetaItem label="Paid at">
                 {invoice.paid_at ? formatDate(invoice.paid_at) : "—"}
@@ -470,33 +570,48 @@ export default function InvoiceDetailPage() {
           </DetailHeader>
         )}
 
-        {invoice ? (
+        {invoice && invoice.status === "Draft" ? (
           <SectionCard
             size="lg"
-            title="Status"
-            description="Track where this invoice is in the workflow"
-          >
-            <div className="flex flex-wrap gap-2">
-              {INVOICE_STATUSES.map((s) => (
-                <button
-                  key={s}
-                  type="button"
-                  disabled={statusBusy || s === invoice.status}
-                  onClick={() => handleStatusChange(s)}
-                  className={`choice-chip ${s === invoice.status ? "choice-chip-active" : ""}`}
-                >
-                  {s}
-                </button>
-              ))}
-            </div>
-          </SectionCard>
+            title="Not sent yet"
+            description="Drafts do not count toward what the client owes. Copying the share link also sends it."
+            right={
+              <button
+                type="button"
+                className="btn btn-primary btn-sm"
+                disabled={statusBusy}
+                onClick={() => handleStatusChange("Sent")}
+              >
+                {statusBusy ? "Saving…" : "Mark sent"}
+              </button>
+            }
+            collapsed
+          />
+        ) : null}
+
+        {invoice ? (
+          <InvoicePayments
+            key={`${invoice.id}-${invoice.amount_paid}`}
+            invoice={invoice}
+            canRemove={canRemovePayments}
+            busy={paymentBusy}
+            error={paymentError}
+            notice={paymentNotice}
+            onRecord={recordPayment}
+            onRemove={removePayment}
+          />
         ) : null}
 
         <SectionCard
           size="lg"
           title="Line items"
-          description="Breakdown of charges"
+          description={
+            invoice?.locked
+              ? "Locked: payments are recorded or the invoice is void."
+              : "Breakdown of charges"
+          }
           right={
+            invoice?.locked ? null : (
             <button
               type="button"
               className="btn btn-primary btn-sm"
@@ -512,6 +627,7 @@ export default function InvoiceDetailPage() {
             >
               {isCreateOpen && !editingLineItem ? "Hide" : "New item"}
             </button>
+            )
           }
         >
           <div className="space-y-4">
@@ -545,9 +661,10 @@ export default function InvoiceDetailPage() {
                     key={item.id}
                     as="button"
                     type="button"
-                    interactive
+                    interactive={!invoice?.locked}
+                    disabled={invoice?.locked}
                     className="flex w-full items-start justify-between text-left"
-                    onClick={() => handleEditLineItem(item)}
+                    onClick={() => (invoice?.locked ? null : handleEditLineItem(item))}
                   >
                     <div>
                       <div className="font-medium">{item.name}</div>
@@ -583,9 +700,25 @@ export default function InvoiceDetailPage() {
               <span className="text-muted">Discounts</span>
               <span>-${formatCurrency(invoice?.discount_total)}</span>
             </div>
-            <div className="flex justify-between border-t border-base pt-2 text-lg font-semibold">
-              <span>Total Due</span>
+            {invoice?.prior_billed_total ? (
+              <div className="flex justify-between">
+                <span className="text-muted">Less deposit billed</span>
+                <span>-${formatCurrency(invoice.prior_billed_total)}</span>
+              </div>
+            ) : null}
+            <div className="flex justify-between border-t border-base pt-2 font-semibold">
+              <span>Invoice total</span>
               <span>${formatCurrency(invoice?.grand_total)}</span>
+            </div>
+            {invoice?.amount_paid ? (
+              <div className="flex justify-between">
+                <span className="text-muted">Paid</span>
+                <span>-${formatCurrency(invoice.amount_paid)}</span>
+              </div>
+            ) : null}
+            <div className="flex justify-between border-t border-base pt-2 text-lg font-semibold">
+              <span>Balance due</span>
+              <span>${formatCurrency(invoice?.balance_due)}</span>
             </div>
           </div>
         </SectionCard>
@@ -604,7 +737,7 @@ export default function InvoiceDetailPage() {
                 { label: "Created", date: invoice.created_at, done: true },
                 {
                   label: "Sent",
-                  date: invoice.status !== "Draft" ? invoice.updated_at : null,
+                  date: invoice.sent_at || null,
                   done: invoice.status !== "Draft",
                 },
                 {

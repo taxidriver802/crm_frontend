@@ -14,29 +14,20 @@ import { Segmented } from "@/components/ui/segmented";
 import { Icon } from "@/components/icons";
 import { JobsList } from "@/components/lists/jobs-list";
 import { PageToolbar } from "@/components/page-toolbar";
+import { JOB_PHASES, JOB_STATUSES, phaseOf } from "@/lib/job-lifecycle";
 
-const JOB_PIPELINE_COLUMNS = [
-  "New",
-  "Contacted",
-  "Appointment Scheduled",
-  "Proposal Sent",
-  "Closed Won",
-  "Closed Lost",
-];
-
-const JOB_STATUS_SHORT = {
-  Contacted: "Touch",
-  "Appointment Scheduled": "Appt",
-  "Proposal Sent": "Sent",
-  "Closed Won": "Won",
-  "Closed Lost": "Lost",
-};
+const PHASE_IDS = JOB_PHASES.map((phase) => phase.id);
 
 function JobsPageInner() {
   const push = useReturnPush();
   const searchParams = useSearchParams();
   const [q, setQ] = useState("");
+  // Exact status (deep links from the dashboard) or a lifecycle phase.
   const [status, setStatus] = useState(() => searchParams.get("status") || "");
+  const [phase, setPhase] = useState(() => {
+    const raw = searchParams.get("phase") || "";
+    return PHASE_IDS.includes(raw) ? raw : "";
+  });
 
   const [summary, setSummary] = useState(null);
   const [jobs, setJobs] = useState([]);
@@ -61,14 +52,16 @@ function JobsPageInner() {
   const prefillLeadId = searchParams.get("lead_id") || "";
   const shouldOpenCreate = searchParams.get("open") === "create";
   const statusParam = searchParams.get("status") || "";
+  const phaseParam = searchParams.get("phase") || "";
   const assignedParam = searchParams.get("assignedTo") || "";
 
   const [form, setForm] = useState(createEmptyJobForm({ lead_id: prefillLeadId }));
 
   useEffect(() => {
-    setStatus(statusParam);
+    setStatus(JOB_STATUSES.includes(statusParam) ? statusParam : "");
+    setPhase(PHASE_IDS.includes(phaseParam) ? phaseParam : "");
     setAssignedFilter(assignedParam);
-  }, [statusParam, assignedParam]);
+  }, [statusParam, phaseParam, assignedParam]);
 
   useEffect(() => {
     if (prefillLeadId) {
@@ -113,8 +106,8 @@ function JobsPageInner() {
 
   const canViewAll = currentUser?.role === "owner" || currentUser?.role === "admin";
   const currentFiltersForSave = useMemo(
-    () => ({ q, status, assignedFilter, viewScope }),
-    [q, status, assignedFilter, viewScope],
+    () => ({ q, status, phase, assignedFilter, viewScope }),
+    [q, status, phase, assignedFilter, viewScope],
   );
   const newJobHref = prefillLeadId ? `/jobs/new?lead_id=${prefillLeadId}` : "/jobs/new";
   const summaryPath =
@@ -125,6 +118,8 @@ function JobsPageInner() {
 
     if (status && status !== "All") {
       params.set("status", status);
+    } else if (phase) {
+      params.set("phase", phase);
     }
 
     if (q.trim()) {
@@ -148,7 +143,7 @@ function JobsPageInner() {
 
     const s = params.toString();
     return s ? `?${s}` : "";
-  }, [q, status, canViewAll, viewScope, assignedFilter, prefillLeadId]);
+  }, [q, status, phase, canViewAll, viewScope, assignedFilter, prefillLeadId]);
 
   async function handleAssignJob(jobId, assignedTo) {
     const assignee = teamUsers.find((user) => user.id === assignedTo) || null;
@@ -298,21 +293,14 @@ function JobsPageInner() {
         setJobs((prev) => [newJob, ...prev]);
         setSummary((prev) => {
           if (!prev) return prev;
-
-          const nextTotal = (prev.total ?? 0) + 1;
-          const nextStatus = payload.status || "New";
-          const prevByStatus = Array.isArray(prev.byStatus) ? prev.byStatus : [];
-          const exists = prevByStatus.some((item) => item.status === nextStatus);
-          const byStatus = exists
-            ? prevByStatus.map((item) =>
-                item.status === nextStatus ? { ...item, count: item.count + 1 } : item,
-              )
-            : [...prevByStatus, { status: nextStatus, count: 1 }];
-
+          const nextPhase = phaseOf(newJob.status || payload.status || "New");
+          const prevByPhase = Array.isArray(prev.byPhase) ? prev.byPhase : [];
           return {
             ...prev,
-            total: nextTotal,
-            byStatus,
+            total: (prev.total ?? 0) + 1,
+            byPhase: prevByPhase.map((item) =>
+              item.phase === nextPhase ? { ...item, count: item.count + 1 } : item,
+            ),
           };
         });
       } else {
@@ -325,20 +313,21 @@ function JobsPageInner() {
     }
   }
 
-  const byStatus = Array.isArray(summary?.byStatus) ? summary.byStatus : [];
-  const pipelineOptions = [
+  const byPhase = Array.isArray(summary?.byPhase) ? summary.byPhase : [];
+  const phaseOptions = [
     {
       value: "",
       label: "All",
       count: loadingSummary ? undefined : (summary?.total ?? 0),
     },
-    ...JOB_PIPELINE_COLUMNS.map((column) => ({
-      value: column,
-      label: column,
-      short: JOB_STATUS_SHORT[column],
+    ...JOB_PHASES.map((p) => ({
+      value: p.id,
+      label: p.label,
+      short: p.short,
       count: loadingSummary
         ? undefined
-        : (byStatus.find((row) => row.status === column)?.count ?? 0),
+        : (byPhase.find((row) => row.phase === p.id)?.count ?? 0),
+      countTone: p.id === "billing" ? "warning" : undefined,
     })),
   ];
 
@@ -409,11 +398,27 @@ function JobsPageInner() {
 
         <Segmented
           className="w-full min-w-0"
-          aria-label="Job status"
-          value={status}
-          onChange={setStatus}
-          options={pipelineOptions}
+          aria-label="Job phase"
+          value={status ? "__status" : phase}
+          onChange={(value) => {
+            setStatus("");
+            setPhase(value);
+          }}
+          options={phaseOptions}
         />
+
+        {status ? (
+          <div className="flex flex-wrap items-center gap-2 text-sm text-muted">
+            <span>Status: {status}</span>
+            <button
+              type="button"
+              className="btn btn-ghost btn-sm"
+              onClick={() => setStatus("")}
+            >
+              Clear
+            </button>
+          </div>
+        ) : null}
 
         <PageToolbar
           search={
@@ -454,7 +459,10 @@ function JobsPageInner() {
               currentFilters={currentFiltersForSave}
               onApplyFilters={(filters) => {
                 setQ(String(filters?.q || ""));
-                setStatus(String(filters?.status || ""));
+                const savedStatus = String(filters?.status || "");
+                setStatus(JOB_STATUSES.includes(savedStatus) ? savedStatus : "");
+                const savedPhase = String(filters?.phase || "");
+                setPhase(PHASE_IDS.includes(savedPhase) ? savedPhase : "");
                 setAssignedFilter(String(filters?.assignedFilter || ""));
                 setViewScope(String(filters?.viewScope || "mine"));
               }}

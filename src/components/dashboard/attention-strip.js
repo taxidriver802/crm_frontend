@@ -42,7 +42,10 @@ export function AttentionStrip({
       >
         {metrics.map((metric) => {
           const active = focus === metric.id;
-          const alert = metric.tone === "danger" && Number(metric.value) > 0;
+          // Money metrics are formatted strings; tone alone marks them.
+          const alert =
+            metric.tone === "danger" &&
+            (Number.isFinite(Number(metric.value)) ? Number(metric.value) > 0 : true);
           return (
             <StatCard
               key={metric.id}

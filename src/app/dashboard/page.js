@@ -16,6 +16,7 @@ import {
   todayLabel,
 } from "@/components/dashboard/queue";
 import LoadingDots from "@/components/loading/loadingSkeletons";
+import { formatMoney } from "@/lib/job-lifecycle";
 
 const EMPTY_LIST = [];
 
@@ -74,12 +75,17 @@ export default function DashboardPage() {
   const estimatesAwaiting = actions.estimatesAwaiting || EMPTY_LIST;
   const staleLeads = actions.staleLeads || EMPTY_LIST;
   const blockedJobs = actions.blockedJobs || EMPTY_LIST;
+  const readyToBill = actions.readyToBill || EMPTY_LIST;
+  const soldNotScheduled = actions.soldNotScheduled || EMPTY_LIST;
+  const money = data?.ok ? data.money || null : null;
 
   const workItems = useMemo(() => {
     return mergeActions(
       overdueFollowUps,
       invoicesDue,
+      readyToBill,
       blockedJobs,
+      soldNotScheduled,
       estimatesAwaiting,
       staleLeads,
       dueToday,
@@ -87,7 +93,9 @@ export default function DashboardPage() {
   }, [
     overdueFollowUps,
     invoicesDue,
+    readyToBill,
     blockedJobs,
+    soldNotScheduled,
     estimatesAwaiting,
     staleLeads,
     dueToday,
@@ -125,9 +133,16 @@ export default function DashboardPage() {
     },
     {
       id: "money",
-      label: "Invoices",
-      value: String(invoicesDue.length),
-      sub: "Due soon or overdue",
+      label: "Owed to you",
+      value: money ? formatMoney(money.outstanding_total) : String(invoicesDue.length),
+      sub: money
+        ? money.overdue_total > 0
+          ? `${formatMoney(money.overdue_total)} past due`
+          : money.unbilled_total > 0
+            ? `${formatMoney(money.unbilled_total)} approved, not billed`
+            : "Nothing past due"
+        : "Due soon or overdue",
+      tone: money?.overdue_total > 0 ? "danger" : "neutral",
     },
   ];
 
@@ -143,7 +158,7 @@ export default function DashboardPage() {
       leadByStatus.find((row) => row.status === "Qualified")?.count ?? 0;
 
     const jobByStatus = Array.isArray(data.jobs?.byStatus) ? data.jobs.byStatus : [];
-    const closedJob = new Set(["Closed Won", "Closed Lost"]);
+    const closedJob = new Set(["Closed", "Lost"]);
     const openJobs = jobByStatus
       .filter((row) => !closedJob.has(row.status))
       .reduce((sum, row) => sum + (row.count ?? 0), 0);
@@ -163,8 +178,8 @@ export default function DashboardPage() {
         id: "jobs",
         label: "Jobs",
         value: String(totalJobs),
-        sub: `${openJobs} open`,
-        href: "/jobs",
+        sub: `${openJobs} open · ${data.money?.jobs_in_production ?? 0} in production`,
+        href: "/jobs?phase=production",
       },
       {
         id: "estimates",
@@ -205,8 +220,8 @@ export default function DashboardPage() {
     },
     {
       id: "money",
-      label: "Invoices",
-      value: invoicesDue.length,
+      label: "Money",
+      value: invoicesDue.length + readyToBill.length,
     },
   ];
 

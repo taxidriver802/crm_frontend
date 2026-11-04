@@ -112,7 +112,8 @@ export default function EditJobPage() {
 
       router.push(`/jobs/${id}`);
     } catch (e) {
-      setError(e?.message || "Failed to update job");
+      const blockers = Array.isArray(e?.data?.blockers) ? e.data.blockers : [];
+      setError([e?.message || "Failed to update job", ...blockers].join(" "));
     } finally {
       setSaving(false);
     }

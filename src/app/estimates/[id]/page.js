@@ -228,14 +228,33 @@ export default function EstimateDetailPage() {
     await run();
   }
 
-  async function handleCreateInvoice() {
+  async function handleCreateInvoice(body = { kind: "final" }) {
     setInvoiceBusy(true);
     setError("");
     try {
-      const res = await api(`/invoices/from-estimate/${id}`, { method: "POST" });
+      const res = await api(`/invoices/from-estimate/${id}`, {
+        method: "POST",
+        body: JSON.stringify(body),
+      });
       router.push(`/invoices/${res.invoice.id}`);
     } catch (e) {
       setError(e?.message || "Failed to create invoice");
+    } finally {
+      setInvoiceBusy(false);
+    }
+  }
+
+  async function handleChangeOrder() {
+    setInvoiceBusy(true);
+    setError("");
+    try {
+      const res = await api(`/estimates/${id}/change-order`, {
+        method: "POST",
+        body: JSON.stringify({}),
+      });
+      router.push(`/estimates/${res.estimate.id}`);
+    } catch (e) {
+      setError(e?.message || "Could not start a change order");
     } finally {
       setInvoiceBusy(false);
     }
@@ -373,6 +392,9 @@ export default function EstimateDetailPage() {
   }
 
   const sortedLineItems = sortLineItems(lineItems, sortBy, sortDirection);
+  const billedInvoices = estimate?.invoices || [];
+  const finalInvoice = billedInvoices.find((inv) => inv.kind !== "deposit") || null;
+  const depositInvoice = billedInvoices.find((inv) => inv.kind === "deposit") || null;
   const jobTitle =
     estimate?.job?.title || (estimate?.job_id ? `Job #${estimate.job_id}` : "");
   const jobHref = `/jobs/${estimate?.job?.id ?? estimate?.job_id}`;
@@ -397,12 +419,25 @@ export default function EstimateDetailPage() {
           <DetailHeader
             subtitle={
               estimate.job_id || estimate.job?.id ? (
-                <ReturnLink
-                  href={jobHref}
-                  className="underline underline-offset-4 hover:opacity-80"
-                >
-                  {jobTitle}
-                </ReturnLink>
+                <>
+                  <ReturnLink
+                    href={jobHref}
+                    className="underline underline-offset-4 hover:opacity-80"
+                  >
+                    {jobTitle}
+                  </ReturnLink>
+                  {estimate.change_order_of ? (
+                    <div className="mt-1 text-xs">
+                      Change order to{" "}
+                      <ReturnLink
+                        href={`/estimates/${estimate.change_order_of}`}
+                        className="underline underline-offset-4 hover:opacity-80"
+                      >
+                        {estimate.change_order_of_title || `Estimate #${estimate.change_order_of}`}
+                      </ReturnLink>
+                    </div>
+                  ) : null}
+                </>
               ) : (
                 "No job linked"
               )
@@ -411,19 +446,51 @@ export default function EstimateDetailPage() {
             actions={
               <>
                 {estimate.status === "Approved" ? (
-                  <button
-                    type="button"
-                    className="btn btn-primary btn-sm"
-                    disabled={invoiceBusy}
-                    onClick={handleCreateInvoice}
-                  >
-                    {invoiceBusy ? "Creating…" : "Create invoice"}
-                  </button>
+                  finalInvoice ? (
+                    <Link className="btn btn-primary btn-sm" href={`/invoices/${finalInvoice.id}`}>
+                      Open {finalInvoice.invoice_number}
+                    </Link>
+                  ) : (
+                    <button
+                      type="button"
+                      className="btn btn-primary btn-sm"
+                      disabled={invoiceBusy}
+                      onClick={() => handleCreateInvoice({ kind: "final" })}
+                    >
+                      {invoiceBusy
+                        ? "Creating…"
+                        : depositInvoice
+                          ? "Final invoice (less deposit)"
+                          : "Final invoice"}
+                    </button>
+                  )
                 ) : null}
                 <Link className="btn btn-sm" href={`/estimates/${estimate.id}/edit`}>
                   Edit
                 </Link>
                 <DetailMoreMenu label="More">
+                  {estimate.status === "Approved" ? (
+                    <>
+                      {billedInvoices.length === 0 ? (
+                        <DetailMoreMenuItem
+                          type="button"
+                          disabled={invoiceBusy}
+                          onClick={() =>
+                            handleCreateInvoice({ kind: "deposit", deposit_percent: 30 })
+                          }
+                        >
+                          Request 30% deposit
+                        </DetailMoreMenuItem>
+                      ) : null}
+                      <DetailMoreMenuItem
+                        type="button"
+                        disabled={invoiceBusy}
+                        onClick={handleChangeOrder}
+                      >
+                        Add change order
+                      </DetailMoreMenuItem>
+                    </>
+                  ) : null}
                   <DetailMoreMenuItem
                     type="button"
                     disabled={pdfBusy}
@@ -542,6 +609,24 @@ export default function EstimateDetailPage() {
               </div>
             ) : null}
 
+            {estimate.status === "Approved" ? (
+              <div className="flex flex-wrap items-center justify-between gap-3 rounded-md border border-base p-3 text-sm">
+                <p className="min-w-0 leading-relaxed text-main">
+                  Approved{estimate.approved_at ? ` ${formatDate(estimate.approved_at)}` : ""}. This
+                  scope is locked — it is what the client agreed to. Add a change order for new
+                  or different work.
+                </p>
+                <button
+                  type="button"
+                  className="btn btn-sm"
+                  disabled={invoiceBusy}
+                  onClick={handleChangeOrder}
+                >
+                  Add change order
+                </button>
+              </div>
+            ) : null}
+
             {estimate.notes ? (
               <MetaItem label="Notes">
                 <span className="whitespace-pre-wrap">{estimate.notes}</span>
@@ -587,8 +672,13 @@ export default function EstimateDetailPage() {
         <SectionCard
           size="lg"
           title="Line items"
-          description="Breakdown of materials and labor"
+          description={
+            estimate?.locked
+              ? "Locked after approval."
+              : "Breakdown of materials and labor"
+          }
           right={
+            estimate?.locked ? null : (
             <button
               type="button"
               className="btn btn-primary btn-sm"
@@ -604,6 +694,7 @@ export default function EstimateDetailPage() {
             >
               {isCreateOpen && !editingLineItem ? "Hide" : "New item"}
             </button>
+            )
           }
         >
           <div className="space-y-4">
@@ -675,8 +766,10 @@ export default function EstimateDetailPage() {
                 {sortedLineItems.map((item) => (
                   <div
                     key={item.id}
-                    className="list-row list-row-interactive flex w-full items-start justify-between text-left"
-                    onClick={() => handleEditLineItem(item)}
+                    className={`list-row flex w-full items-start justify-between text-left ${
+                      estimate?.locked ? "" : "list-row-interactive"
+                    }`}
+                    onClick={() => (estimate?.locked ? null : handleEditLineItem(item))}
                   >
                     <div>
                       <div className="font-medium">{item.name}</div>

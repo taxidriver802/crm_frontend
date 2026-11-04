@@ -2,7 +2,7 @@
 
 import { Alert } from "@/components/ui/alert";
 import { useEffect, useState } from "react";
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import { AppShell } from "@/components/app-shell";
 import { ReturnLink } from "@/components/return-to";
@@ -48,17 +48,18 @@ import { Field, FormActions } from "@/components/ui/field";
 import { NumberInput } from "@/components/ui/formatted-inputs";
 import { formatNumberDisplay } from "@/lib/input-format";
 import { EmptyState } from "@/components/error-boundary";
-
-const JOB_STATUSES = [
-  "New",
-  "Contacted",
-  "Appointment Scheduled",
-  "Proposal Sent",
-  "Closed Won",
-  "Closed Lost",
-];
+import { JobLifecycleCard } from "@/components/jobs/job-lifecycle";
+import { JobMoneyCard } from "@/components/jobs/job-money";
+import { JOB_PATH } from "@/lib/job-lifecycle";
 
 const EARLY_JOB_STATUSES = new Set(["New", "Contacted"]);
+
+/** Scheduling a visit moves an early job forward; scheduling the work moves a sold one. */
+function scheduleFlipFor(status) {
+  if (EARLY_JOB_STATUSES.has(status)) return "Appointment Scheduled";
+  if (status === "Sold") return "Work Scheduled";
+  return null;
+}
 
 const DEFAULT_VISIBLE_TASKS = 6;
 
@@ -68,6 +69,7 @@ function JobStatusBadge({ status }) {
 
 export default function JobDetailPage() {
   const { id } = useParams();
+  const router = useRouter();
   const { askConfirm, confirmModal } = useConfirmModal();
 
   const [job, setJob] = useState(null);
@@ -120,6 +122,10 @@ export default function JobDetailPage() {
 
   const [error, setError] = useState(null);
   const [updatingStatus, setUpdatingStatus] = useState(null);
+  const [statusError, setStatusError] = useState("");
+  const [statusBlockers, setStatusBlockers] = useState([]);
+  const [billingBusy, setBillingBusy] = useState(null);
+  const [billingError, setBillingError] = useState("");
 
   const [isTaskFormOpen, setIsTaskFormOpen] = useState(false);
   const [updateJobStatusOnSchedule, setUpdateJobStatusOnSchedule] = useState(true);
@@ -273,31 +279,59 @@ export default function JobDetailPage() {
     }
   }
 
-  async function updateJobStatus(newStatus, nextIndex) {
-    if (!job || newStatus === job.status) return;
-
-    const currentIndex = JOB_STATUSES.indexOf(job.status ?? "New");
-    const isTooFarAhead = nextIndex > currentIndex + 1;
-
-    if (isTooFarAhead) return;
-
+  async function commitJobStatus(newStatus, extra = {}) {
     const previous = job.status;
-
-    setError(null);
-    setJob((prev) => ({ ...prev, status: newStatus }));
+    setStatusError("");
+    setStatusBlockers([]);
     setUpdatingStatus(newStatus);
 
     try {
-      await api(`/jobs/${id}`, {
+      const res = await api(`/jobs/${id}`, {
         method: "PATCH",
-        body: JSON.stringify({ status: newStatus }),
+        body: JSON.stringify({ status: newStatus, ...extra }),
       });
+      setJob(res.job);
       await loadActivity();
     } catch (e) {
       setJob((prev) => ({ ...prev, status: previous }));
-      setError(e.message || "Failed to update status");
+      setStatusError(e.message || "Failed to update status");
+      setStatusBlockers(Array.isArray(e?.data?.blockers) ? e.data.blockers : []);
     } finally {
       setUpdatingStatus(null);
+    }
+  }
+
+  function updateJobStatus(newStatus, extra = {}) {
+    if (!job || newStatus === job.status) return;
+    const from = JOB_PATH.indexOf(job.status ?? "New");
+    const to = JOB_PATH.indexOf(newStatus);
+    const skipped = from >= 0 && to > from + 1 ? to - from - 1 : 0;
+
+    if (skipped > 0) {
+      askConfirm({
+        title: `Move to ${newStatus}?`,
+        description: `This skips ${skipped} step${skipped === 1 ? "" : "s"} after ${job.status}.`,
+        confirmLabel: "Move",
+        onConfirm: () => commitJobStatus(newStatus, extra),
+      });
+      return;
+    }
+    commitJobStatus(newStatus, extra);
+  }
+
+  async function handleBill(estimateId, body) {
+    setBillingError("");
+    setBillingBusy(`${body.kind}-${estimateId}`);
+    try {
+      const res = await api(`/invoices/from-estimate/${estimateId}`, {
+        method: "POST",
+        body: JSON.stringify(body),
+      });
+      router.push(`/invoices/${res.invoice.id}`);
+    } catch (e) {
+      setBillingError(e?.message || "Could not create the invoice");
+    } finally {
+      setBillingBusy(null);
     }
   }
 
@@ -403,18 +437,17 @@ export default function JobDetailPage() {
 
       setTasks((prev) => [data.task, ...prev]);
 
+      const flipTo = scheduleFlipFor(job?.status);
       const shouldFlipStatus =
-        payload.kind === "appointment" &&
-        updateJobStatusOnSchedule &&
-        EARLY_JOB_STATUSES.has(job?.status);
+        payload.kind === "appointment" && updateJobStatusOnSchedule && flipTo;
 
       if (shouldFlipStatus) {
         await api(`/jobs/${id}`, {
           method: "PATCH",
-          body: JSON.stringify({ status: "Appointment Scheduled" }),
+          body: JSON.stringify({ status: flipTo }),
         });
-        await loadJob();
       }
+      await loadJob();
 
       setTaskForm(
         createEmptyTaskForm({
@@ -444,18 +477,22 @@ export default function JobDetailPage() {
   }
 
   function openScheduleAppointmentForm() {
-    const canFlip = EARLY_JOB_STATUSES.has(job?.status);
-    setUpdateJobStatusOnSchedule(canFlip);
+    const flipTo = scheduleFlipFor(job?.status);
+    setUpdateJobStatusOnSchedule(Boolean(flipTo));
+    const inProduction = job?.status === "Sold" || job?.status === "Work Scheduled";
     setTaskForm(
       createEmptyTaskForm({
         job_id: String(id),
         status: "Pending",
         kind: "appointment",
-        title: "Site visit",
+        title: inProduction ? "Install" : "Site visit",
         location: job?.address || "",
       }),
     );
     setIsTaskFormOpen(true);
+    if (typeof document !== "undefined") {
+      document.getElementById("section-tasks")?.scrollIntoView({ behavior: "smooth" });
+    }
   }
 
   async function handleToggleTaskStatus(task) {
@@ -728,6 +765,103 @@ export default function JobDetailPage() {
       ? `Lead #${job.lead_id}`
       : "";
   const daysInStatus = job ? formatDaysInStatus(job.status_changed_at) : "";
+  const canReopenClosed = currentUser?.role === "owner" || currentUser?.role === "admin";
+
+  function renderNextStepAction() {
+    const step = job?.next_step;
+    if (!step) return null;
+    const draftEstimate = estimates.find((e) => e.status === "Draft");
+    const awaitingEstimate = estimates.find((e) => e.status === "Sent");
+    const openInvoice = [...invoices]
+      .filter((inv) => ["Overdue", "Partially Paid", "Sent"].includes(inv.status))
+      .sort((a, b) => new Date(a.due_date || a.created_at) - new Date(b.due_date || b.created_at))[0];
+    const draftInvoice = invoices.find((inv) => inv.status === "Draft");
+    const unbilledEstimate = estimates.find(
+      (e) =>
+        e.status === "Approved" &&
+        !invoices.some(
+          (inv) => inv.estimate_id === e.id && inv.kind !== "deposit" && inv.status !== "Void",
+        ),
+    );
+
+    switch (step.action) {
+      case "schedule_visit":
+      case "schedule_work":
+        return (
+          <button type="button" className="btn btn-primary btn-sm" onClick={openScheduleAppointmentForm}>
+            Schedule
+          </button>
+        );
+      case "create_estimate":
+        return (
+          <Link href={`/estimates/new?job_id=${id}`} className="btn btn-primary btn-sm">
+            New estimate
+          </Link>
+        );
+      case "send_estimate":
+        return draftEstimate ? (
+          <ReturnLink href={`/estimates/${draftEstimate.id}`} className="btn btn-primary btn-sm">
+            Open estimate
+          </ReturnLink>
+        ) : null;
+      case "await_client":
+        return awaitingEstimate ? (
+          <ReturnLink href={`/estimates/${awaitingEstimate.id}`} className="btn btn-sm">
+            View estimate
+          </ReturnLink>
+        ) : null;
+      case "request_deposit":
+        return (
+          <button
+            type="button"
+            className="btn btn-primary btn-sm"
+            onClick={() =>
+              document.getElementById("section-money")?.scrollIntoView({ behavior: "smooth" })
+            }
+          >
+            Bill deposit
+          </button>
+        );
+      case "final_invoice":
+        return unbilledEstimate ? (
+          <button
+            type="button"
+            className="btn btn-primary btn-sm"
+            disabled={!!billingBusy}
+            onClick={() => handleBill(unbilledEstimate.id, { kind: "final" })}
+          >
+            Create final invoice
+          </button>
+        ) : null;
+      case "send_invoice":
+        return draftInvoice ? (
+          <ReturnLink href={`/invoices/${draftInvoice.id}`} className="btn btn-primary btn-sm">
+            Open draft
+          </ReturnLink>
+        ) : null;
+      case "collect_payment":
+        return openInvoice ? (
+          <ReturnLink href={`/invoices/${openInvoice.id}#payments`} className="btn btn-primary btn-sm">
+            Record payment
+          </ReturnLink>
+        ) : null;
+      case "start_work":
+      case "complete_work":
+      case "close_job":
+        return step.to_status ? (
+          <button
+            type="button"
+            className="btn btn-primary btn-sm"
+            disabled={!!updatingStatus}
+            onClick={() => updateJobStatus(step.to_status)}
+          >
+            Move to {step.to_status}
+          </button>
+        ) : null;
+      default:
+        return null;
+    }
+  }
 
   return (
     <AppShell
@@ -817,6 +951,16 @@ export default function JobDetailPage() {
               ) : null}
             </DetailHeader>
 
+            <JobLifecycleCard
+              job={job}
+              busyStatus={updatingStatus}
+              error={statusError}
+              blockers={statusBlockers}
+              onMove={updateJobStatus}
+              canReopen={canReopenClosed}
+              nextStepAction={renderNextStepAction()}
+            />
+
             <SectionCard
               size="lg"
               title="Communication"
@@ -829,53 +973,6 @@ export default function JobDetailPage() {
               />
             </SectionCard>
 
-            <SectionCard
-              size="lg"
-              title="Pipeline"
-              description="Track where this job is in the workflow"
-            >
-              <div className="pipeline">
-                {JOB_STATUSES.map((status, index) => {
-                  const currentIndex = JOB_STATUSES.indexOf(job.status ?? "New");
-                  const isActive = status === job.status;
-                  const isCompleted = index < currentIndex;
-                  const isTooFarAhead = index > currentIndex + 1;
-                  const isLocked = updatingStatus !== null || isTooFarAhead || isActive;
-
-                  return (
-                    <div key={status} className="pipeline-step">
-                      <button
-                        type="button"
-                        onClick={() => updateJobStatus(status, index)}
-                        disabled={isLocked}
-                        className={[
-                          "choice-chip",
-                          isActive && "choice-chip-active",
-                          isCompleted && !isActive && "choice-chip-done",
-                          isTooFarAhead && "opacity-50",
-                          updatingStatus === status && "opacity-60",
-                        ]
-                          .filter(Boolean)
-                          .join(" ")}
-                      >
-                        {status}
-                      </button>
-
-                      {index < JOB_STATUSES.length - 1 && (
-                        <div
-                          className={[
-                            "pipeline-rail",
-                            index < currentIndex ? "pipeline-rail-done" : "",
-                          ]
-                            .filter(Boolean)
-                            .join(" ")}
-                        />
-                      )}
-                    </div>
-                  );
-                })}
-              </div>
-            </SectionCard>
             <SectionCard
               size="lg"
               title="Estimates"
@@ -942,64 +1039,16 @@ export default function JobDetailPage() {
               )}
             </SectionCard>
 
-            <SectionCard
-              size="lg"
-              title="Invoices"
-              description="Billing tied to this job"
-              right={
-                <Link
-                  href={`/invoices/new?job_id=${id}`}
-                  className="btn btn-primary btn-sm"
-                >
-                  New invoice
-                </Link>
-              }
-            >
-              {!isInitialLoading && loadingInvoices ? (
-                <SectionSkeleton rows={3} />
-              ) : invoicesError ? (
-                <Alert variant="inline">{invoicesError}</Alert>
-              ) : invoices.length === 0 ? (
-                <div className="rounded-lg border border-dashed p-4 text-sm text-muted">
-                  No invoices for this job yet.
-                </div>
-              ) : (
-                <div className="space-y-3">
-                  {[...invoices]
-                    .sort(
-                      (a, b) =>
-                        new Date(b.updated_at || b.created_at) -
-                        new Date(a.updated_at || a.created_at),
-                    )
-                    .map((inv) => (
-                      <ReturnLink
-                        key={inv.id}
-                        href={`/invoices/${inv.id}`}
-                        className="flex min-w-0 items-start justify-between gap-3 rounded-lg border p-4 transition hover:bg-accent"
-                      >
-                        <div className="min-w-0 flex-1">
-                          <div className="font-medium">{inv.invoice_number}</div>
-                          <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-muted">
-                            <span>{formatDate(inv.updated_at || inv.created_at)}</span>
-                            {inv.due_date ? (
-                              <>
-                                <span>•</span>
-                                <span>Due {formatDate(inv.due_date)}</span>
-                              </>
-                            ) : null}
-                          </div>
-                        </div>
-                        <div className="flex shrink-0 flex-col items-end gap-2">
-                          <StatusBadge kind="invoice" status={inv.status} />
-                          <div className="text-sm font-semibold">
-                            ${formatCurrency(Number(inv.grand_total || 0).toFixed(2))}
-                          </div>
-                        </div>
-                      </ReturnLink>
-                    ))}
-                </div>
-              )}
-            </SectionCard>
+            <JobMoneyCard
+              job={job}
+              estimates={estimates}
+              invoices={invoices}
+              loading={!isInitialLoading && loadingInvoices}
+              error={invoicesError}
+              busyKey={billingBusy}
+              actionError={billingError}
+              onBill={handleBill}
+            />
 
             <CollapsibleSection
               title="Measurements"
@@ -1135,6 +1184,7 @@ export default function JobDetailPage() {
             </CollapsibleSection>
 
             <SectionCard
+              id="section-tasks"
               size="lg"
               title="Tasks"
               description="Follow-ups and appointments for this job"
@@ -1213,15 +1263,14 @@ export default function JobDetailPage() {
                       isContextLocked={true}
                       layout="compact"
                     />
-                    {taskForm.kind === "appointment" &&
-                    EARLY_JOB_STATUSES.has(job?.status) ? (
+                    {taskForm.kind === "appointment" && scheduleFlipFor(job?.status) ? (
                       <label className="flex items-center gap-2 text-sm text-muted">
                         <input
                           type="checkbox"
                           checked={updateJobStatusOnSchedule}
                           onChange={(e) => setUpdateJobStatusOnSchedule(e.target.checked)}
                         />
-                        Set job status to Appointment Scheduled
+                        Set job status to {scheduleFlipFor(job?.status)}
                       </label>
                     ) : null}
                   </div>

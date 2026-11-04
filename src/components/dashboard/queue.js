@@ -11,7 +11,7 @@ export const QUEUE_FILTERS = [
   { id: "overdue", label: "Overdue", short: "Late" },
   { id: "today", label: "Today", short: "Today" },
   { id: "waiting", label: "Waiting", short: "Wait" },
-  { id: "money", label: "Invoices", short: "Bills" },
+  { id: "money", label: "Money", short: "Money" },
   { id: "pipeline", label: "Pipeline", short: "Pipe" },
 ];
 
@@ -52,7 +52,10 @@ export function matchesQueueFilter(item, filter) {
   if (filter === "overdue") return isOverdueItem(item);
   if (filter === "today") return item?.reason === "Due today";
   if (filter === "waiting") return item?.kind === "estimate";
-  if (filter === "money") return item?.kind === "invoice";
+  if (filter === "money") {
+    // Invoices to collect, plus finished jobs that still need to be billed.
+    return item?.kind === "invoice" || item?.reason === "Work complete, not invoiced";
+  }
   if (filter === "pipeline") return item?.kind === "lead" || item?.kind === "job";
   return true;
 }

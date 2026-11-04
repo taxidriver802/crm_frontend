@@ -2,8 +2,10 @@ const STATUS_TONE = {
   invoice: {
     Draft: "neutral",
     Sent: "info",
+    "Partially Paid": "warning",
     Paid: "success",
     Overdue: "danger",
+    Void: "neutral",
   },
   estimate: {
     Draft: "neutral",
@@ -25,10 +27,14 @@ const STATUS_TONE = {
   job: {
     New: "info",
     Contacted: "info",
-    "Appointment Scheduled": "warning",
+    "Appointment Scheduled": "info",
     "Proposal Sent": "warning",
-    "Closed Won": "success",
-    "Closed Lost": "danger",
+    Sold: "success",
+    "Work Scheduled": "info",
+    "In Progress": "info",
+    "Work Complete": "warning",
+    Closed: "success",
+    Lost: "danger",
   },
   lead: {
     New: "info",

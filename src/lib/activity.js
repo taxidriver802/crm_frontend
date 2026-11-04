@@ -21,6 +21,9 @@ const TYPE_ICONS = {
   INVOICE_STATUS_CHANGED: "🔄",
   INVOICE_DELETED: "🗑️",
   INVOICE_PAID: "💰",
+  INVOICE_VOIDED: "🚫",
+  PAYMENT_RECORDED: "💵",
+  PAYMENT_REMOVED: "↩️",
   COMMUNICATION_LOGGED: "💬",
 };
 
@@ -58,6 +61,10 @@ export function getActivityHref(activity) {
   if (activity.entity_type === "file") return `/files`;
   if (activity.entity_type === "estimate") return `/estimates/${activity.entity_id}`;
   if (activity.entity_type === "invoice") return `/invoices/${activity.entity_id}`;
+  if (activity.entity_type === "payment") {
+    const meta = safeMeta(activity);
+    return meta.invoiceId ? `/invoices/${meta.invoiceId}` : null;
+  }
   return null;
 }
 
@@ -79,12 +86,39 @@ export function formatActivity(activity) {
     case "JOB_STATUS_CHANGED":
       return {
         icon,
-        title: "Status changed",
+        title: meta.automatic ? "Status moved automatically" : "Status changed",
         subject,
         detail:
           meta.fromStatus && meta.toStatus
             ? `${meta.fromStatus} → ${meta.toStatus}`
             : activity.message || "Job status updated",
+        meta: meta.reason || meta.lostReason || null,
+      };
+
+    case "PAYMENT_RECORDED":
+      return {
+        icon,
+        title: activity.title || "Payment received",
+        subject,
+        detail: activity.message || null,
+        meta: null,
+      };
+
+    case "PAYMENT_REMOVED":
+      return {
+        icon,
+        title: "Payment removed",
+        subject,
+        detail: activity.message || null,
+        meta: null,
+      };
+
+    case "INVOICE_VOIDED":
+      return {
+        icon,
+        title: "Invoice voided",
+        subject: subject || activity.message || null,
+        detail: null,
         meta: null,
       };
 
