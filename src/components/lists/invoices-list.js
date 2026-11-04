@@ -24,11 +24,11 @@ function InvoiceRow({ invoice, onOpen, variant = "card" }) {
       variant={variant}
       ariaLabel={`Invoice ${invoice.invoice_number}, status ${invoice.status}`}
       onOpen={() => onOpen(invoice.id)}
+      signal={<StatusBadge appearance="signal" kind="invoice" status={invoice.status} />}
     >
       <EntityListPrimary
         title={invoice.invoice_number}
         subtitle={invoice.lead_name || null}
-        badges={<StatusBadge kind="invoice" status={invoice.status} />}
       />
 
       <EntityListMetaStrip>

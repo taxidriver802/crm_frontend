@@ -170,7 +170,7 @@ export function EntityListRow({
       onClick={onOpen || undefined}
       onKeyDown={onOpen ? handleKeyDown : undefined}
       className={cx(
-        "relative",
+        "entity-row relative",
         flush
           ? "border-t border-base px-3 py-3 first:border-t-0 sm:px-4 sm:py-3.5"
           : "list-row",

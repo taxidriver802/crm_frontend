@@ -222,6 +222,42 @@
     box-shadow: 0 0 0 3px var(--surface);
   }
 
+  .status-reveal {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .status-reveal-label {
+    position: absolute;
+    right: calc(100% + 0.375rem);
+    top: 50%;
+    z-index: 1;
+    opacity: 0;
+    pointer-events: none;
+    white-space: nowrap;
+    transform: translateY(-50%) translateX(0.25rem);
+    transition:
+      opacity var(--duration-fast) var(--ease-standard),
+      transform var(--duration-fast) var(--ease-standard);
+  }
+
+  .entity-row:hover .status-reveal-label,
+  .entity-row:focus-within .status-reveal-label,
+  .status-reveal:hover .status-reveal-label,
+  .status-reveal:focus-within .status-reveal-label {
+    opacity: 1;
+    transform: translateY(-50%) translateX(0);
+    transition-delay: 60ms;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .status-reveal-label {
+      transition: none;
+    }
+  }
+
   .text-success {
     color: var(--success);
   }
