@@ -5,12 +5,12 @@ import { Suspense, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { AppShell } from "@/components/app-shell";
-import { useReturnPush } from "@/components/return-to";
 import { api } from "@/lib/api";
 import { PageToolbar } from "@/components/page-toolbar";
 import { Segmented } from "@/components/ui/segmented";
 import { Icon } from "@/components/icons";
-import { InvoicesList } from "@/components/lists/invoices-list";
+import { RecordTable } from "@/components/ui/record-table";
+import { INVOICE_COLUMNS } from "@/components/lists/columns";
 import { formatMoney } from "@/lib/job-lifecycle";
 
 /** Open = sent and not yet paid in full (Sent, Partially Paid, Overdue). */
@@ -31,7 +31,6 @@ const DUE_OPTIONS = [
 ];
 
 function InvoicesPageInner() {
-  const push = useReturnPush();
   const searchParams = useSearchParams();
   const statusParam = searchParams.get("status") || "";
   const dueParam = searchParams.get("due") || "";
@@ -194,11 +193,15 @@ function InvoicesPageInner() {
           </select>
         </PageToolbar>
 
-        <InvoicesList
-          layout="flush"
-          invoices={visible}
+        <RecordTable
+          listKey="invoices"
+          kind="invoice"
+          rows={visible}
+          columns={INVOICE_COLUMNS}
           loading={loading}
-          onOpen={(invoiceId) => push(`/invoices/${invoiceId}`)}
+          getHref={(row) => `/invoices/${row.id}`}
+          emptyTitle={status || q ? "No invoices match this view" : "No invoices yet"}
+          emptyDescription="Invoices come from a job: bill a deposit or the final invoice from its Money section."
         />
       </div>
     </AppShell>

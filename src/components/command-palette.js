@@ -583,6 +583,19 @@ export function CommandPalette({
     return () => document.removeEventListener("mousedown", onPointerDown);
   }, [filtersMenuOpen]);
 
+  // Escape closes even before the input has focus (it focuses a tick after
+  // opening). The input's own handler runs first and marks the event handled.
+  useEffect(() => {
+    if (!open) return undefined;
+    function onKeyDown(event) {
+      if (event.key !== "Escape" || event.defaultPrevented) return;
+      event.preventDefault();
+      onClose();
+    }
+    document.addEventListener("keydown", onKeyDown);
+    return () => document.removeEventListener("keydown", onKeyDown);
+  }, [open, onClose]);
+
   useEffect(() => {
     if (!open || !autoFocus || !showInput) return;
     const t = setTimeout(() => {

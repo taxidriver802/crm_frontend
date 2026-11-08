@@ -5,21 +5,21 @@ import { Suspense, useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { AppShell } from "@/components/app-shell";
-import { useReturnPush } from "@/components/return-to";
 import { JobForm, createEmptyJobForm } from "@/components/forms/job-form";
 import { api } from "@/lib/api";
 import { SavedViewsControls } from "@/components/saved-views-controls";
-import { ModalFrame } from "@/components/ui/overlay";
 import { Segmented } from "@/components/ui/segmented";
 import { Icon } from "@/components/icons";
-import { JobsList } from "@/components/lists/jobs-list";
+import { RecordTable, runBulk } from "@/components/ui/record-table";
+import { JOB_COLUMNS } from "@/components/lists/columns";
+import { useToast } from "@/components/toast/toast-provider";
 import { PageToolbar } from "@/components/page-toolbar";
 import { JOB_PHASES, JOB_STATUSES, phaseOf } from "@/lib/job-lifecycle";
 
 const PHASE_IDS = JOB_PHASES.map((phase) => phase.id);
 
 function JobsPageInner() {
-  const push = useReturnPush();
+  const { showToast } = useToast();
   const searchParams = useSearchParams();
   const [q, setQ] = useState("");
   // Exact status (deep links from the dashboard) or a lifecycle phase.
@@ -41,7 +41,6 @@ function JobsPageInner() {
   const [createError, setCreateError] = useState("");
 
   const [isCreateOpen, setIsCreateOpen] = useState(false);
-  const [addressPreview, setAddressPreview] = useState(null);
   const [currentUser, setCurrentUser] = useState(null);
   const [teamUsers, setTeamUsers] = useState([]);
   const [viewScope, setViewScope] = useState("mine");
@@ -145,38 +144,32 @@ function JobsPageInner() {
     return s ? `?${s}` : "";
   }, [q, status, phase, canViewAll, viewScope, assignedFilter, prefillLeadId]);
 
-  async function handleAssignJob(jobId, assignedTo) {
-    const assignee = teamUsers.find((user) => user.id === assignedTo) || null;
-    const previous = jobs;
-
-    setJobs((prev) =>
-      prev.map((job) =>
-        job.id === jobId
-          ? {
-              ...job,
-              assigned_to: assignedTo || null,
-              assigned_user: assignee
-                ? {
-                    id: assignee.id,
-                    first_name: assignee.first_name,
-                    last_name: assignee.last_name,
-                    email: assignee.email,
-                  }
-                : null,
-            }
-          : job,
-      ),
+  async function bulkAssign(rows, assignedTo, clear) {
+    const result = await runBulk(rows, (row) =>
+      api(`/jobs/${row.id}`, { method: "PATCH", body: JSON.stringify({ assigned_to: assignedTo || null }) }),
     );
+    clear();
+    await refreshAll();
+    showToast(
+      result.failed
+        ? `${result.ok} reassigned, ${result.failed} not: ${result.firstError}`
+        : `${result.ok} job${result.ok === 1 ? "" : "s"} reassigned`,
+      { tone: result.failed ? "danger" : "success" },
+    );
+  }
 
-    try {
-      await api(`/jobs/${jobId}`, {
-        method: "PATCH",
-        body: JSON.stringify({ assigned_to: assignedTo || null }),
-      });
-    } catch (e) {
-      setJobs(previous);
-      setError(e?.message || "Failed to reassign job");
-    }
+  async function bulkStatus(rows, nextStatus, clear) {
+    const result = await runBulk(rows, (row) =>
+      api(`/jobs/${row.id}`, { method: "PATCH", body: JSON.stringify({ status: nextStatus }) }),
+    );
+    clear();
+    await refreshAll();
+    showToast(
+      result.failed
+        ? `${result.ok} moved to ${nextStatus}; ${result.failed} could not move (${result.firstError})`
+        : `${result.ok} job${result.ok === 1 ? "" : "s"} moved to ${nextStatus}`,
+      { tone: result.failed ? "danger" : "success" },
+    );
   }
 
   async function loadSummary() {
@@ -238,23 +231,6 @@ function JobsPageInner() {
     if (!isCreateOpen) return;
     loadLeads();
   }, [isCreateOpen]);
-
-  useEffect(() => {
-    if (addressPreview == null) return undefined;
-
-    function onKeyDown(e) {
-      if (e.key === "Escape") setAddressPreview(null);
-    }
-
-    document.addEventListener("keydown", onKeyDown);
-    const prevOverflow = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
-
-    return () => {
-      document.removeEventListener("keydown", onKeyDown);
-      document.body.style.overflow = prevOverflow;
-    };
-  }, [addressPreview]);
 
   async function handleCreateJob(e) {
     e.preventDefault();
@@ -351,7 +327,7 @@ function JobsPageInner() {
         ) : null
       }
     >
-      <div className="space-y-6">
+      <div className="space-y-4">
         {error ? <Alert variant="inline">{error}</Alert> : null}
 
         {isCreateOpen ? (
@@ -485,60 +461,57 @@ function JobsPageInner() {
           </select>
         </PageToolbar>
 
-        <JobsList
-          layout="flush"
-          jobs={jobs}
+        <RecordTable
+          listKey="jobs"
+          kind="job"
+          rows={jobs}
+          columns={JOB_COLUMNS}
           loading={loadingJobs}
-          canViewAll={canViewAll}
-          teamUsers={teamUsers}
-          onOpen={(jobId) => push(`/jobs/${jobId}`)}
-          onAssign={handleAssignJob}
-          onShowAddress={setAddressPreview}
-        />
-
-        {addressPreview ? (
-          <ModalFrame
-            open
-            onClose={() => setAddressPreview(null)}
-            layer="modal"
-            labelledBy="job-address-preview-title"
-            panelClassName="dropdown-panel relative w-full max-w-md p-4 shadow-lg"
-          >
-            <h2
-              id="job-address-preview-title"
-              className="flex w-full items-center gap-2 text-sm font-semibold"
-            >
-              <div className="flex w-full items-center justify-between border-b border-base pb-2">
-                Address
-                <button
-                  type="button"
-                  className="bg-accent/30 ml-2 inline-flex items-center rounded px-2 py-0.5 text-xs text-main transition hover:bg-accent"
-                  onClick={async () => {
-                    if (addressPreview) {
-                      await navigator.clipboard.writeText(addressPreview);
-                    }
+          getHref={(row) => `/jobs/${row.id}`}
+          selectable
+          emptyTitle={q || phase || status ? "No jobs match this view" : "No jobs yet"}
+          emptyDescription={
+            q || phase || status
+              ? "Clear a filter or search for something else."
+              : "Jobs start from a lead. Create one with New job or the Create button."
+          }
+          bulkActions={(rows, clear) => (
+            <>
+              {canViewAll ? (
+                <select
+                  aria-label="Assign selected jobs"
+                  defaultValue=""
+                  onChange={(e) => {
+                    if (e.target.value === "") return;
+                    bulkAssign(rows, e.target.value === "unassigned" ? null : e.target.value, clear);
                   }}
-                  title="Copy address to clipboard"
                 >
-                  Copy
-                </button>
-              </div>
-            </h2>
-
-            <p className="mt-2 whitespace-pre-wrap break-words text-sm leading-relaxed text-main">
-              {addressPreview}
-            </p>
-            <div className="mt-4 flex justify-end gap-2">
-              <button
-                type="button"
-                className="btn px-3 py-1.5 text-xs"
-                onClick={() => setAddressPreview(null)}
+                  <option value="">Assign to…</option>
+                  <option value="unassigned">Unassigned</option>
+                  {teamUsers.map((user) => (
+                    <option key={user.id} value={user.id}>
+                      {user.first_name} {user.last_name}
+                    </option>
+                  ))}
+                </select>
+              ) : null}
+              <select
+                aria-label="Move selected jobs"
+                defaultValue=""
+                onChange={(e) => {
+                  if (e.target.value) bulkStatus(rows, e.target.value, clear);
+                }}
               >
-                Close
-              </button>
-            </div>
-          </ModalFrame>
-        ) : null}
+                <option value="">Move to…</option>
+                {JOB_STATUSES.map((value) => (
+                  <option key={value} value={value}>
+                    {value}
+                  </option>
+                ))}
+              </select>
+            </>
+          )}
+        />
       </div>
     </AppShell>
   );

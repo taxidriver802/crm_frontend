@@ -137,7 +137,7 @@ export default function NotificationsPage() {
       cancelled = true;
     };
     // Initial load only. Filter changes reload below.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+     
   }, [router]);
 
   useEffect(() => {
@@ -289,7 +289,7 @@ export default function NotificationsPage() {
   );
 
   return (
-    <AppShell title="Notifications" description={description} right={ready ? headerActions : null}>
+    <AppShell title="Inbox" description={description} right={ready ? headerActions : null}>
       <div className="mx-auto w-full max-w-2xl space-y-4">
         {error ? <Alert variant="inline">{error}</Alert> : null}
 

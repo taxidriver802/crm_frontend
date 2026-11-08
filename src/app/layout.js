@@ -1,5 +1,6 @@
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
+import "./workbench.css";
 import { ThemeProvider } from "@/components/theme/theme-provider";
 import { ToastProvider } from "@/components/toast/toast-provider";
 import { ErrorBoundary } from "@/components/error-boundary";
@@ -60,7 +61,7 @@ export default function RootLayout({ children }) {
         <script dangerouslySetInnerHTML={{ __html: getPaletteBootstrapScript() }} />
         <script
           dangerouslySetInnerHTML={{
-            __html: `(function(){try{if(localStorage.getItem("crm-desktop-sidebar")==="0"){document.documentElement.dataset.sidebar="closed";}}catch(e){}})();`,
+            __html: `(function(){try{var d=document.documentElement;if(localStorage.getItem("crm-desktop-sidebar")==="0"){d.dataset.sidebar="closed";}var den=localStorage.getItem("crm-density");d.dataset.density=den==="compact"?"compact":"comfortable";}catch(e){}})();`,
           }}
         />
         <meta name="apple-mobile-web-app-capable" content="yes" />

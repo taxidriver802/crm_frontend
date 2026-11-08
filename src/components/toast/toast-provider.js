@@ -1,32 +1,76 @@
 "use client";
-import { createContext, useContext, useState } from "react";
 
-const ToastContext = createContext(null);
+import { createContext, useCallback, useContext, useMemo, useRef, useState } from "react";
+import { cx } from "@/lib/cx";
 
+const ToastContext = createContext({ showToast: () => {}, dismissToast: () => {} });
+
+/**
+ * Quiet confirmations at the bottom of the screen, out of the way of the
+ * header and the peek panel. A toast may carry one action (usually Undo);
+ * those stay a little longer so there is time to use them.
+ *
+ * showToast(message, { tone?: "neutral" | "success" | "danger", action?: { label, onClick } })
+ */
 export function ToastProvider({ children }) {
   const [toasts, setToasts] = useState([]);
+  const seq = useRef(0);
 
-  function showToast(message) {
-    const id = Date.now();
+  const dismissToast = useCallback((id) => {
+    setToasts((prev) => prev.filter((t) => t.id !== id));
+  }, []);
 
-    setToasts((prev) => [...prev, { id, message }]);
+  const showToast = useCallback(
+    (message, options = {}) => {
+      seq.current += 1;
+      const id = seq.current;
+      const toast = {
+        id,
+        message,
+        tone: options.tone || "neutral",
+        action: options.action || null,
+      };
+      setToasts((prev) => [...prev.slice(-3), toast]);
+      setTimeout(() => dismissToast(id), toast.action ? 6500 : 3200);
+      return id;
+    },
+    [dismissToast],
+  );
 
-    setTimeout(() => {
-      setToasts((prev) => prev.filter((t) => t.id !== id));
-    }, 3000);
-  }
+  const value = useMemo(() => ({ showToast, dismissToast }), [showToast, dismissToast]);
 
   return (
-    <ToastContext.Provider value={{ showToast }}>
+    <ToastContext.Provider value={value}>
       {children}
-
-      <div className="fixed right-4 top-4 z-50 flex flex-col gap-2">
+      <div
+        className="toast-stack"
+        role="status"
+        aria-live="polite"
+        aria-relevant="additions"
+      >
         {toasts.map((t) => (
-          <div
-            key={t.id}
-            className="rounded-md border border-base bg-surface px-4 py-2 text-sm shadow-lg"
-          >
-            {t.message}
+          <div key={t.id} className={cx("toast", t.tone !== "neutral" && `toast-${t.tone}`)}>
+            <span className="min-w-0 flex-1">{t.message}</span>
+            {t.action ? (
+              <button
+                type="button"
+                className="toast-action"
+                onClick={() => {
+                  t.action.onClick?.();
+                  dismissToast(t.id);
+                }}
+              >
+                {t.action.label}
+              </button>
+            ) : null}
+            <button
+              type="button"
+              className="toast-close"
+              aria-label="Dismiss"
+              onClick={() => dismissToast(t.id)}
+            >
+              ×
+            </button>
           </div>
         ))}
       </div>

@@ -25,7 +25,6 @@ import {
   buildTaskApiPayload,
 } from "@/components/forms/task-form";
 import { CollapsibleSection } from "@/components/forms/collapsible-section";
-import { DetailMoreMenu, DetailMoreMenuItem } from "@/components/detail-more-menu";
 import { ActivityList } from "@/components/activity-list";
 import { NotesSection } from "@/components/notes-section";
 import {
@@ -40,17 +39,43 @@ import {
   Skeleton,
 } from "@/components/loading/loadingSkeletons";
 import { SectionCard } from "@/components/ui/section-card";
-import { DetailHeader } from "@/components/ui/detail-header";
 import { PageError } from "@/components/error-boundary";
 import { StatusBadge } from "@/components/ui/status-badge";
-import { HealthBadge } from "@/components/ui/health-badge";
 import { Field, FormActions } from "@/components/ui/field";
 import { NumberInput } from "@/components/ui/formatted-inputs";
 import { formatNumberDisplay } from "@/lib/input-format";
 import { EmptyState } from "@/components/error-boundary";
 import { JobLifecycleCard } from "@/components/jobs/job-lifecycle";
 import { JobMoneyCard } from "@/components/jobs/job-money";
-import { JOB_PATH } from "@/lib/job-lifecycle";
+import { JOB_PATH, formatMoney } from "@/lib/job-lifecycle";
+import { PeekLink } from "@/components/peek/peek-provider";
+import {
+  ContactLinks,
+  DetailList,
+  HealthDot,
+  MoneyStrip,
+  PhaseRail,
+  QuickTasks,
+  StatusPill,
+} from "@/components/records/record-bits";
+import {
+  RailPanel,
+  SectionArranger,
+  TabPanel,
+  Tabs,
+  useRecordSections,
+  useUrlTab,
+} from "@/components/records/record-layout";
+import { useWorkspace } from "@/components/workspace/workspace-provider";
+import { Icon } from "@/components/icons";
+
+const JOB_TABS = ["overview", "work", "money", "files", "activity"];
+const OVERVIEW_SECTIONS = [
+  { id: "lifecycle", label: "Lifecycle" },
+  { id: "conversation", label: "Conversation" },
+  { id: "upcoming", label: "Open tasks" },
+  { id: "measurements", label: "Measurements" },
+];
 
 const EARLY_JOB_STATUSES = new Set(["New", "Contacted"]);
 
@@ -63,14 +88,14 @@ function scheduleFlipFor(status) {
 
 const DEFAULT_VISIBLE_TASKS = 6;
 
-function JobStatusBadge({ status }) {
-  return <StatusBadge kind="job" status={status || "—"} />;
-}
 
 export default function JobDetailPage() {
   const { id } = useParams();
   const router = useRouter();
   const { askConfirm, confirmModal } = useConfirmModal();
+  const [tab, setTab] = useUrlTab("overview", JOB_TABS);
+  const layout = useRecordSections("job", OVERVIEW_SECTIONS);
+  const workspace = useWorkspace();
 
   const [job, setJob] = useState(null);
   const [tasks, setTasks] = useState([]);
@@ -490,9 +515,10 @@ export default function JobDetailPage() {
       }),
     );
     setIsTaskFormOpen(true);
-    if (typeof document !== "undefined") {
-      document.getElementById("section-tasks")?.scrollIntoView({ behavior: "smooth" });
-    }
+    setTab("work");
+    requestAnimationFrame(() =>
+      document.getElementById("section-tasks")?.scrollIntoView({ behavior: "smooth" }),
+    );
   }
 
   async function handleToggleTaskStatus(task) {
@@ -815,9 +841,12 @@ export default function JobDetailPage() {
           <button
             type="button"
             className="btn btn-primary btn-sm"
-            onClick={() =>
-              document.getElementById("section-money")?.scrollIntoView({ behavior: "smooth" })
-            }
+            onClick={() => {
+              setTab("money");
+              requestAnimationFrame(() =>
+                document.getElementById("section-money")?.scrollIntoView({ behavior: "smooth" }),
+              );
+            }}
           >
             Bill deposit
           </button>
@@ -890,680 +919,856 @@ export default function JobDetailPage() {
         {error ? <PageError message={error} /> : null}
 
         {!isInitialLoading && job ? (
-          <div className="min-w-0 space-y-6">
-            <DetailHeader
-              subtitle={
-                job.lead_id ? (
-                  <>
-                    Lead:{" "}
-                    <ReturnLink
-                      href={`/leads/${job.lead_id}`}
-                      className="underline underline-offset-4 hover:opacity-80"
-                    >
-                      {leadName || `Lead #${job.lead_id}`}
-                    </ReturnLink>
-                  </>
-                ) : (
-                  "No lead linked"
-                )
-              }
-              badges={
-                <>
-                  <JobStatusBadge status={job.status} />
-                  <HealthBadge health={job.health} />
-                  {daysInStatus ? <StatusBadge>{daysInStatus}</StatusBadge> : null}
-                </>
-              }
-              actions={
-                <>
-                  <Link href={`/jobs/${id}/edit`} className="btn btn-sm">
-                    Edit
-                  </Link>
-                  <DetailMoreMenu label="More">
-                    <DetailMoreMenuItem
-                      type="button"
-                      disabled={portalBusy}
-                      onClick={handleGeneratePortalLink}
-                    >
-                      {portalBusy ? "Link…" : "Customer portal"}
-                    </DetailMoreMenuItem>
-                    <DetailMoreMenuItem
-                      type="button"
-                      disabled={portalMessageBusy}
-                      onClick={handleCopyPortalMessage}
-                    >
-                      {portalMessageBusy ? "Message…" : "Copy portal message"}
-                    </DetailMoreMenuItem>
-                  </DetailMoreMenu>
-                </>
-              }
-            >
-              {portalHint || job.description || job.address ? (
-                <>
-                  {portalHint ? <p className="text-sm text-muted">{portalHint}</p> : null}
-                  {job.description ? (
-                    <p className="text-sm leading-6 text-muted">{job.description}</p>
-                  ) : null}
-                  {job.address ? (
-                    <p className="text-sm text-muted">{job.address}</p>
-                  ) : null}
-                </>
-              ) : null}
-            </DetailHeader>
-
-            <JobLifecycleCard
-              job={job}
-              busyStatus={updatingStatus}
-              error={statusError}
-              blockers={statusBlockers}
-              onMove={updateJobStatus}
-              canReopen={canReopenClosed}
-              nextStepAction={renderNextStepAction()}
-            />
-
-            <SectionCard
-              size="lg"
-              title="Communication"
-              description="Capture conversations and decisions for this job."
-            >
-              <NotesSection
-                entityType="job"
-                entityId={id}
-                onLoadState={setNotesLoadState}
-              />
-            </SectionCard>
-
-            <SectionCard
-              size="lg"
-              title="Estimates"
-              description="Pricing and scope tied to this job"
-              right={
-                <Link
-                  href={`/estimates/new?job_id=${id}`}
-                  className="btn btn-primary btn-sm"
-                >
-                  New estimate
-                </Link>
-              }
-            >
-              {!isInitialLoading && loadingEstimates ? (
-                <SectionSkeleton rows={3} />
-              ) : estimatesError ? (
-                <Alert variant="inline">{estimatesError}</Alert>
-              ) : estimates.length === 0 ? (
-                <div className="rounded-lg border border-dashed p-4 text-sm text-muted">
-                  No estimates for this job yet.
-                </div>
-              ) : (
-                <div className="min-w-0 space-y-3">
-                  {sortedEstimates.map((estimate) => (
-                    <ReturnLink
-                      key={estimate.id}
-                      href={`/estimates/${estimate.id}`}
-                      className="list-row list-row-interactive list-row-split"
-                    >
-                      <div className="min-w-0 flex-1">
-                        <div className="break-words font-medium">{estimate.title}</div>
-
-                        <div className="mt-1 flex min-w-0 items-center gap-2 text-xs text-muted">
-                          <span className="shrink-0">
-                            {formatDate(estimate.updated_at || estimate.created_at)}
-                          </span>
-
-                          {estimate.job?.address ? (
-                            <>
-                              <span className="shrink-0">•</span>
-                              <span className="min-w-0 truncate">
-                                {estimate.job.address}
-                              </span>
-                            </>
-                          ) : null}
-                        </div>
-
-                        {estimate.notes ? (
-                          <div className="mt-2 line-clamp-2 break-words text-sm text-muted">
-                            {estimate.notes}
-                          </div>
-                        ) : null}
-                      </div>
-
-                      <div className="flex flex-wrap items-center gap-2 sm:shrink-0 sm:flex-col sm:items-end">
-                        <StatusBadge kind="estimate" status={estimate.status} />
-                        <div className="text-sm font-semibold">
-                          ${formatCurrency(Number(estimate.grand_total || 0).toFixed(2))}
-                        </div>
-                      </div>
-                    </ReturnLink>
-                  ))}
-                </div>
-              )}
-            </SectionCard>
-
-            <JobMoneyCard
-              job={job}
-              estimates={estimates}
-              invoices={invoices}
-              loading={!isInitialLoading && loadingInvoices}
-              error={invoicesError}
-              busyKey={billingBusy}
-              actionError={billingError}
-              onBill={handleBill}
-            />
-
-            <CollapsibleSection
-              title="Measurements"
-              description="Manual job dimensions for pricing context (optional)"
-              syncKey={id}
-              ready={!loadingMeasurements}
-              empty={measurements.length === 0}
-              actions={
-                <button
-                  type="button"
-                  className="btn px-3 py-2 text-xs"
-                  onClick={() => {
-                    if (measurementOpen) {
-                      setMeasurementOpen(false);
-                      setEditingMeasurement(null);
-                      setMeasurementForm({ label: "", value: "", unit: "" });
-                    } else {
-                      setMeasurementOpen(true);
-                      setEditingMeasurement(null);
-                      setMeasurementForm({ label: "", value: "", unit: "" });
-                    }
-                    setMeasurementsError("");
-                  }}
-                >
-                  {measurementOpen ? "Close" : "+ Add"}
-                </button>
-              }
-            >
-              {measurementsError ? (
-                <Alert variant="inline">{measurementsError}</Alert>
-              ) : null}
-
-              {!isInitialLoading && loadingMeasurements ? (
-                <SectionSkeleton rows={2} />
-              ) : measurements.length === 0 && !measurementOpen ? (
-                <EmptyState
-                  title="No measurements yet"
-                  description="Add roof areas, pitch, or other fields you use when quoting."
-                />
-              ) : null}
-
-              {measurementOpen ? (
-                <form
-                  onSubmit={handleSaveMeasurement}
-                  className="list-row list-row-muted mb-4 space-y-3"
-                >
-                  <div className="grid gap-3 sm:grid-cols-3">
-                    <Field label="Label">
-                      <input
-                        className="input"
-                        value={measurementForm.label}
-                        onChange={(e) =>
-                          setMeasurementForm((f) => ({ ...f, label: e.target.value }))
-                        }
-                        placeholder="e.g. Main roof area"
-                      />
-                    </Field>
-                    <Field label="Value">
-                      <NumberInput
-                        allowDecimal
-                        group
-                        maxDecimals={4}
-                        value={measurementForm.value}
-                        onChange={(value) =>
-                          setMeasurementForm((f) => ({ ...f, value }))
-                        }
-                        placeholder="2,400"
-                      />
-                    </Field>
-                    <Field label="Unit">
-                      <input
-                        className="input"
-                        value={measurementForm.unit}
-                        onChange={(e) =>
-                          setMeasurementForm((f) => ({ ...f, unit: e.target.value }))
-                        }
-                        placeholder="sq ft"
-                      />
-                    </Field>
+          <div className="min-w-0 space-y-4">
+            <section className="record-head" data-testid="job-head">
+              <div className="record-head-top">
+                <div className="min-w-0 space-y-2">
+                  <div className="record-meta">
+                    <StatusPill kind="job" status={job.status} />
+                    <HealthDot health={job.health} withLabel />
+                    {daysInStatus ? <span>{daysInStatus}</span> : null}
+                    {job.lead_id ? (
+                      <span>
+                        Client{" "}
+                        <PeekLink kind="lead" id={job.lead_id} className="link">
+                          {leadName || `Lead #${job.lead_id}`}
+                        </PeekLink>
+                      </span>
+                    ) : (
+                      <span>No lead linked</span>
+                    )}
+                    <span>
+                      Owner{" "}
+                      <span className="text-main">
+                        {job.assigned_user
+                          ? `${job.assigned_user.first_name || ""} ${job.assigned_user.last_name || ""}`.trim()
+                          : "Unassigned"}
+                      </span>
+                    </span>
                   </div>
-                  <FormActions>
-                    <button
-                      type="submit"
-                      className="btn btn-primary btn-sm"
-                      disabled={savingMeasurement}
-                    >
-                      {editingMeasurement ? "Update" : "Save"}
-                    </button>
-                    {editingMeasurement ? (
-                      <button
-                        type="button"
-                        className="btn btn-ghost btn-sm"
-                        onClick={() => {
-                          setEditingMeasurement(null);
-                          setMeasurementForm({ label: "", value: "", unit: "" });
-                        }}
-                      >
-                        Cancel edit
-                      </button>
-                    ) : null}
-                  </FormActions>
-                </form>
-              ) : null}
-
-              {measurements.length > 0 ? (
-                <div className="space-y-2">
-                  {measurements.map((m) => (
-                    <div
-                      key={m.id}
-                      className="list-row list-row-interactive flex items-start justify-between gap-3"
-                    >
-                      <button
-                        type="button"
-                        className="min-w-0 flex-1 text-left"
-                        onClick={() => startEditMeasurement(m)}
-                      >
-                        <div className="font-medium">{m.label}</div>
-                        <div className="mt-1 text-sm text-muted">
-                          {formatNumberDisplay(m.value)} {m.unit || ""}
-                        </div>
-                      </button>
-                      <button
-                        type="button"
-                        className="text-xs text-muted underline"
-                        onClick={() => handleDeleteMeasurement(m)}
-                      >
-                        Delete
-                      </button>
-                    </div>
-                  ))}
+                  {job.description ? (
+                    <p className="max-w-3xl text-sm leading-6 text-muted">{job.description}</p>
+                  ) : null}
+                  {portalHint ? <p className="text-sm text-muted">{portalHint}</p> : null}
                 </div>
-              ) : null}
-            </CollapsibleSection>
-
-            <SectionCard
-              id="section-tasks"
-              size="lg"
-              title="Tasks"
-              description="Follow-ups and appointments for this job"
-              right={
-                <div className="flex min-w-0 max-w-full flex-wrap items-center justify-end gap-2">
-                  <ReturnLink href={`/tasks/new?job_id=${id}`} className="btn btn-sm">
-                    Full form
-                  </ReturnLink>
-                  <button
-                    type="button"
-                    className="btn btn-primary btn-sm"
-                    onClick={() => {
-                      if (isTaskFormOpen && taskForm.kind !== "appointment") {
-                        setIsTaskFormOpen(false);
-                        return;
-                      }
-                      openNewTaskForm();
-                    }}
-                  >
-                    {isTaskFormOpen && taskForm.kind !== "appointment"
-                      ? "Hide"
-                      : "New task"}
-                  </button>
+                <div className="flex shrink-0 flex-wrap items-center gap-2">
                   <button
                     type="button"
                     className="btn btn-sm"
-                    onClick={() => {
-                      if (isTaskFormOpen && taskForm.kind === "appointment") {
-                        setIsTaskFormOpen(false);
-                        return;
-                      }
-                      openScheduleAppointmentForm();
-                    }}
+                    aria-pressed={workspace.isPinned("job", job.id)}
+                    onClick={() =>
+                      workspace.togglePin({ kind: "job", id: job.id, label: job.title, href: `/jobs/${job.id}` })
+                    }
                   >
-                    {isTaskFormOpen && taskForm.kind === "appointment"
-                      ? "Hide"
-                      : "Schedule"}
+                    <Icon name="pin" className="h-3.5 w-3.5" />
+                    {workspace.isPinned("job", job.id) ? "Pinned" : "Pin"}
+                  </button>
+                  <Link href={`/jobs/${id}/edit`} className="btn btn-sm">
+                    Edit
+                  </Link>
+                  <button
+                    type="button"
+                    className="btn btn-sm btn-ghost hidden xl:inline-flex"
+                    onClick={() => layout.setRailVisible(!layout.railVisible)}
+                    aria-pressed={layout.railVisible}
+                    title={layout.railVisible ? "Hide the details panel" : "Show the details panel"}
+                  >
+                    <Icon name="panelLeft" className="h-3.5 w-3.5 rotate-180" />
+                    Details
                   </button>
                 </div>
-              }
-            >
-              <div className="space-y-4">
-                {isTaskFormOpen ? (
-                  <div className="space-y-3">
-                    <TaskForm
-                      form={taskForm}
-                      onChange={setTaskForm}
-                      onSubmit={handleCreateTask}
-                      saving={creatingTask}
-                      error=""
-                      submitLabel={
-                        taskForm.kind === "appointment"
-                          ? "Schedule appointment"
-                          : "Create task"
-                      }
-                      cancelLabel="Clear"
-                      onCancel={() =>
-                        setTaskForm(
-                          createEmptyTaskForm({
-                            job_id: String(id),
-                            status: "Pending",
-                            kind: taskForm.kind || "task",
-                          }),
-                        )
-                      }
-                      contextType="job"
-                      leads={[]}
-                      jobs={[
-                        {
-                          id: String(id),
-                          title: job?.title || `Job #${id}`,
-                        },
-                      ]}
-                      loadingLeads={false}
-                      loadingJobs={false}
-                      isContextLocked={true}
-                      layout="compact"
-                    />
-                    {taskForm.kind === "appointment" && scheduleFlipFor(job?.status) ? (
-                      <label className="flex items-center gap-2 text-sm text-muted">
-                        <input
-                          type="checkbox"
-                          checked={updateJobStatusOnSchedule}
-                          onChange={(e) => setUpdateJobStatusOnSchedule(e.target.checked)}
-                        />
-                        Set job status to {scheduleFlipFor(job?.status)}
-                      </label>
+              </div>
+              <PhaseRail status={job.status} />
+              {job.next_step && job.next_step.action !== "none" ? (
+                <div className="next-step next-step-row" data-testid="job-next-step">
+                  <div className="min-w-0">
+                    <div className="eyebrow">Next step</div>
+                    <div className="font-medium">{job.next_step.label}</div>
+                    {job.next_step.detail ? (
+                      <div className="text-sm text-muted">{job.next_step.detail}</div>
                     ) : null}
                   </div>
-                ) : null}
+                  <div className="shrink-0">{renderNextStepAction()}</div>
+                </div>
+              ) : null}
+            </section>
 
-                {!loadingTasks && tasks.length > DEFAULT_VISIBLE_TASKS ? (
-                  <div className="flex items-center justify-between gap-3">
-                    <p className="text-xs text-muted">
-                      Showing {visibleTasks.length} of {sortedTasks.length} tasks
-                    </p>
+            <div className={layout.railVisible ? "record-grid" : "record-grid record-grid-norail"}>
+              <div className="record-main">
+                <Tabs
+                  label="Job sections"
+                  value={tab}
+                  onChange={setTab}
+                  tabs={[
+                    { id: "overview", label: "Overview" },
+                    {
+                      id: "work",
+                      label: "Work",
+                      count: tasks.filter((t) => t.status !== "Completed").length,
+                    },
+                    { id: "money", label: "Money", count: estimates.length + invoices.length },
+                    { id: "files", label: "Files", count: files.length },
+                    { id: "activity", label: "Activity" },
+                  ]}
+                />
 
-                    <button
-                      type="button"
-                      onClick={() => setShowAllTasks((prev) => !prev)}
-                      className="btn px-3 py-1.5 text-xs"
-                    >
-                      {showAllTasks
-                        ? "Show fewer"
-                        : `Show all tasks${hiddenTaskCount > 0 ? ` (${hiddenTaskCount} more)` : ""}`}
-                    </button>
+                <TabPanel id="overview" active={tab === "overview"}>
+                  <div className="flex justify-end">
+                    <SectionArranger
+                      sections={layout.sections}
+                      setSections={layout.setSections}
+                      reset={layout.reset}
+                      label="Arrange job overview"
+                    />
                   </div>
-                ) : null}
+                  {layout.sections
+                    .filter((section) => !section.hidden)
+                    .map((section) => {
+                      if (section.id === "lifecycle") {
+                        return (
+                          <div key="lifecycle">
+                            <JobLifecycleCard
+                              job={job}
+                              busyStatus={updatingStatus}
+                              error={statusError}
+                              blockers={statusBlockers}
+                              onMove={updateJobStatus}
+                              canReopen={canReopenClosed}
+                              hideNextStep
+                            />
+                          </div>
+                        );
+                      }
+                      if (section.id === "conversation") {
+                        return (
+                          <div key="conversation">
+                            <SectionCard
+                              size="lg"
+                              title="Communication"
+                              description="Capture conversations and decisions for this job."
+                            >
+                              <NotesSection
+                                entityType="job"
+                                entityId={id}
+                                onLoadState={setNotesLoadState}
+                              />
+                            </SectionCard>
+                          </div>
+                        );
+                      }
+                      if (section.id === "upcoming") {
+                        return (
+                          <section key="upcoming" className="panel">
+                            <div className="panel-head">
+                              <h2 className="panel-title">Open tasks</h2>
+                              <button type="button" className="link text-xs" onClick={() => setTab("work")}>
+                                All work
+                              </button>
+                            </div>
+                            <div className="panel-body">
+                              <QuickTasks entityType="job" entityId={id} limit={6} onChanged={loadTasks} />
+                            </div>
+                          </section>
+                        );
+                      }
+                      if (section.id === "measurements") {
+                        return (
+                          <div key="measurements">
+                            <CollapsibleSection
+                              title="Measurements"
+                              description="Manual job dimensions for pricing context (optional)"
+                              syncKey={id}
+                              ready={!loadingMeasurements}
+                              empty={measurements.length === 0}
+                              actions={
+                                <button
+                                  type="button"
+                                  className="btn px-3 py-2 text-xs"
+                                  onClick={() => {
+                                    if (measurementOpen) {
+                                      setMeasurementOpen(false);
+                                      setEditingMeasurement(null);
+                                      setMeasurementForm({ label: "", value: "", unit: "" });
+                                    } else {
+                                      setMeasurementOpen(true);
+                                      setEditingMeasurement(null);
+                                      setMeasurementForm({ label: "", value: "", unit: "" });
+                                    }
+                                    setMeasurementsError("");
+                                  }}
+                                >
+                                  {measurementOpen ? "Close" : "+ Add"}
+                                </button>
+                              }
+                            >
+                              {measurementsError ? (
+                                <Alert variant="inline">{measurementsError}</Alert>
+                              ) : null}
 
-                {!isInitialLoading && loadingTasks ? (
-                  <SectionSkeleton rows={4} />
-                ) : tasks.length === 0 ? (
-                  <EmptyState title="No tasks for this job yet" />
-                ) : (
-                  <div className="space-y-3">
-                    {visibleTasks.map((task) => (
-                      <div
-                        key={task.id}
-                        className="list-row list-row-muted flex items-start justify-between gap-3"
+                              {!isInitialLoading && loadingMeasurements ? (
+                                <SectionSkeleton rows={2} />
+                              ) : measurements.length === 0 && !measurementOpen ? (
+                                <EmptyState
+                                  title="No measurements yet"
+                                  description="Add roof areas, pitch, or other fields you use when quoting."
+                                />
+                              ) : null}
+
+                              {measurementOpen ? (
+                                <form
+                                  onSubmit={handleSaveMeasurement}
+                                  className="list-row list-row-muted mb-4 space-y-3"
+                                >
+                                  <div className="grid gap-3 sm:grid-cols-3">
+                                    <Field label="Label">
+                                      <input
+                                        className="input"
+                                        value={measurementForm.label}
+                                        onChange={(e) =>
+                                          setMeasurementForm((f) => ({ ...f, label: e.target.value }))
+                                        }
+                                        placeholder="e.g. Main roof area"
+                                      />
+                                    </Field>
+                                    <Field label="Value">
+                                      <NumberInput
+                                        allowDecimal
+                                        group
+                                        maxDecimals={4}
+                                        value={measurementForm.value}
+                                        onChange={(value) =>
+                                          setMeasurementForm((f) => ({ ...f, value }))
+                                        }
+                                        placeholder="2,400"
+                                      />
+                                    </Field>
+                                    <Field label="Unit">
+                                      <input
+                                        className="input"
+                                        value={measurementForm.unit}
+                                        onChange={(e) =>
+                                          setMeasurementForm((f) => ({ ...f, unit: e.target.value }))
+                                        }
+                                        placeholder="sq ft"
+                                      />
+                                    </Field>
+                                  </div>
+                                  <FormActions>
+                                    <button
+                                      type="submit"
+                                      className="btn btn-primary btn-sm"
+                                      disabled={savingMeasurement}
+                                    >
+                                      {editingMeasurement ? "Update" : "Save"}
+                                    </button>
+                                    {editingMeasurement ? (
+                                      <button
+                                        type="button"
+                                        className="btn btn-ghost btn-sm"
+                                        onClick={() => {
+                                          setEditingMeasurement(null);
+                                          setMeasurementForm({ label: "", value: "", unit: "" });
+                                        }}
+                                      >
+                                        Cancel edit
+                                      </button>
+                                    ) : null}
+                                  </FormActions>
+                                </form>
+                              ) : null}
+
+                              {measurements.length > 0 ? (
+                                <div className="space-y-2">
+                                  {measurements.map((m) => (
+                                    <div
+                                      key={m.id}
+                                      className="list-row list-row-interactive flex items-start justify-between gap-3"
+                                    >
+                                      <button
+                                        type="button"
+                                        className="min-w-0 flex-1 text-left"
+                                        onClick={() => startEditMeasurement(m)}
+                                      >
+                                        <div className="font-medium">{m.label}</div>
+                                        <div className="mt-1 text-sm text-muted">
+                                          {formatNumberDisplay(m.value)} {m.unit || ""}
+                                        </div>
+                                      </button>
+                                      <button
+                                        type="button"
+                                        className="text-xs text-muted underline"
+                                        onClick={() => handleDeleteMeasurement(m)}
+                                      >
+                                        Delete
+                                      </button>
+                                    </div>
+                                  ))}
+                                </div>
+                              ) : null}
+                            </CollapsibleSection>
+                          </div>
+                        );
+                      }
+                      return null;
+                    })}
+                </TabPanel>
+
+                <TabPanel id="work" active={tab === "work"}>
+                <SectionCard
+                  id="section-tasks"
+                  size="lg"
+                  title="Tasks"
+                  description="Follow-ups and appointments for this job"
+                  right={
+                    <div className="flex min-w-0 max-w-full flex-wrap items-center justify-end gap-2">
+                      <ReturnLink href={`/tasks/new?job_id=${id}`} className="btn btn-sm">
+                        Full form
+                      </ReturnLink>
+                      <button
+                        type="button"
+                        className="btn btn-primary btn-sm"
+                        onClick={() => {
+                          if (isTaskFormOpen && taskForm.kind !== "appointment") {
+                            setIsTaskFormOpen(false);
+                            return;
+                          }
+                          openNewTaskForm();
+                        }}
                       >
-                        <div className="min-w-0">
-                          <ReturnLink
-                            href={`/tasks/${task.id}`}
-                            className="block hover:opacity-80"
+                        {isTaskFormOpen && taskForm.kind !== "appointment"
+                          ? "Hide"
+                          : "New task"}
+                      </button>
+                      <button
+                        type="button"
+                        className="btn btn-sm"
+                        onClick={() => {
+                          if (isTaskFormOpen && taskForm.kind === "appointment") {
+                            setIsTaskFormOpen(false);
+                            return;
+                          }
+                          openScheduleAppointmentForm();
+                        }}
+                      >
+                        {isTaskFormOpen && taskForm.kind === "appointment"
+                          ? "Hide"
+                          : "Schedule"}
+                      </button>
+                    </div>
+                  }
+                >
+                  <div className="space-y-4">
+                    {isTaskFormOpen ? (
+                      <div className="space-y-3">
+                        <TaskForm
+                          form={taskForm}
+                          onChange={setTaskForm}
+                          onSubmit={handleCreateTask}
+                          saving={creatingTask}
+                          error=""
+                          submitLabel={
+                            taskForm.kind === "appointment"
+                              ? "Schedule appointment"
+                              : "Create task"
+                          }
+                          cancelLabel="Clear"
+                          onCancel={() =>
+                            setTaskForm(
+                              createEmptyTaskForm({
+                                job_id: String(id),
+                                status: "Pending",
+                                kind: taskForm.kind || "task",
+                              }),
+                            )
+                          }
+                          contextType="job"
+                          leads={[]}
+                          jobs={[
+                            {
+                              id: String(id),
+                              title: job?.title || `Job #${id}`,
+                            },
+                          ]}
+                          loadingLeads={false}
+                          loadingJobs={false}
+                          isContextLocked={true}
+                          layout="compact"
+                        />
+                        {taskForm.kind === "appointment" && scheduleFlipFor(job?.status) ? (
+                          <label className="flex items-center gap-2 text-sm text-muted">
+                            <input
+                              type="checkbox"
+                              checked={updateJobStatusOnSchedule}
+                              onChange={(e) => setUpdateJobStatusOnSchedule(e.target.checked)}
+                            />
+                            Set job status to {scheduleFlipFor(job?.status)}
+                          </label>
+                        ) : null}
+                      </div>
+                    ) : null}
+
+                    {!loadingTasks && tasks.length > DEFAULT_VISIBLE_TASKS ? (
+                      <div className="flex items-center justify-between gap-3">
+                        <p className="text-xs text-muted">
+                          Showing {visibleTasks.length} of {sortedTasks.length} tasks
+                        </p>
+
+                        <button
+                          type="button"
+                          onClick={() => setShowAllTasks((prev) => !prev)}
+                          className="btn px-3 py-1.5 text-xs"
+                        >
+                          {showAllTasks
+                            ? "Show fewer"
+                            : `Show all tasks${hiddenTaskCount > 0 ? ` (${hiddenTaskCount} more)` : ""}`}
+                        </button>
+                      </div>
+                    ) : null}
+
+                    {!isInitialLoading && loadingTasks ? (
+                      <SectionSkeleton rows={4} />
+                    ) : tasks.length === 0 ? (
+                      <EmptyState title="No tasks for this job yet" />
+                    ) : (
+                      <div className="space-y-3">
+                        {visibleTasks.map((task) => (
+                          <div
+                            key={task.id}
+                            className="list-row list-row-muted flex items-start justify-between gap-3"
                           >
-                            <div className="font-medium underline underline-offset-4">
-                              {task.title}
-                              {task.kind === "appointment" ? (
-                                <span className="ml-2 text-xs font-normal text-muted no-underline">
-                                  Appointment
-                                </span>
+                            <div className="min-w-0">
+                              <ReturnLink
+                                href={`/tasks/${task.id}`}
+                                className="block hover:opacity-80"
+                              >
+                                <div className="font-medium underline underline-offset-4">
+                                  {task.title}
+                                  {task.kind === "appointment" ? (
+                                    <span className="ml-2 text-xs font-normal text-muted no-underline">
+                                      Appointment
+                                    </span>
+                                  ) : null}
+                                </div>
+
+                                {task.description ? (
+                                  <div className="mt-1 text-sm text-muted">
+                                    {task.description}
+                                  </div>
+                                ) : null}
+
+                                <div className="mt-2 text-xs text-muted">
+                                  {task.kind === "appointment" ? "When" : "Due"}:{" "}
+                                  {formatTaskSchedule(task)}
+                                  {task.kind === "appointment" && task.location
+                                    ? ` · ${task.location}`
+                                    : null}
+                                </div>
+                              </ReturnLink>
+                            </div>
+
+                            <div className="flex shrink-0 items-center gap-2">
+                              <StatusBadge kind="task" status={task.status} />
+
+                              <button
+                                type="button"
+                                onClick={() => handleToggleTaskStatus(task)}
+                                className="btn px-3 py-2 text-xs"
+                              >
+                                {task.status === "Completed"
+                                  ? "Mark pending"
+                                  : "Mark completed"}
+                              </button>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </SectionCard>
+                </TabPanel>
+
+                <TabPanel id="money" active={tab === "money"}>
+                <JobMoneyCard
+                  job={job}
+                  estimates={estimates}
+                  invoices={invoices}
+                  loading={!isInitialLoading && loadingInvoices}
+                  error={invoicesError}
+                  busyKey={billingBusy}
+                  actionError={billingError}
+                  onBill={handleBill}
+                />
+                <SectionCard
+                  size="lg"
+                  title="Estimates"
+                  description="Pricing and scope tied to this job"
+                  right={
+                    <Link
+                      href={`/estimates/new?job_id=${id}`}
+                      className="btn btn-primary btn-sm"
+                    >
+                      New estimate
+                    </Link>
+                  }
+                >
+                  {!isInitialLoading && loadingEstimates ? (
+                    <SectionSkeleton rows={3} />
+                  ) : estimatesError ? (
+                    <Alert variant="inline">{estimatesError}</Alert>
+                  ) : estimates.length === 0 ? (
+                    <div className="rounded-lg border border-dashed p-4 text-sm text-muted">
+                      No estimates for this job yet.
+                    </div>
+                  ) : (
+                    <div className="min-w-0 space-y-3">
+                      {sortedEstimates.map((estimate) => (
+                        <ReturnLink
+                          key={estimate.id}
+                          href={`/estimates/${estimate.id}`}
+                          className="list-row list-row-interactive list-row-split"
+                        >
+                          <div className="min-w-0 flex-1">
+                            <div className="break-words font-medium">{estimate.title}</div>
+
+                            <div className="mt-1 flex min-w-0 items-center gap-2 text-xs text-muted">
+                              <span className="shrink-0">
+                                {formatDate(estimate.updated_at || estimate.created_at)}
+                              </span>
+
+                              {estimate.job?.address ? (
+                                <>
+                                  <span className="shrink-0">•</span>
+                                  <span className="min-w-0 truncate">
+                                    {estimate.job.address}
+                                  </span>
+                                </>
                               ) : null}
                             </div>
 
-                            {task.description ? (
-                              <div className="mt-1 text-sm text-muted">
-                                {task.description}
+                            {estimate.notes ? (
+                              <div className="mt-2 line-clamp-2 break-words text-sm text-muted">
+                                {estimate.notes}
                               </div>
                             ) : null}
+                          </div>
 
-                            <div className="mt-2 text-xs text-muted">
-                              {task.kind === "appointment" ? "When" : "Due"}:{" "}
-                              {formatTaskSchedule(task)}
-                              {task.kind === "appointment" && task.location
-                                ? ` · ${task.location}`
-                                : null}
+                          <div className="flex flex-wrap items-center gap-2 sm:shrink-0 sm:flex-col sm:items-end">
+                            <StatusBadge kind="estimate" status={estimate.status} />
+                            <div className="text-sm font-semibold">
+                              ${formatCurrency(Number(estimate.grand_total || 0).toFixed(2))}
                             </div>
-                          </ReturnLink>
-                        </div>
-
-                        <div className="flex shrink-0 items-center gap-2">
-                          <StatusBadge kind="task" status={task.status} />
-
-                          <button
-                            type="button"
-                            onClick={() => handleToggleTaskStatus(task)}
-                            className="btn px-3 py-2 text-xs"
-                          >
-                            {task.status === "Completed"
-                              ? "Mark pending"
-                              : "Mark completed"}
-                          </button>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-            </SectionCard>
-
-            <SectionCard
-              id="section-files"
-              size="lg"
-              title="Attached Files"
-              description="Drop photos here or choose files. Tag before/after and hide internal shots from the portal."
-              right={
-                canManageFiles ? (
-                  <label className="btn cursor-pointer px-3 py-2 text-xs">
-                    {uploading ? "Uploading…" : "Upload files"}
-                    <input
-                      type="file"
-                      className="hidden"
-                      multiple
-                      capture="environment"
-                      onChange={handleFileUpload}
-                      disabled={uploading}
-                    />
-                  </label>
-                ) : null
-              }
-            >
-              {filesError ? (
-                <Alert variant="inline" className="mb-3">
-                  {filesError}
-                </Alert>
-              ) : null}
-
-              {canManageFiles ? (
-                <div
-                  onDragOver={(event) => {
-                    event.preventDefault();
-                    setFileDragOver(true);
-                  }}
-                  onDragLeave={() => setFileDragOver(false)}
-                  onDrop={handleFileDrop}
-                  className={`mb-3 rounded-lg border border-dashed p-4 text-sm ${
-                    fileDragOver ? "border-strong bg-accent" : "text-muted"
-                  }`}
-                >
-                  {uploading
-                    ? "Uploading…"
-                    : "Drop files here to attach them to this job."}
-                </div>
-              ) : null}
-
-              {!isInitialLoading && loadingFiles ? (
-                <SectionSkeleton rows={3} />
-              ) : files.length === 0 ? (
-                <div className="rounded-lg border border-dashed p-4 text-sm text-muted">
-                  No files attached to this job yet.
-                </div>
-              ) : (
-                <div className="space-y-3">
-                  {files.map((file) => (
-                    <div key={file.id} className="list-row space-y-3">
-                      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-                        <div className="min-w-0">
-                          <div className="truncate font-medium">{file.original_name}</div>
-                          <div className="text-xs text-muted">
-                            {file.mime_type || "Unknown type"} •{" "}
-                            {formatBytes(file.size_bytes)}
                           </div>
-                          <div className="text-xs text-muted">
-                            Uploaded: {formatDate(file.created_at)}
-                          </div>
-                          {!canManageFiles && file.caption ? (
-                            <div className="mt-1 text-xs text-muted">{file.caption}</div>
-                          ) : null}
-                        </div>
-
-                        <div className="flex shrink-0 flex-wrap items-center gap-2">
-                          {isPreviewableFile(file) ? (
-                            <button
-                              type="button"
-                              onClick={() => setPreviewFile(file)}
-                              className="btn px-3 py-1.5 text-xs"
-                            >
-                              Preview
-                            </button>
-                          ) : (
-                            <a
-                              href={buildFileUrl(file)}
-                              target="_blank"
-                              rel="noreferrer"
-                              className="btn px-3 py-1.5 text-xs"
-                            >
-                              Open
-                            </a>
-                          )}
-
-                          {canManageFiles ? (
-                            <button
-                              onClick={() => handleDeleteFile(file.id)}
-                              disabled={busyFileId === file.id}
-                              className="btn btn-danger px-3 py-1.5 text-xs"
-                            >
-                              {busyFileId === file.id ? "Deleting..." : "Delete"}
-                            </button>
-                          ) : null}
-                        </div>
-                      </div>
-
-                      {canManageFiles ? (
-                        <div className="space-y-3 border-t border-base pt-3">
-                          <label className="block min-w-0 text-xs text-muted">
-                            Caption
-                            <input
-                              className="input mt-1 w-full"
-                              value={file.caption || ""}
-                              onChange={(event) => {
-                                const caption = event.target.value;
-                                setFiles((prev) =>
-                                  prev.map((row) =>
-                                    row.id === file.id ? { ...row, caption } : row,
-                                  ),
-                                );
-                              }}
-                              onBlur={(event) => {
-                                const caption = event.target.value.trim() || null;
-                                saveFileMeta(file.id, { caption });
-                              }}
-                              placeholder="Shown in the gallery"
-                            />
-                          </label>
-                          <div className="flex flex-wrap items-end gap-3">
-                            <label className="block min-w-[9rem] flex-1 text-xs text-muted">
-                              Category
-                              <select
-                                className="input mt-1 w-full"
-                                value={file.category || "other"}
-                                onChange={(event) => {
-                                  saveFileMeta(file.id, {
-                                    category: event.target.value,
-                                  });
-                                }}
-                              >
-                                <option value="before">Before</option>
-                                <option value="after">After</option>
-                                <option value="other">Other</option>
-                              </select>
-                            </label>
-                            <label className="flex shrink-0 items-center gap-2 pb-2.5 text-xs text-muted">
-                              <input
-                                type="checkbox"
-                                checked={file.client_visible !== false}
-                                onChange={(event) => {
-                                  saveFileMeta(file.id, {
-                                    client_visible: event.target.checked,
-                                  });
-                                }}
-                              />
-                              Show in portal
-                            </label>
-                          </div>
-                        </div>
-                      ) : null}
+                        </ReturnLink>
+                      ))}
                     </div>
-                  ))}
-                </div>
-              )}
+                  )}
+                </SectionCard>
+                </TabPanel>
 
-              <div className="mt-4 border-t border-base pt-4">
-                <PhotoGallery
-                  files={files}
-                  loading={loadingFiles && files.length === 0}
-                />
-              </div>
-            </SectionCard>
-            <CollapsibleSection
-              id="section-activity"
-              title="Activity"
-              description="Recent changes and actions on this job"
-              syncKey={id}
-              ready={!loadingActivity}
-              empty={activity.length === 0}
-            >
-              {!isInitialLoading && loadingActivity ? (
-                <div className="space-y-2">
-                  <Skeleton className="h-4 w-40" />
-                  <Skeleton className="h-4 w-60" />
-                  <Skeleton className="h-4 w-32" />
-                </div>
-              ) : activity.length === 0 ? (
-                <div className="text-sm text-muted">No activity yet.</div>
-              ) : (
-                <>
-                  <ActivityList activity={activity} loading={loadingActivity} />
+                <TabPanel id="files" active={tab === "files"}>
+                <SectionCard
+                  id="section-files"
+                  size="lg"
+                  title="Attached Files"
+                  description="Drop photos here or choose files. Tag before/after and hide internal shots from the portal."
+                  right={
+                    canManageFiles ? (
+                      <label className="btn cursor-pointer px-3 py-2 text-xs">
+                        {uploading ? "Uploading…" : "Upload files"}
+                        <input
+                          type="file"
+                          className="hidden"
+                          multiple
+                          capture="environment"
+                          onChange={handleFileUpload}
+                          disabled={uploading}
+                        />
+                      </label>
+                    ) : null
+                  }
+                >
+                  {filesError ? (
+                    <Alert variant="inline" className="mb-3">
+                      {filesError}
+                    </Alert>
+                  ) : null}
 
-                  {hasMoreActivity ? (
-                    <div className="mt-3 flex justify-between">
-                      <button
-                        type="button"
-                        className="btn ml-auto px-3 text-xs"
-                        onClick={() => setLimit((prev) => prev + 50)}
-                      >
-                        {miniLoadingActivity ? (
-                          <div className="flex flex-row gap-4 px-3">
-                            <LoadingSpinner size={14} />
-                            Loading
-                          </div>
-                        ) : (
-                          "Load more activity"
-                        )}
-                      </button>
+                  {canManageFiles ? (
+                    <div
+                      onDragOver={(event) => {
+                        event.preventDefault();
+                        setFileDragOver(true);
+                      }}
+                      onDragLeave={() => setFileDragOver(false)}
+                      onDrop={handleFileDrop}
+                      className={`mb-3 rounded-lg border border-dashed p-4 text-sm ${
+                        fileDragOver ? "border-strong bg-accent" : "text-muted"
+                      }`}
+                    >
+                      {uploading
+                        ? "Uploading…"
+                        : "Drop files here to attach them to this job."}
                     </div>
                   ) : null}
-                </>
-              )}
-            </CollapsibleSection>
+
+                  {!isInitialLoading && loadingFiles ? (
+                    <SectionSkeleton rows={3} />
+                  ) : files.length === 0 ? (
+                    <div className="rounded-lg border border-dashed p-4 text-sm text-muted">
+                      No files attached to this job yet.
+                    </div>
+                  ) : (
+                    <div className="space-y-3">
+                      {files.map((file) => (
+                        <div key={file.id} className="list-row space-y-3">
+                          <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                            <div className="min-w-0">
+                              <div className="truncate font-medium">{file.original_name}</div>
+                              <div className="text-xs text-muted">
+                                {file.mime_type || "Unknown type"} •{" "}
+                                {formatBytes(file.size_bytes)}
+                              </div>
+                              <div className="text-xs text-muted">
+                                Uploaded: {formatDate(file.created_at)}
+                              </div>
+                              {!canManageFiles && file.caption ? (
+                                <div className="mt-1 text-xs text-muted">{file.caption}</div>
+                              ) : null}
+                            </div>
+
+                            <div className="flex shrink-0 flex-wrap items-center gap-2">
+                              {isPreviewableFile(file) ? (
+                                <button
+                                  type="button"
+                                  onClick={() => setPreviewFile(file)}
+                                  className="btn px-3 py-1.5 text-xs"
+                                >
+                                  Preview
+                                </button>
+                              ) : (
+                                <a
+                                  href={buildFileUrl(file)}
+                                  target="_blank"
+                                  rel="noreferrer"
+                                  className="btn px-3 py-1.5 text-xs"
+                                >
+                                  Open
+                                </a>
+                              )}
+
+                              {canManageFiles ? (
+                                <button
+                                  onClick={() => handleDeleteFile(file.id)}
+                                  disabled={busyFileId === file.id}
+                                  className="btn btn-danger px-3 py-1.5 text-xs"
+                                >
+                                  {busyFileId === file.id ? "Deleting..." : "Delete"}
+                                </button>
+                              ) : null}
+                            </div>
+                          </div>
+
+                          {canManageFiles ? (
+                            <div className="space-y-3 border-t border-base pt-3">
+                              <label className="block min-w-0 text-xs text-muted">
+                                Caption
+                                <input
+                                  className="input mt-1 w-full"
+                                  value={file.caption || ""}
+                                  onChange={(event) => {
+                                    const caption = event.target.value;
+                                    setFiles((prev) =>
+                                      prev.map((row) =>
+                                        row.id === file.id ? { ...row, caption } : row,
+                                      ),
+                                    );
+                                  }}
+                                  onBlur={(event) => {
+                                    const caption = event.target.value.trim() || null;
+                                    saveFileMeta(file.id, { caption });
+                                  }}
+                                  placeholder="Shown in the gallery"
+                                />
+                              </label>
+                              <div className="flex flex-wrap items-end gap-3">
+                                <label className="block min-w-[9rem] flex-1 text-xs text-muted">
+                                  Category
+                                  <select
+                                    className="input mt-1 w-full"
+                                    value={file.category || "other"}
+                                    onChange={(event) => {
+                                      saveFileMeta(file.id, {
+                                        category: event.target.value,
+                                      });
+                                    }}
+                                  >
+                                    <option value="before">Before</option>
+                                    <option value="after">After</option>
+                                    <option value="other">Other</option>
+                                  </select>
+                                </label>
+                                <label className="flex shrink-0 items-center gap-2 pb-2.5 text-xs text-muted">
+                                  <input
+                                    type="checkbox"
+                                    checked={file.client_visible !== false}
+                                    onChange={(event) => {
+                                      saveFileMeta(file.id, {
+                                        client_visible: event.target.checked,
+                                      });
+                                    }}
+                                  />
+                                  Show in portal
+                                </label>
+                              </div>
+                            </div>
+                          ) : null}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  <div className="mt-4 border-t border-base pt-4">
+                    <PhotoGallery
+                      files={files}
+                      loading={loadingFiles && files.length === 0}
+                    />
+                  </div>
+                </SectionCard>
+                </TabPanel>
+
+                <TabPanel id="activity" active={tab === "activity"}>
+                <CollapsibleSection
+                  id="section-activity"
+                  title="Activity"
+                  description="Recent changes and actions on this job"
+                  syncKey={id}
+                  ready={!loadingActivity}
+                  empty={activity.length === 0}
+                >
+                  {!isInitialLoading && loadingActivity ? (
+                    <div className="space-y-2">
+                      <Skeleton className="h-4 w-40" />
+                      <Skeleton className="h-4 w-60" />
+                      <Skeleton className="h-4 w-32" />
+                    </div>
+                  ) : activity.length === 0 ? (
+                    <div className="text-sm text-muted">No activity yet.</div>
+                  ) : (
+                    <>
+                      <ActivityList activity={activity} loading={loadingActivity} />
+
+                      {hasMoreActivity ? (
+                        <div className="mt-3 flex justify-between">
+                          <button
+                            type="button"
+                            className="btn ml-auto px-3 text-xs"
+                            onClick={() => setLimit((prev) => prev + 50)}
+                          >
+                            {miniLoadingActivity ? (
+                              <div className="flex flex-row gap-4 px-3">
+                                <LoadingSpinner size={14} />
+                                Loading
+                              </div>
+                            ) : (
+                              "Load more activity"
+                            )}
+                          </button>
+                        </div>
+                      ) : null}
+                    </>
+                  )}
+                </CollapsibleSection>
+                </TabPanel>
+              </div>
+
+              {layout.railVisible ? (
+                <aside className="record-rail" aria-label="Job details">
+                  <RailPanel
+                    title="Client"
+                    right={
+                      job.lead_id ? (
+                        <ReturnLink href={`/leads/${job.lead_id}`} className="link text-xs">
+                          Open lead
+                        </ReturnLink>
+                      ) : null
+                    }
+                  >
+                    {job.lead_id ? (
+                      <>
+                        <PeekLink kind="lead" id={job.lead_id} className="font-medium hover:text-accent">
+                          {leadName || `Lead #${job.lead_id}`}
+                        </PeekLink>
+                        <ContactLinks phone={lead?.phone} email={lead?.email} />
+                      </>
+                    ) : (
+                      <p className="text-sm text-muted">No lead linked.</p>
+                    )}
+                  </RailPanel>
+                  <RailPanel title="Site">
+                    {job.address ? (
+                      <ContactLinks address={job.address} />
+                    ) : (
+                      <p className="text-sm text-muted">No address yet.</p>
+                    )}
+                    {measurements.length > 0 ? (
+                      <p className="text-xs text-muted">
+                        {measurements.length} measurement{measurements.length === 1 ? "" : "s"} on file
+                      </p>
+                    ) : null}
+                  </RailPanel>
+                  <RailPanel
+                    title="Money"
+                    right={
+                      <button type="button" className="link text-xs" onClick={() => setTab("money")}>
+                        Details
+                      </button>
+                    }
+                  >
+                    <MoneyStrip money={job.money} className="money-strip-stack" />
+                    {job.money?.unbilled_total > 0 ? (
+                      <p className="text-xs text-warning">{formatMoney(job.money.unbilled_total)} approved, not billed</p>
+                    ) : null}
+                  </RailPanel>
+                  <RailPanel title="Dates">
+                    <DetailList
+                      items={[
+                        { label: "Created", value: formatDate(job.created_at) },
+                        { label: "Sold", value: job.sold_at ? formatDate(job.sold_at) : null },
+                        {
+                          label: "Work complete",
+                          value: job.work_completed_at ? formatDate(job.work_completed_at) : null,
+                        },
+                        { label: "Closed", value: job.closed_at ? formatDate(job.closed_at) : null },
+                        { label: "Next visit", value: job.next_appointment_at ? formatDate(job.next_appointment_at) : null },
+                      ]}
+                    />
+                  </RailPanel>
+                  <RailPanel title="Customer portal">
+                    <p className="text-xs text-muted">
+                      What the client sees: progress, what was sent, what they owe. Drafts never show.
+                    </p>
+                    <div className="flex flex-wrap gap-2">
+                      <button
+                        type="button"
+                        className="btn btn-sm"
+                        disabled={portalBusy}
+                        onClick={handleGeneratePortalLink}
+                      >
+                        {portalBusy ? "Link…" : "Copy portal link"}
+                      </button>
+                      <button
+                        type="button"
+                        className="btn btn-sm"
+                        disabled={portalMessageBusy}
+                        onClick={handleCopyPortalMessage}
+                      >
+                        {portalMessageBusy ? "Message…" : "Copy message"}
+                      </button>
+                    </div>
+                  </RailPanel>
+                </aside>
+              ) : null}
+            </div>
           </div>
         ) : null}
       </div>

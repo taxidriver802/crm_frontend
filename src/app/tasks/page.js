@@ -5,14 +5,12 @@ import {
   Suspense,
   useCallback,
   useEffect,
-  useLayoutEffect,
   useMemo,
   useState,
 } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { AppShell } from "@/components/app-shell";
-import { useReturnPush } from "@/components/return-to";
 import {
   TaskForm,
   createEmptyTaskForm,
@@ -25,28 +23,13 @@ import { AttentionStrip } from "@/components/dashboard/attention-strip";
 import { PageToolbar } from "@/components/page-toolbar";
 import { Segmented } from "@/components/ui/segmented";
 import { Icon } from "@/components/icons";
-import { TasksList } from "@/components/lists/tasks-list";
+import { RecordTable, runBulk } from "@/components/ui/record-table";
+import { buildTaskColumns } from "@/components/lists/columns";
+import { usePeek } from "@/components/peek/peek-provider";
+import { useToast } from "@/components/toast/toast-provider";
 import { useScrollIntoViewOnChange } from "@/lib/use-scroll-into-view-on-change";
 
 /** 12rem — matches `min-w-[12rem]` menus */
-const TABLE_DROPDOWN_MENU_WIDTH_PX = 192;
-const TABLE_DROPDOWN_MENU_GAP_PX = 4;
-
-function getTableDropdownMenuPosition(triggerEl) {
-  const rect = triggerEl.getBoundingClientRect();
-  let left = rect.right - TABLE_DROPDOWN_MENU_WIDTH_PX;
-  const pad = 8;
-  left = Math.max(
-    pad,
-    Math.min(left, window.innerWidth - TABLE_DROPDOWN_MENU_WIDTH_PX - pad),
-  );
-  return {
-    top: rect.bottom + TABLE_DROPDOWN_MENU_GAP_PX,
-    left,
-    width: TABLE_DROPDOWN_MENU_WIDTH_PX,
-  };
-}
-
 function parseDuePresetFromSearch(searchParams) {
   const dp = searchParams.get("duePreset");
   if (dp === "overdue" || dp === "due_today" || dp === "next_7_days") {
@@ -60,7 +43,8 @@ function parseDuePresetFromSearch(searchParams) {
 
 function TasksPageInner() {
   const router = useRouter();
-  const push = useReturnPush();
+  const { openPeek } = usePeek();
+  const { showToast } = useToast();
   const searchParams = useSearchParams();
 
   const prefillLeadId = searchParams.get("lead_id") || "";
@@ -100,8 +84,6 @@ function TasksPageInner() {
   const [viewFocusToken, setViewFocusToken] = useState(0);
   const viewContentRef = useScrollIntoViewOnChange(viewFocusToken);
   const [unscheduledCount, setUnscheduledCount] = useState(0);
-  const [openActionsTaskId, setOpenActionsTaskId] = useState(null);
-  const [actionsMenuPosition, setActionsMenuPosition] = useState(null);
   const [taskForm, setTaskForm] = useState(
     createEmptyTaskForm({
       lead_id: prefillLeadId,
@@ -303,40 +285,6 @@ function TasksPageInner() {
     assignedFilter,
   ]);
 
-  async function handleAssignTask(taskId, assignedTo) {
-    const assignee = teamUsers.find((user) => user.id === assignedTo) || null;
-    const previous = tasks;
-
-    setTasks((prev) =>
-      prev.map((task) =>
-        task.id === taskId
-          ? {
-              ...task,
-              assigned_to: assignedTo || null,
-              assigned_user: assignee
-                ? {
-                    id: assignee.id,
-                    first_name: assignee.first_name,
-                    last_name: assignee.last_name,
-                    email: assignee.email,
-                  }
-                : null,
-            }
-          : task,
-      ),
-    );
-
-    try {
-      await api(`/tasks/${taskId}`, {
-        method: "PATCH",
-        body: JSON.stringify({ assigned_to: assignedTo || null }),
-      });
-    } catch (e) {
-      setTasks(previous);
-      setError(e?.message || "Failed to reassign task");
-    }
-  }
-
   async function loadSummary() {
     setLoadingSummary(true);
     try {
@@ -428,63 +376,39 @@ function TasksPageInner() {
     loadJobs();
   }, [isCreateOpen]);
 
-  function syncActionsMenuPosition(taskId) {
-    if (taskId == null) {
-      setActionsMenuPosition(null);
-      return;
-    }
-    const el = document.querySelector(`[data-task-actions-menu="${taskId}"]`);
-    if (el) {
-      setActionsMenuPosition(getTableDropdownMenuPosition(el));
-    }
-  }
-
-  useLayoutEffect(() => {
-    syncActionsMenuPosition(openActionsTaskId);
-  }, [openActionsTaskId]);
-
-  useEffect(() => {
-    if (openActionsTaskId == null) return undefined;
-
-    function handlePointerDown(e) {
-      if (e.target.closest("[data-task-actions-menu]")) return;
-      setOpenActionsTaskId(null);
-      setActionsMenuPosition(null);
-    }
-
-    function handleKeyDown(e) {
-      if (e.key === "Escape") {
-        setOpenActionsTaskId(null);
-        setActionsMenuPosition(null);
-      }
-    }
-
-    function handleReposition() {
-      syncActionsMenuPosition(openActionsTaskId);
-    }
-
-    window.addEventListener("resize", handleReposition);
-    document.addEventListener("scroll", handleReposition, true);
-    document.addEventListener("mousedown", handlePointerDown);
-    document.addEventListener("keydown", handleKeyDown);
-    return () => {
-      window.removeEventListener("resize", handleReposition);
-      document.removeEventListener("scroll", handleReposition, true);
-      document.removeEventListener("mousedown", handlePointerDown);
-      document.removeEventListener("keydown", handleKeyDown);
-    };
-  }, [openActionsTaskId]);
-
-  async function setTaskStatus(taskId, nextStatus) {
+  async function setTaskStatus(taskId, nextStatus, { undoable = true } = {}) {
+    const before = tasks.find((t) => t.id === taskId);
+    setTasks((prev) => prev.map((t) => (t.id === taskId ? { ...t, status: nextStatus } : t)));
     try {
       await api(`/tasks/${taskId}`, {
         method: "PATCH",
         body: JSON.stringify({ status: nextStatus }),
       });
+      if (undoable && before) {
+        showToast(nextStatus === "Completed" ? `Completed “${before.title}”` : `Reopened “${before.title}”`, {
+          tone: "success",
+          action: { label: "Undo", onClick: () => setTaskStatus(taskId, before.status, { undoable: false }) },
+        });
+      }
       await refreshAll();
     } catch (e) {
+      if (before) setTasks((prev) => prev.map((t) => (t.id === taskId ? before : t)));
       setError(e.message || "Failed to update task");
     }
+  }
+
+  async function bulkTasks(rows, body, label, clear) {
+    const result = await runBulk(rows, (row) =>
+      api(`/tasks/${row.id}`, { method: "PATCH", body: JSON.stringify(body) }),
+    );
+    clear();
+    await refreshAll();
+    showToast(
+      result.failed
+        ? `${result.ok} ${label}; ${result.failed} failed (${result.firstError})`
+        : `${result.ok} task${result.ok === 1 ? "" : "s"} ${label}`,
+      { tone: result.failed ? "danger" : "success" },
+    );
   }
 
   async function handleCreateTask(e) {
@@ -574,6 +498,10 @@ function TasksPageInner() {
     { value: "Pending", label: "Pending", short: "Open" },
     { value: "Completed", label: "Completed", short: "Done" },
   ];
+
+  const taskColumns = buildTaskColumns({
+    onToggle: (task) => setTaskStatus(task.id, task.status === "Completed" ? "Pending" : "Completed"),
+  });
 
   return (
     <AppShell
@@ -775,7 +703,7 @@ function TasksPageInner() {
               <TaskCalendar
                 tasks={tasks}
                 onRangeChange={handleCalendarRangeChange}
-                onTaskClick={(task) => push(`/tasks/${task.id}`)}
+                onTaskClick={(task) => openPeek("task", task.id)}
                 onDayCreate={(day) => {
                   const yyyy = day.getFullYear();
                   const mm = String(day.getMonth() + 1).padStart(2, "0");
@@ -789,33 +717,50 @@ function TasksPageInner() {
               />
             </div>
           ) : (
-            <TasksList
-              layout="flush"
-              tasks={tasks}
+            <RecordTable
+              listKey="tasks"
+              kind="task"
+              rows={tasks}
+              columns={taskColumns}
               loading={loadingTasks}
-              canViewAll={canViewAll}
-              teamUsers={teamUsers}
-              onOpen={(taskId) => push(`/tasks/${taskId}`)}
-              onAssign={handleAssignTask}
-              openActionsTaskId={openActionsTaskId}
-              actionsMenuPosition={actionsMenuPosition}
-              onToggleActions={(taskId, triggerEl) => {
-                if (openActionsTaskId === taskId) {
-                  setOpenActionsTaskId(null);
-                  setActionsMenuPosition(null);
-                  return;
-                }
-                const wrap = triggerEl.closest("[data-task-actions-menu]");
-                if (wrap) {
-                  setActionsMenuPosition(getTableDropdownMenuPosition(wrap));
-                }
-                setOpenActionsTaskId(taskId);
-              }}
-              onCloseActions={() => {
-                setOpenActionsTaskId(null);
-                setActionsMenuPosition(null);
-              }}
-              onSetStatus={setTaskStatus}
+              getHref={(row) => `/tasks/${row.id}`}
+              selectable
+              emptyTitle="No tasks in this view"
+              emptyDescription="Change the filter, or add one with New task."
+              bulkActions={(rows, clear) => (
+                <>
+                  <button
+                    type="button"
+                    className="btn btn-sm"
+                    onClick={() => bulkTasks(rows, { status: "Completed" }, "completed", clear)}
+                  >
+                    Complete
+                  </button>
+                  {canViewAll ? (
+                    <select
+                      aria-label="Assign selected tasks"
+                      defaultValue=""
+                      onChange={(e) => {
+                        if (e.target.value === "") return;
+                        bulkTasks(
+                          rows,
+                          { assigned_to: e.target.value === "unassigned" ? null : e.target.value },
+                          "reassigned",
+                          clear,
+                        );
+                      }}
+                    >
+                      <option value="">Assign to…</option>
+                      <option value="unassigned">Unassigned</option>
+                      {teamUsers.map((user) => (
+                        <option key={user.id} value={user.id}>
+                          {user.first_name} {user.last_name}
+                        </option>
+                      ))}
+                    </select>
+                  ) : null}
+                </>
+              )}
             />
           )}
         </div>

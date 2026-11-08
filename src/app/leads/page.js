@@ -5,7 +5,6 @@ import { Suspense, useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { AppShell } from "@/components/app-shell";
-import { useReturnPush } from "@/components/return-to";
 import { LeadForm, createEmptyLeadForm } from "@/components/forms/lead-form";
 import { api } from "@/lib/api";
 import { Skeleton } from "@/components/loading/loadingSkeletons";
@@ -14,14 +13,16 @@ import { SavedViewsControls } from "@/components/saved-views-controls";
 import { Segmented } from "@/components/ui/segmented";
 import { EmptyState } from "@/components/error-boundary";
 import { Icon } from "@/components/icons";
-import { LeadsList } from "@/components/lists/leads-list";
+import { RecordTable, runBulk } from "@/components/ui/record-table";
+import { LEAD_COLUMNS } from "@/components/lists/columns";
+import { useToast } from "@/components/toast/toast-provider";
 import { PageToolbar } from "@/components/page-toolbar";
 import { useScrollIntoViewOnChange } from "@/lib/use-scroll-into-view-on-change";
 
 const LEAD_PIPELINE_COLUMNS = ["New", "Contacted", "Qualified", "Closed", "Inactive"];
 
 function LeadsPageInner() {
-  const push = useReturnPush();
+  const { showToast } = useToast();
   const searchParams = useSearchParams();
   const [q, setQ] = useState("");
   const [status, setStatus] = useState(() => searchParams.get("status") || "");
@@ -125,38 +126,18 @@ function LeadsPageInner() {
     return s ? `?${s}` : "";
   }, [q, status, viewMode, canViewAll, viewScope, assignedFilter]);
 
-  async function handleAssignLead(leadId, assignedTo) {
-    const assignee = teamUsers.find((user) => user.id === assignedTo) || null;
-    const previous = leads;
-
-    setLeads((prev) =>
-      prev.map((lead) =>
-        lead.id === leadId
-          ? {
-              ...lead,
-              assigned_to: assignedTo || null,
-              assigned_user: assignee
-                ? {
-                    id: assignee.id,
-                    first_name: assignee.first_name,
-                    last_name: assignee.last_name,
-                    email: assignee.email,
-                  }
-                : null,
-            }
-          : lead,
-      ),
+  async function bulkLeads(rows, body, label, clear) {
+    const result = await runBulk(rows, (row) =>
+      api(`/leads/${row.id}`, { method: "PATCH", body: JSON.stringify(body) }),
     );
-
-    try {
-      await api(`/leads/${leadId}`, {
-        method: "PATCH",
-        body: JSON.stringify({ assigned_to: assignedTo || null }),
-      });
-    } catch (e) {
-      setLeads(previous);
-      setError(e?.message || "Failed to reassign lead");
-    }
+    clear();
+    await refreshAll();
+    showToast(
+      result.failed
+        ? `${result.ok} ${label}; ${result.failed} failed (${result.firstError})`
+        : `${result.ok} lead${result.ok === 1 ? "" : "s"} ${label}`,
+      { tone: result.failed ? "danger" : "success" },
+    );
   }
 
   async function loadSummary() {
@@ -506,14 +487,61 @@ function LeadsPageInner() {
               )}
             </section>
           ) : (
-            <LeadsList
-              layout="flush"
-              leads={leads}
+            <RecordTable
+              listKey="leads"
+              kind="lead"
+              rows={leads}
+              columns={LEAD_COLUMNS}
               loading={loadingLeads}
-              canViewAll={canViewAll}
-              teamUsers={teamUsers}
-              onOpen={(leadId) => push(`/leads/${leadId}`)}
-              onAssign={handleAssignLead}
+              getHref={(row) => `/leads/${row.id}`}
+              selectable
+              emptyTitle={q || status ? "No leads match this view" : "No leads yet"}
+              emptyDescription={
+                q || status
+                  ? "Clear a filter or search for something else."
+                  : "Add one with New lead, or share your intake link so they come to you."
+              }
+              bulkActions={(rows, clear) => (
+                <>
+                  {canViewAll ? (
+                    <select
+                      aria-label="Assign selected leads"
+                      defaultValue=""
+                      onChange={(e) => {
+                        if (e.target.value === "") return;
+                        bulkLeads(
+                          rows,
+                          { assigned_to: e.target.value === "unassigned" ? null : e.target.value },
+                          "reassigned",
+                          clear,
+                        );
+                      }}
+                    >
+                      <option value="">Assign to…</option>
+                      <option value="unassigned">Unassigned</option>
+                      {teamUsers.map((user) => (
+                        <option key={user.id} value={user.id}>
+                          {user.first_name} {user.last_name}
+                        </option>
+                      ))}
+                    </select>
+                  ) : null}
+                  <select
+                    aria-label="Set status of selected leads"
+                    defaultValue=""
+                    onChange={(e) => {
+                      if (e.target.value) bulkLeads(rows, { status: e.target.value }, `set to ${e.target.value}`, clear);
+                    }}
+                  >
+                    <option value="">Set status…</option>
+                    {LEAD_PIPELINE_COLUMNS.map((value) => (
+                      <option key={value} value={value}>
+                        {value}
+                      </option>
+                    ))}
+                  </select>
+                </>
+              )}
             />
           )}
         </div>

@@ -17,6 +17,7 @@ function NewTaskPageInner() {
   const prefillLeadId = params.get("lead_id") || "";
   const prefillJobId = params.get("job_id") || "";
   const prefillTitle = params.get("title") || params.get("q") || "";
+  const prefillKind = params.get("kind") === "appointment" ? "appointment" : "task";
 
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
@@ -33,6 +34,7 @@ function NewTaskPageInner() {
       lead_id: prefillLeadId,
       job_id: prefillJobId,
       title: prefillTitle,
+      kind: prefillKind,
     }),
   );
 

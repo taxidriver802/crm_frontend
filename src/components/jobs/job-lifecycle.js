@@ -23,6 +23,7 @@ export function JobLifecycleCard({
   onMove,
   nextStepAction,
   canReopen = false,
+  hideNextStep = false,
 }) {
   const [lostOpen, setLostOpen] = useState(false);
   const [lostReason, setLostReason] = useState("");
@@ -81,7 +82,7 @@ export function JobLifecycleCard({
       }
     >
       <div className="space-y-4">
-        {step && step.action !== "none" ? (
+        {!hideNextStep && step && step.action !== "none" ? (
           <div
             className="flex min-w-0 flex-wrap items-center justify-between gap-3 rounded-theme-md border border-base bg-accent-soft p-3"
             data-testid="job-next-step"

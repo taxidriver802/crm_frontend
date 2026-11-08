@@ -6,19 +6,16 @@ import {
   useCallback,
   useContext,
   useEffect,
-  useId,
   useLayoutEffect,
   useMemo,
-  useRef,
   useState,
+  useSyncExternalStore,
 } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 
-import { useToast } from "./toast/toast-provider";
 import { ConfirmModal } from "@/components/modals/confirm-modal";
 import { InviteUserModal } from "@/components/modals/invite-user-modal";
-import { ThemeToggle } from "@/components/theme/theme-toggle";
 import { CommandPalette } from "@/components/command-palette";
 import { Overlay } from "@/components/ui/overlay";
 import { Icon } from "@/components/icons";
@@ -26,67 +23,47 @@ import { ReturnBackButton, ReturnToProvider } from "@/components/return-to";
 import { clearReturnStack } from "@/lib/return-to";
 import { recordRecentFromPathname, parseEntityContext } from "@/lib/search-recents";
 import { Alert } from "@/components/ui/alert";
-import { usePwaInstall } from "@/lib/pwa";
-import { cx } from "@/lib/cx";
-
-import { CompanyMark } from "@/components/brand/company-mark";
-import { CompanyBrandingModal } from "@/components/modals/company-branding-modal";
-import { useThemeController } from "@/components/theme/theme-controller";
 import { api } from "@/lib/api";
-import { writeStoredCompanySlug } from "@/lib/company-slug";
-import {
-  NOTIFICATION_PANEL_LIMIT,
-  NOTIFICATIONS_CHANGED_EVENT,
-  buildNotificationsQuery,
-  formatNotificationTime,
-  getNotificationHref,
-  getNotificationIconName,
-} from "@/lib/notifications";
+import { cx } from "@/lib/cx";
+import { NAV_ITEMS } from "@/lib/preferences";
+import { CompanyMark } from "@/components/brand/company-mark";
+import { WorkspaceProvider, useWorkspace } from "@/components/workspace/workspace-provider";
+import { PeekProvider } from "@/components/peek/peek-provider";
+import { PeekPanel } from "@/components/peek/peek-panel";
+import { NavList, NavRail, isActivePath, useNavItems } from "@/components/shell/nav-rail";
+import { NotificationsMenu } from "@/components/shell/notifications-menu";
+import { CreateMenu } from "@/components/shell/create-menu";
+import { useMediaQuery } from "@/lib/use-media-query";
+import { Avatar } from "@/components/shell/user-menu";
+import { ShortcutsDialog, useGlobalShortcuts } from "@/components/shell/shortcuts";
 
-const WORKFLOW_NAV = [
-  { href: "/dashboard", label: "Dashboard", icon: "home", priority: "primary" },
-  { href: "/leads", label: "Leads", icon: "users", priority: "primary" },
-  { href: "/jobs", label: "Jobs", icon: "briefcase", priority: "primary" },
-  { href: "/tasks", label: "Tasks", icon: "checklist", priority: "primary" },
-  { href: "/invoices", label: "Invoices", icon: "invoice", priority: "primary" },
-];
+const RAIL_STORAGE_KEY = "crm-desktop-sidebar";
+const RAIL_EVENT = "crm-railchange";
 
-const SYSTEM_NAV = [
-  { href: "/files", label: "Files", icon: "folder", priority: "secondary" },
-  { href: "/reports", label: "Reports", icon: "chart", priority: "secondary" },
-  { href: "/automation", label: "Automation", icon: "spark", priority: "secondary" },
-  { href: "/integrations", label: "Integrations", icon: "plug", priority: "secondary" },
-];
+function subscribeRail(callback) {
+  window.addEventListener("storage", callback);
+  window.addEventListener(RAIL_EVENT, callback);
+  return () => {
+    window.removeEventListener("storage", callback);
+    window.removeEventListener(RAIL_EVENT, callback);
+  };
+}
 
-const USERS_NAV = {
-  href: "/users",
-  label: "Users",
-  icon: "users",
-  priority: "secondary",
-};
-const TEMPLATES_NAV = {
-  href: "/estimates/templates",
-  label: "Templates",
-  icon: "invoice",
-  priority: "secondary",
-};
-
-const DESKTOP_SIDEBAR_STORAGE_KEY = "crm-desktop-sidebar";
-
-function readDesktopSidebarOpen() {
+function readRailCollapsed() {
   try {
-    return localStorage.getItem(DESKTOP_SIDEBAR_STORAGE_KEY) !== "0";
+    return window.localStorage.getItem(RAIL_STORAGE_KEY) === "0";
   } catch {
-    return true;
+    return false;
   }
 }
 
-function writeDesktopSidebarOpen(open) {
+function writeRailCollapsed(collapsed) {
   try {
-    localStorage.setItem(DESKTOP_SIDEBAR_STORAGE_KEY, open ? "1" : "0");
+    window.localStorage.setItem(RAIL_STORAGE_KEY, collapsed ? "0" : "1");
   } catch {
-    /* ignore quota / private mode */
+    /* private mode */
   }
+  window.dispatchEvent(new Event(RAIL_EVENT));
 }
 
 const EMPTY_CHROME = {
@@ -123,100 +100,13 @@ const StablePage = memo(function StablePage({ children }) {
   return children;
 });
 
-function isActivePath(pathname, href) {
-  return pathname === href || pathname.startsWith(href + "/");
-}
-
-function AccountSettings({
-  tone = "default",
-  isAdminUser,
-  onInvite,
-  onCompanyLook,
-  onLogout,
-}) {
-  const [open, setOpen] = useState(false);
-  const panelId = useId();
-  const chrome = tone === "chrome";
-  const { canInstall, promptInstall } = usePwaInstall();
-
-  return (
-    <div>
-      <button
-        type="button"
-        className={cx("btn w-full justify-start", chrome && "btn-chrome")}
-        aria-expanded={open}
-        aria-controls={panelId}
-        onClick={() => setOpen((value) => !value)}
-      >
-        <Icon name="settings" className="h-4 w-4" />
-        Settings
-        <Icon
-          name="chevronDown"
-          className={cx(
-            "ml-auto h-3.5 w-3.5 transition-transform duration-fast",
-            open && "rotate-180",
-          )}
-        />
-      </button>
-
-      {open ? (
-        <div
-          id={panelId}
-          className={cx(
-            "mt-1 space-y-1 rounded-theme-md border p-1",
-            chrome ? "border-chrome" : "border-base",
-          )}
-        >
-          {isAdminUser ? (
-            <button
-              type="button"
-              onClick={onInvite}
-              className={cx("btn w-full justify-start", chrome && "btn-chrome")}
-            >
-              <Icon name="userPlus" className="h-4 w-4" />
-              Invite user
-            </button>
-          ) : null}
-
-          {isAdminUser ? (
-            <button
-              type="button"
-              onClick={onCompanyLook}
-              className={cx("btn w-full justify-start", chrome && "btn-chrome")}
-            >
-              <Icon name="spark" className="h-4 w-4" />
-              Company look
-            </button>
-          ) : null}
-
-          <ThemeToggle tone={tone} />
-
-          {canInstall ? (
-            <button
-              type="button"
-              onClick={() => promptInstall()}
-              className={cx("btn w-full justify-start", chrome && "btn-chrome")}
-            >
-              <Icon name="download" className="h-4 w-4" />
-              Install app
-            </button>
-          ) : null}
-
-          <button
-            type="button"
-            onClick={onLogout}
-            className={cx(
-              "btn w-full justify-start",
-              chrome ? "btn-chrome" : "btn-danger",
-            )}
-          >
-            <Icon name="logOut" className="h-4 w-4" />
-            Log out
-          </button>
-        </div>
-      ) : null}
-    </div>
-  );
+/** "Jobs" above a job's name, so a record always shows where it lives. */
+function crumbFor(pathname) {
+  const parts = pathname.split("/").filter(Boolean);
+  if (parts.length < 2) return null;
+  if (parts[0] === "estimates") return null;
+  const item = NAV_ITEMS.find((nav) => nav.href === `/${parts[0]}`);
+  return item ? { label: item.label, href: item.href } : null;
 }
 
 function OfflineBanner() {
@@ -226,11 +116,9 @@ function OfflineBanner() {
     function syncOnline() {
       setOffline(typeof navigator !== "undefined" && navigator.onLine === false);
     }
-
     function onApiOffline() {
       setOffline(true);
     }
-
     syncOnline();
     window.addEventListener("offline", syncOnline);
     window.addEventListener("online", syncOnline);
@@ -248,11 +136,7 @@ function OfflineBanner() {
     <div className="shrink-0 border-b border-base px-4 py-2 sm:px-6">
       <Alert tone="warning" className="flex flex-wrap items-center justify-between gap-2">
         <span>You&apos;re offline. Data needs a connection.</span>
-        <button
-          type="button"
-          className="btn px-3 py-1.5 text-xs"
-          onClick={() => window.location.reload()}
-        >
+        <button type="button" className="btn btn-sm" onClick={() => window.location.reload()}>
           Retry
         </button>
       </Alert>
@@ -260,165 +144,8 @@ function OfflineBanner() {
   );
 }
 
-function AppShellFrame({ children }) {
-  const { title, description, right, back } = useContext(ChromeValueContext);
-  const pathname = usePathname();
-  const router = useRouter();
-  const { showToast } = useToast();
-  const { setCompanyPaletteId } = useThemeController();
-
-  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const [desktopSidebarOpen, setDesktopSidebarOpen] = useState(true);
-  const [sidebarMotion, setSidebarMotion] = useState(false);
-
-  const [user, setUser] = useState(null);
-  const [company, setCompany] = useState(null);
-  const [notificationsOpen, setNotificationsOpen] = useState(false);
-  const [notifications, setNotifications] = useState([]);
-  const [notificationsTotal, setNotificationsTotal] = useState(0);
-  const [unreadCount, setUnreadCount] = useState(0);
-  const [notificationsLoading, setNotificationsLoading] = useState(false);
-  const [markingAllRead, setMarkingAllRead] = useState(false);
-  const [inviteModalOpen, setInviteModalOpen] = useState(false);
-  const [brandingOpen, setBrandingOpen] = useState(false);
-  const [logoutConfirmOpen, setLogoutConfirmOpen] = useState(false);
-  const [searchOpen, setSearchOpen] = useState(false);
-  const [searchQuery, setSearchQuery] = useState("");
-  const [searchSurface, setSearchSurface] = useState("palette");
-  const topbarSearchRef = useRef(null);
-  const searchKeyDownRef = useRef(null);
-
-  const notificationsOpenRef = useRef(false);
-  const prevNotificationsRef = useRef([]);
-
-  useEffect(() => {
-    notificationsOpenRef.current = notificationsOpen;
-  }, [notificationsOpen]);
-
-  useLayoutEffect(() => {
-    setDesktopSidebarOpen(readDesktopSidebarOpen());
-    delete document.documentElement.dataset.sidebar;
-  }, []);
-
-  useEffect(() => {
-    setSidebarMotion(true);
-  }, []);
-
-  useEffect(() => {
-    setMobileMenuOpen(false);
-    setNotificationsOpen(false);
-    setSearchOpen(false);
-    setSearchQuery("");
-    setSearchSurface("palette");
-    setInviteModalOpen(false);
-    setBrandingOpen(false);
-    setLogoutConfirmOpen(false);
-    recordRecentFromPathname(pathname);
-  }, [pathname]);
-
-  useEffect(() => {
-    function handleClickOutside(e) {
-      if (!e.target.closest(".notifications-menu")) setNotificationsOpen(false);
-    }
-
-    document.addEventListener("click", handleClickOutside);
-    return () => document.removeEventListener("click", handleClickOutside);
-  }, []);
-
-  useEffect(() => {
-    function onShortcut(event) {
-      const isK = event.key?.toLowerCase() === "k";
-      const isMeta = event.metaKey || event.ctrlKey;
-      if (!isK || !isMeta) return;
-      event.preventDefault();
-      const useTopbar =
-        typeof window !== "undefined" && window.matchMedia("(min-width: 1024px)").matches;
-      setSearchSurface(useTopbar ? "topbar" : "palette");
-      setSearchOpen(true);
-      if (useTopbar) {
-        requestAnimationFrame(() => topbarSearchRef.current?.focus());
-      }
-    }
-
-    window.addEventListener("keydown", onShortcut);
-    return () => window.removeEventListener("keydown", onShortcut);
-  }, []);
-
-  function closeSearch() {
-    setSearchOpen(false);
-    setSearchQuery("");
-    setSearchSurface("palette");
-  }
-
-  function openSearchFromTopbar() {
-    setSearchSurface("topbar");
-    setSearchOpen(true);
-  }
-
-  function openSearchFromIcon() {
-    setSearchSurface("palette");
-    setSearchOpen(true);
-  }
-
-  useEffect(() => {
-    function handleClick(e) {
-      if (!e.target.closest(".mobile-menu") && !e.target.closest(".menu-trigger")) {
-        setMobileMenuOpen(false);
-      }
-    }
-
-    if (mobileMenuOpen) {
-      document.addEventListener("click", handleClick);
-    }
-
-    return () => document.removeEventListener("click", handleClick);
-  }, [mobileMenuOpen]);
-
-  useEffect(() => {
-    function refreshFromOutside() {
-      loadUnreadCount();
-      loadNotifications({ silent: true, announce: false });
-    }
-
-    const interval = setInterval(() => {
-      loadUnreadCount();
-      loadNotifications({ silent: true });
-    }, 30000);
-
-    window.addEventListener(NOTIFICATIONS_CHANGED_EVENT, refreshFromOutside);
-
-    return () => {
-      clearInterval(interval);
-      window.removeEventListener(NOTIFICATIONS_CHANGED_EVENT, refreshFromOutside);
-    };
-    // Polling interval; loaders close over latest state via refs/setters.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  const isAdminUser = user?.role === "owner" || user?.role === "admin";
-  const entityContext = useMemo(() => parseEntityContext(pathname), [pathname]);
-
-  const navItems = useMemo(() => {
-    const systemNav = [
-      SYSTEM_NAV[0],
-      SYSTEM_NAV[1],
-      SYSTEM_NAV[2],
-      ...(isAdminUser ? [TEMPLATES_NAV] : []),
-      SYSTEM_NAV[3],
-    ];
-    return isAdminUser
-      ? [...WORKFLOW_NAV, ...systemNav, USERS_NAV]
-      : [...WORKFLOW_NAV, ...systemNav];
-  }, [isAdminUser]);
-
-  const primaryNavItems = navItems.filter((item) => item.priority === "primary");
-  const secondaryNavItems = navItems.filter((item) => item.priority === "secondary");
-
-  useEffect(() => {
-    loadUser();
-    loadUnreadCount();
-  }, []);
-
+/** iOS: keep the shell at the visual viewport height and stop rubber-banding. */
+function useViewportLock() {
   useLayoutEffect(() => {
     const root = document.documentElement;
     let lastTouchY = 0;
@@ -427,81 +154,54 @@ function AppShellFrame({ children }) {
       const height = window.visualViewport?.height ?? window.innerHeight;
       root.style.setProperty("--app-height", `${Math.round(height)}px`);
     }
-
     function pinDocumentScroll() {
-      if (window.scrollX || window.scrollY) {
-        window.scrollTo(0, 0);
-      }
+      if (window.scrollX || window.scrollY) window.scrollTo(0, 0);
     }
-
     function findScrollable(target, axis) {
       let node = target instanceof Element ? target : target?.parentElement;
       while (node && node !== document.documentElement) {
         const style = window.getComputedStyle(node);
-        if (axis === "y") {
-          const overflowY = style.overflowY;
-          if (
-            (overflowY === "auto" || overflowY === "scroll") &&
-            node.scrollHeight > node.clientHeight + 1
-          ) {
-            return node;
-          }
-        } else {
-          const overflowX = style.overflowX;
-          if (
-            (overflowX === "auto" || overflowX === "scroll") &&
-            node.scrollWidth > node.clientWidth + 1
-          ) {
-            return node;
-          }
-        }
+        const overflow = axis === "y" ? style.overflowY : style.overflowX;
+        const scrolls =
+          axis === "y"
+            ? node.scrollHeight > node.clientHeight + 1
+            : node.scrollWidth > node.clientWidth + 1;
+        if ((overflow === "auto" || overflow === "scroll") && scrolls) return node;
         node = node.parentElement;
       }
       return null;
     }
-
     function onTouchStart(event) {
       lastTouchY = event.touches[0]?.clientY ?? 0;
     }
-
     function onTouchMove(event) {
       if (event.touches.length > 1) return;
-
       const y = event.touches[0]?.clientY ?? lastTouchY;
       const deltaY = y - lastTouchY;
       lastTouchY = y;
-
       const horizontal = findScrollable(event.target, "x");
       const vertical = findScrollable(event.target, "y");
-
       if (horizontal && !vertical) return;
       if (!vertical) {
         event.preventDefault();
         return;
       }
-
       const atTop = vertical.scrollTop <= 0;
-      const atBottom =
-        vertical.scrollTop + vertical.clientHeight >= vertical.scrollHeight - 1;
-
-      if ((atTop && deltaY > 0) || (atBottom && deltaY < 0)) {
-        event.preventDefault();
-      }
+      const atBottom = vertical.scrollTop + vertical.clientHeight >= vertical.scrollHeight - 1;
+      if ((atTop && deltaY > 0) || (atBottom && deltaY < 0)) event.preventDefault();
     }
 
     root.classList.add("app-shell-active");
     syncViewport();
-
-    const visualViewport = window.visualViewport;
-    visualViewport?.addEventListener("resize", syncViewport);
+    const vv = window.visualViewport;
+    vv?.addEventListener("resize", syncViewport);
     window.addEventListener("resize", syncViewport);
     window.addEventListener("orientationchange", syncViewport);
     window.addEventListener("scroll", pinDocumentScroll, { passive: true });
     document.addEventListener("touchstart", onTouchStart, { passive: true });
     document.addEventListener("touchmove", onTouchMove, { passive: false });
-
     return () => {
-      visualViewport?.removeEventListener("resize", syncViewport);
+      vv?.removeEventListener("resize", syncViewport);
       window.removeEventListener("resize", syncViewport);
       window.removeEventListener("orientationchange", syncViewport);
       window.removeEventListener("scroll", pinDocumentScroll);
@@ -511,582 +211,174 @@ function AppShellFrame({ children }) {
       root.style.removeProperty("--app-height");
     };
   }, []);
+}
 
-  async function loadUser() {
-    try {
-      const res = await fetch("/api/auth/me", { credentials: "include" });
-      if (!res.ok) return;
-      const data = await res.json();
-      setUser(data.user);
-      setCompany(data.company || null);
-      if (data.company?.slug) writeStoredCompanySlug(data.company.slug);
-      if (data.company?.palette_id) setCompanyPaletteId(data.company.palette_id);
-    } catch (err) {
-      console.error("Failed to load user", err);
-    }
+function MobileTabBar({ entityContext, createOpen, onCreateOpenChange }) {
+  const pathname = usePathname();
+  const { work } = useNavItems();
+  // The person's own first four work destinations, with Create in the middle.
+  const items = work.filter((item) => item.id !== "inbox").slice(0, 4);
+  const left = items.slice(0, 2);
+  const right = items.slice(2, 4);
+
+  function renderItem(item) {
+    const active = isActivePath(pathname, item.href);
+    return (
+      <Link
+        key={item.id}
+        href={item.href}
+        onClick={() => clearReturnStack()}
+        className={cx("tabbar-item", active && "tabbar-item-active")}
+        aria-current={active ? "page" : undefined}
+      >
+        <Icon name={item.icon} className="h-5 w-5" />
+        <span>{item.label}</span>
+      </Link>
+    );
   }
 
-  async function loadUnreadCount() {
-    try {
-      const data = await api("/notifications/unread-count", {
-        credentials: "include",
-      });
-      setUnreadCount(data?.count ?? 0);
-    } catch (err) {
-      console.error("Failed to load unread notification count", err);
-    }
+  return (
+    <nav className="tabbar lg:hidden" aria-label="Primary">
+      {left.map(renderItem)}
+      <div className="tabbar-create">
+        <CreateMenu
+          entityContext={entityContext}
+          compact
+          side="top"
+          align="center"
+          open={createOpen}
+          onOpenChange={onCreateOpenChange}
+        />
+      </div>
+      {right.map(renderItem)}
+    </nav>
+  );
+}
+
+function AppShellFrame({ children }) {
+  const { title, description, right, back } = useContext(ChromeValueContext);
+  const pathname = usePathname();
+  const router = useRouter();
+  const { user, company, isAdmin, prefs, loaded, updatePrefs } = useWorkspace();
+
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [searchOpen, setSearchOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [createOpen, setCreateOpen] = useState(false);
+  // Two Create buttons exist (rail, tab bar); only the visible one is driven by
+  // the shortcut, so the hidden one's outside-click handling cannot close it.
+  const wide = useMediaQuery("(min-width: 1024px)");
+  const [inviteModalOpen, setInviteModalOpen] = useState(false);
+  const [logoutConfirmOpen, setLogoutConfirmOpen] = useState(false);
+  const [shortcutsOpen, setShortcutsOpen] = useState(false);
+  const [unread, setUnread] = useState(0);
+  useViewportLock();
+
+  // The rail paints from localStorage first (no flash; layout.js marks
+  // <html data-sidebar>) and then follows the saved preference once loaded.
+  const localCollapsed = useSyncExternalStore(subscribeRail, readRailCollapsed, () => false);
+  useLayoutEffect(() => {
+    delete document.documentElement.dataset.sidebar;
+  }, []);
+  const collapsed =
+    loaded && prefs.nav?.collapsed !== undefined && prefs.nav?.collapsed !== null
+      ? Boolean(prefs.nav.collapsed)
+      : localCollapsed;
+
+  const toggleRail = useCallback(() => {
+    const next = !collapsed;
+    writeRailCollapsed(next);
+    updatePrefs({ nav: { collapsed: next } });
+  }, [collapsed, updatePrefs]);
+
+  // A new page starts with every transient surface closed.
+  const [seenPath, setSeenPath] = useState(pathname);
+  if (seenPath !== pathname) {
+    setSeenPath(pathname);
+    setMobileMenuOpen(false);
+    setSearchOpen(false);
+    setSearchQuery("");
+    setCreateOpen(false);
+    setInviteModalOpen(false);
+    setLogoutConfirmOpen(false);
   }
 
-  async function loadNotifications(options = {}) {
-    const silent = Boolean(options.silent);
-    const announce = options.announce !== false;
-    try {
-      if (!silent) setNotificationsLoading(true);
+  useEffect(() => {
+    recordRecentFromPathname(pathname);
+  }, [pathname]);
 
-      const data = await api(
-        buildNotificationsQuery({ limit: NOTIFICATION_PANEL_LIMIT }),
-        {
-          credentials: "include",
-        },
-      );
+  const openSearch = useCallback(() => setSearchOpen(true), []);
+  // One open state drives both Create buttons; only the one on screen is visible.
+  const openCreate = useCallback(() => setCreateOpen(true), []);
+  const openHelp = useCallback(() => setShortcutsOpen(true), []);
 
-      const newNotifications = data?.notifications ?? [];
-      const prev = prevNotificationsRef.current;
-      const newItems = newNotifications.filter((n) => !prev.some((p) => p.id === n.id));
+  useGlobalShortcuts({
+    onSearch: openSearch,
+    onCreate: openCreate,
+    onToggleRail: toggleRail,
+    onHelp: openHelp,
+  });
 
-      if (announce && prev.length > 0 && !notificationsOpenRef.current) {
-        newItems
-          .filter((n) => !n.read_at)
-          .forEach((n) => showToast(`${n.title}: ${n.message}`));
-      }
-
-      prevNotificationsRef.current = newNotifications;
-      setNotifications(newNotifications);
-      setNotificationsTotal(
-        typeof data?.total === "number" ? data.total : newNotifications.length,
-      );
-    } catch (err) {
-      console.error("Failed to load notifications", err);
-    } finally {
-      if (!silent) setNotificationsLoading(false);
-    }
-  }
+  const entityContext = useMemo(() => parseEntityContext(pathname), [pathname]);
+  const crumb = useMemo(() => crumbFor(pathname), [pathname]);
 
   async function handleLogout() {
     await api("/auth/logout", { method: "POST" });
     router.replace("/login");
   }
 
-  async function handleToggleNotifications() {
-    const nextOpen = !notificationsOpen;
-    setNotificationsOpen(nextOpen);
-
-    if (nextOpen) {
-      await Promise.all([loadNotifications(), loadUnreadCount()]);
-    }
-  }
-
-  async function handleMarkNotificationRead(notificationId) {
-    try {
-      await api(`/notifications/${notificationId}/read`, {
-        method: "PATCH",
-        credentials: "include",
-      });
-
-      setNotifications((prev) =>
-        prev.map((item) =>
-          item.id === notificationId
-            ? { ...item, read_at: item.read_at || new Date().toISOString() }
-            : item,
-        ),
-      );
-
-      setUnreadCount((prev) => Math.max(0, prev - 1));
-    } catch (err) {
-      console.error("Failed to mark notification as read", err);
-    }
-  }
-
-  async function handleMarkAllRead() {
-    try {
-      setMarkingAllRead(true);
-
-      await api("/notifications/read-all", {
-        method: "PATCH",
-        credentials: "include",
-      });
-
-      const now = new Date().toISOString();
-
-      setNotifications((prev) =>
-        prev.map((item) => ({
-          ...item,
-          read_at: item.read_at || now,
-        })),
-      );
-
-      setUnreadCount(0);
-    } catch (err) {
-      console.error("Failed to mark all notifications as read", err);
-    } finally {
-      setMarkingAllRead(false);
-    }
-  }
-
-  async function handleNotificationClick(notification) {
-    const href = getNotificationHref(notification);
-
-    if (!notification.read_at) {
-      await handleMarkNotificationRead(notification.id);
-    }
-
-    setNotificationsOpen(false);
-
-    if (href) {
-      clearReturnStack();
-      router.push(href);
-    }
-  }
-
-  async function handleClearRead() {
-    try {
-      await api("/notifications/read", {
-        method: "DELETE",
-        credentials: "include",
-      });
-
-      setNotifications((prev) => prev.filter((item) => !item.read_at));
-      await loadNotifications({ silent: true, announce: false });
-    } catch (err) {
-      console.error("Failed to clear read notifications", err);
-    }
-  }
-
-  async function handleDeleteNotification(notificationId) {
-    const wasUnread = notifications.some(
-      (item) => item.id === notificationId && !item.read_at,
-    );
-
-    try {
-      await api(`/notifications/${notificationId}`, {
-        method: "DELETE",
-        credentials: "include",
-      });
-
-      setNotifications((prev) => {
-        const next = prev.filter((item) => item.id !== notificationId);
-        prevNotificationsRef.current = next;
-        return next;
-      });
-
-      if (wasUnread) {
-        setUnreadCount((prev) => Math.max(0, prev - 1));
-      }
-
-      setNotificationsTotal((prev) => Math.max(0, prev - 1));
-      await loadNotifications({ silent: true, announce: false });
-    } catch (err) {
-      console.error("Failed to delete notification", err);
-    }
-  }
-
-  const hasReadNotifications = notifications.some((n) => n.read_at);
-
-  function renderNavLink(item, { onNavigate, tone = "chrome" } = {}) {
-    const active = isActivePath(pathname, item.href);
-
-    return (
-      <Link
-        key={item.href}
-        href={item.href}
-        onClick={(event) => {
-          clearReturnStack();
-          onNavigate?.(event);
-        }}
-        className={cx(
-          tone === "chrome"
-            ? "nav-chrome"
-            : "flex items-center gap-2.5 rounded-theme-md px-2.5 py-2 text-sm transition",
-          tone === "chrome"
-            ? active && "nav-chrome-active"
-            : active
-              ? "bg-accent font-medium text-main"
-              : "text-muted hover:bg-accent",
-        )}
-      >
-        {item.icon ? <Icon name={item.icon} className="h-4 w-4" /> : null}
-        {item.label}
-      </Link>
-    );
-  }
-
-  function renderNotificationsPanel() {
-    return (
-      <div
-        className={cx(
-          "dropdown-panel z-50 flex max-h-[min(24rem,calc(100dvh-8.5rem))] min-h-0 flex-col overflow-hidden",
-          /* Stronger edge + elevation so the panel reads above page cards without a full-screen dim */
-          "border-strong shadow-[0_12px_40px_rgb(15_20_23/0.16)] dark:shadow-[0_16px_48px_rgb(0_0_0/0.55)]",
-          /* Small screens: pin to viewport so the panel never hangs off the left edge */
-          "fixed inset-x-3 top-[max(4.25rem,calc(env(safe-area-inset-top,0px)+3.75rem))] w-auto",
-          /* sm+: anchor to bell, cap width so medium layouts stay lighter */
-          "sm:absolute sm:inset-x-auto sm:left-auto sm:right-0 sm:top-full sm:mt-2 sm:max-h-[min(22rem,calc(100dvh-9rem))] sm:w-[min(20rem,calc(100vw-2rem))]",
-          "lg:w-[min(22rem,calc(100vw-2rem))]",
-        )}
-      >
-        <div className="flex items-center justify-between gap-3 border-b border-base px-3 py-2.5 sm:px-3.5">
-          <div className="flex min-w-0 items-center gap-2">
-            <p className="text-sm font-semibold tracking-tight">Notifications</p>
-            {unreadCount > 0 ? (
-              <span className="inline-flex min-h-[1.15rem] min-w-[1.15rem] items-center justify-center rounded-full bg-accent-solid px-1.5 text-[10px] font-semibold text-on-accent">
-                {unreadCount > 99 ? "99+" : unreadCount}
-              </span>
-            ) : null}
-          </div>
-
-          <div className="flex shrink-0 items-center gap-x-2.5">
-            <button
-              type="button"
-              onClick={handleMarkAllRead}
-              disabled={markingAllRead || unreadCount === 0}
-              className={cx(
-                "text-xs text-muted transition hover:text-main",
-                (markingAllRead || unreadCount === 0) && "cursor-not-allowed opacity-50",
-              )}
-            >
-              {markingAllRead ? "Saving..." : "Mark all"}
-            </button>
-
-            {hasReadNotifications ? (
-              <button
-                type="button"
-                onClick={handleClearRead}
-                className="text-xs text-muted transition hover:text-main"
-              >
-                Clear
-              </button>
-            ) : null}
-          </div>
-        </div>
-
-        <div className="scrollbar-theme min-h-0 flex-1 overflow-y-auto py-1">
-          {notificationsLoading ? (
-            <div className="flex flex-col items-center gap-2 px-4 py-10 text-center text-sm text-muted">
-              <Icon name="bell" className="h-5 w-5 text-soft" />
-              Loading…
-            </div>
-          ) : notifications.length === 0 ? (
-            <div className="flex flex-col items-center gap-2 px-4 py-10 text-center text-sm text-muted">
-              <Icon name="inbox" className="h-5 w-5 text-soft" />
-              You’re all caught up.
-            </div>
-          ) : (
-            notifications.map((notification) => {
-              const unread = !notification.read_at;
-              const iconName = getNotificationIconName(notification);
-
-              return (
-                <div
-                  key={notification.id}
-                  className={cx(
-                    "group relative flex w-full items-start gap-2.5 px-3 py-2.5 transition hover:bg-accent sm:px-3.5",
-                    !unread && "opacity-60 hover:opacity-100",
-                  )}
-                >
-                  <span
-                    aria-hidden
-                    className={cx(
-                      "absolute bottom-1.5 left-0 top-1.5 w-0.5 rounded-full bg-accent-solid transition-opacity",
-                      unread ? "opacity-100" : "opacity-0",
-                    )}
-                  />
-
-                  <button
-                    type="button"
-                    onClick={() => handleNotificationClick(notification)}
-                    className="flex min-w-0 flex-1 items-start gap-2.5 text-left"
-                  >
-                    <span
-                      className={cx(
-                        "mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-theme-md",
-                        unread ? "bg-surface text-muted" : "bg-surface text-soft",
-                      )}
-                    >
-                      <Icon name={iconName} className="h-3.5 w-3.5" />
-                    </span>
-
-                    <span className="min-w-0 flex-1">
-                      <span
-                        className={cx(
-                          "block truncate text-sm leading-snug",
-                          unread ? "font-semibold text-main" : "font-medium text-muted",
-                        )}
-                      >
-                        {notification.title}
-                      </span>
-                      <span
-                        className={cx(
-                          "mt-0.5 line-clamp-2 block text-xs leading-relaxed",
-                          unread ? "text-muted" : "text-soft",
-                        )}
-                      >
-                        {notification.message}
-                      </span>
-                    </span>
-                  </button>
-
-                  <div className="flex shrink-0 flex-col items-end gap-0.5">
-                    <button
-                      type="button"
-                      aria-label="Delete notification"
-                      title="Delete"
-                      onClick={(event) => {
-                        event.preventDefault();
-                        event.stopPropagation();
-                        handleDeleteNotification(notification.id);
-                      }}
-                      className={cx(
-                        "inline-flex h-5 w-5 items-center justify-center rounded-theme-sm text-soft transition",
-                        "hover:bg-surface hover:text-main",
-                        "opacity-0 pointer-events-none",
-                        "group-hover:pointer-events-auto group-hover:opacity-100",
-                        "group-focus-within:pointer-events-auto group-focus-within:opacity-100",
-                        "focus-visible:pointer-events-auto focus-visible:opacity-100",
-                        "max-lg:pointer-events-auto max-lg:opacity-100",
-                      )}
-                    >
-                      <Icon name="close" className="h-3 w-3" />
-                    </button>
-                    <span className="text-[11px] tabular-nums text-soft">
-                      {formatNotificationTime(notification.created_at)}
-                    </span>
-                  </div>
-                </div>
-              );
-            })
-          )}
-        </div>
-
-        {!notificationsLoading &&
-        notificationsTotal > 0 &&
-        pathname !== "/notifications" ? (
-          <div className="border-t border-base px-2 py-1.5">
-            <Link
-              href="/notifications"
-              onClick={() => {
-                clearReturnStack();
-                setNotificationsOpen(false);
-              }}
-              className="flex w-full items-center justify-center gap-1.5 rounded-theme-md px-2 py-1.5 text-xs font-medium text-muted transition hover:bg-accent hover:text-main"
-            >
-              <span>View all</span>
-              {notificationsTotal > notifications.length ? (
-                <span className="tabular-nums text-soft">{notificationsTotal}</span>
-              ) : null}
-              <Icon name="chevronLeft" className="h-3 w-3 rotate-180" />
-            </Link>
-          </div>
-        ) : null}
-      </div>
-    );
-  }
-
   return (
     <ReturnToProvider title={title}>
-      <div className="app-shell flex overflow-hidden bg-app text-main">
-        {/* SIDEBAR — large screens; toggled from the topbar */}
-        <aside
-          id="desktop-sidebar"
-          aria-hidden={!desktopSidebarOpen}
-          inert={!desktopSidebarOpen ? true : undefined}
-          className={cx(
-            "scrollbar-theme hidden h-full shrink-0 flex-col overflow-hidden bg-chrome text-chrome lg:flex",
-            desktopSidebarOpen ? "w-64 border-r border-chrome" : "w-0 border-0",
-          )}
-          style={{
-            transitionProperty: sidebarMotion ? "width, border-width" : "none",
-            transitionDuration: sidebarMotion ? "var(--duration-fast)" : "0s",
-            transitionTimingFunction: "var(--ease-standard)",
-          }}
-        >
-          <div className="flex h-full w-64 min-w-64 flex-col">
-            <Link
-              href="/dashboard"
-              className="flex items-center gap-3 px-5 py-5"
-              onClick={() => clearReturnStack()}
-            >
-              <CompanyMark
-                markId={company?.mark_id}
-                logoUrl={company?.logo_url}
-                className="h-8 w-8"
-                alt=""
-              />
-              <span className="truncate text-sm font-semibold tracking-tight">
-                {company?.name || "CRM"}
-              </span>
-            </Link>
+      <div className="app-shell workbench">
+        <NavRail
+          collapsed={collapsed}
+          onToggle={toggleRail}
+          unread={unread}
+          entityContext={entityContext}
+          createOpen={wide ? createOpen : undefined}
+          onCreateOpenChange={wide ? setCreateOpen : undefined}
+          onSearch={openSearch}
+          onInvite={() => setInviteModalOpen(true)}
+          onShortcuts={openHelp}
+          onLogout={() => setLogoutConfirmOpen(true)}
+        />
 
-            <nav className="flex-1 space-y-5 overflow-y-auto px-3 pb-2">
-              <div className="space-y-0.5">
-                {primaryNavItems.map((item) => renderNavLink(item))}
+        <div className="workspace">
+          <header className="topbar" role="banner">
+            <div className="topbar-left">
+              <Link href="/dashboard" className="topbar-brand lg:hidden" aria-label={company?.name || "Today"}>
+                <CompanyMark markId={company?.mark_id} logoUrl={company?.logo_url} className="h-7 w-7" alt="" />
+              </Link>
+              <ReturnBackButton back={back} />
+              <div className={cx("topbar-title", !description && !crumb && "justify-center")}>
+                {crumb && title ? (
+                  <Link href={crumb.href} className="crumb" onClick={() => clearReturnStack()}>
+                    {crumb.label}
+                  </Link>
+                ) : null}
+                {title ? <h1 className="topbar-h1">{title}</h1> : null}
+                {description ? <p className="topbar-sub">{description}</p> : null}
               </div>
-
-              {secondaryNavItems.length > 0 && (
-                <div className="space-y-0.5">
-                  <div className="nav-section-label">Tools</div>
-                  {secondaryNavItems.map((item) => renderNavLink(item))}
-                </div>
-              )}
-            </nav>
-
-            <div className="space-y-2 border-t border-chrome p-3">
-              <AccountSettings
-                tone="chrome"
-                isAdminUser={isAdminUser}
-                onInvite={() => setInviteModalOpen(true)}
-                onCompanyLook={() => setBrandingOpen(true)}
-                onLogout={() => setLogoutConfirmOpen(true)}
-              />
             </div>
-          </div>
-        </aside>
 
-        {/* MAIN */}
-        <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
-          {/* TOPBAR */}
-          <header
-            className={cx(
-              "sticky top-0 z-10 flex shrink-0 items-center justify-between gap-4 border-b border-base bg-surface-elevated px-4 pb-2.5 sm:px-6",
-              "pt-[calc(env(safe-area-inset-top,0px)+0.625rem)]",
-              searchOpen && searchSurface === "topbar" && "z-[85]",
-            )}
-          >
-            <div
-              className={cx(
-                "flex h-full min-w-0 flex-row gap-0 lg:gap-2",
-                !description ? "items-center" : "items-start",
-              )}
-            >
-              <div className="shell-nav-cluster">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setDesktopSidebarOpen((open) => {
-                      const next = !open;
-                      writeDesktopSidebarOpen(next);
-                      return next;
-                    });
-                  }}
-                  className="shell-nav-toggle"
-                  aria-label={desktopSidebarOpen ? "Collapse menu" : "Open menu"}
-                  aria-expanded={desktopSidebarOpen}
-                  aria-controls="desktop-sidebar"
-                  title={desktopSidebarOpen ? "Collapse menu" : "Open menu"}
-                >
-                  <Icon
-                    name={desktopSidebarOpen ? "panelLeft" : "menu"}
-                    className="h-4 w-4"
-                  />
-                </button>
-                <ReturnBackButton back={back} />
-              </div>
-              <div
-                className={cx(
-                  "shell-header-title flex min-w-0 flex-col",
-                  !description && "justify-center",
-                )}
+            <div className="topbar-right">
+              {right ? <div className="hidden min-w-0 items-center gap-2 lg:flex lg:flex-wrap">{right}</div> : null}
+              <button
+                type="button"
+                onClick={openSearch}
+                aria-label="Open search"
+                title="Search (⌘K)"
+                className="icon-btn icon-btn-quiet lg:hidden"
               >
-                {title ? (
-                  <h1 className="truncate text-[15px] font-semibold tracking-tight">
-                    {title}
-                  </h1>
-                ) : null}
-                {description ? (
-                  <p className="mt-0.5 truncate text-sm text-muted">{description}</p>
-                ) : null}
-              </div>
-            </div>
-
-            <div className="flex min-w-0 shrink-0 items-center gap-1.5 sm:gap-2">
-              {right ? (
-                <div className="hidden min-w-0 items-center gap-2 lg:flex lg:flex-wrap">
-                  {right}
-                </div>
-              ) : null}
-
-              <div className="notifications-menu relative flex items-center gap-1.5">
-                <button
-                  type="button"
-                  onClick={openSearchFromIcon}
-                  aria-label="Open search"
-                  title="Search (Ctrl/Cmd + K)"
-                  className="icon-btn lg:hidden"
-                >
-                  <Icon name="search" className="h-4 w-4" />
-                </button>
-
-                <label
-                  className={cx(
-                    "hidden items-center gap-2 rounded-theme-md border border-base bg-surface px-2.5 transition focus-within:border-strong lg:inline-flex",
-                    "h-9 min-w-[12.5rem] max-w-[16rem]",
-                    searchOpen && searchSurface === "topbar" && "border-strong bg-accent",
-                  )}
-                >
-                  <Icon name="search" className="h-3.5 w-3.5 shrink-0 text-muted" />
-                  <input
-                    ref={topbarSearchRef}
-                    type="search"
-                    value={searchQuery}
-                    placeholder="Search…"
-                    aria-label="Search workspace"
-                    className="min-w-0 flex-1 border-0 bg-transparent text-sm outline-none placeholder:text-soft"
-                    onFocus={openSearchFromTopbar}
-                    onChange={(event) => {
-                      setSearchQuery(event.target.value);
-                      openSearchFromTopbar();
-                    }}
-                    onKeyDown={(event) => {
-                      searchKeyDownRef.current?.(event);
-                    }}
-                  />
-                  <kbd className="rounded-theme-sm border border-base px-1.5 py-0.5 text-[10px] font-medium text-soft">
-                    ⌘K
-                  </kbd>
-                </label>
-
-                <button
-                  type="button"
-                  onClick={handleToggleNotifications}
-                  aria-label="Open notifications"
-                  aria-expanded={notificationsOpen}
-                  className="icon-btn relative"
-                >
-                  <Icon name="bell" className="h-4 w-4" />
-                  {unreadCount > 0 && (
-                    <span className="absolute -right-1 -top-1 inline-flex min-h-[1.1rem] min-w-[1.1rem] items-center justify-center rounded-full bg-accent-solid px-1 text-[10px] font-semibold text-on-accent">
-                      {unreadCount > 9 ? "9+" : unreadCount}
-                    </span>
-                  )}
-                </button>
-
-                {notificationsOpen ? (
-                  <>
-                    <Overlay
-                      className="sm:hidden"
-                      aria-hidden
-                      onClick={() => setNotificationsOpen(false)}
-                    />
-                    {renderNotificationsPanel()}
-                  </>
-                ) : null}
-              </div>
-
+                <Icon name="search" className="h-4 w-4" />
+              </button>
+              <NotificationsMenu onUnreadChange={setUnread} />
               <button
                 type="button"
                 aria-label={mobileMenuOpen ? "Close menu" : "Open menu"}
                 aria-expanded={mobileMenuOpen}
-                onClick={() => setMobileMenuOpen((p) => !p)}
-                className="icon-btn menu-trigger lg:hidden"
+                onClick={() => setMobileMenuOpen((open) => !open)}
+                className="icon-btn icon-btn-quiet menu-trigger lg:hidden"
               >
                 <Icon name={mobileMenuOpen ? "close" : "menu"} className="h-4 w-4" />
               </button>
@@ -1095,79 +387,67 @@ function AppShellFrame({ children }) {
 
           <OfflineBanner />
 
-          {mobileMenuOpen && (
+          {mobileMenuOpen ? (
             <>
-              <Overlay
-                className="lg:hidden"
-                aria-hidden
-                onClick={() => setMobileMenuOpen(false)}
-              />
-              <div className="mobile-menu dropdown-panel fixed right-3 top-[max(4.25rem,calc(env(safe-area-inset-top,0px)+3.75rem))] z-50 flex max-h-[min(70vh,calc(100dvh-5rem))] w-[min(20rem,calc(100vw-1.5rem))] flex-col overflow-hidden lg:hidden">
-                <div className="flex shrink-0 items-center justify-between border-b border-base px-3 py-2">
-                  <span className="text-sm font-semibold tracking-tight">Menu</span>
+              <Overlay className="lg:hidden" aria-hidden onClick={() => setMobileMenuOpen(false)} />
+              <div className="mobile-menu sheet lg:hidden" role="dialog" aria-label="Menu">
+                <div className="sheet-head">
+                  <div className="flex min-w-0 items-center gap-2.5">
+                    <Avatar user={user} />
+                    <div className="min-w-0">
+                      <div className="truncate text-sm font-semibold">
+                        {`${user?.first_name || ""} ${user?.last_name || ""}`.trim() || "Menu"}
+                      </div>
+                      <div className="truncate text-xs text-muted">{company?.name}</div>
+                    </div>
+                  </div>
                   <button
                     type="button"
-                    className="icon-btn"
+                    className="icon-btn icon-btn-quiet"
                     aria-label="Close menu"
                     onClick={() => setMobileMenuOpen(false)}
                   >
                     <Icon name="close" className="h-4 w-4" />
                   </button>
                 </div>
-                <div className="scrollbar-theme min-h-0 flex-1 space-y-4 overflow-y-auto p-3">
-                  <div className="space-y-0.5">
-                    <div className="px-2.5 pt-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-muted">
-                      Workflow
-                    </div>
-                    {primaryNavItems.map((item) =>
-                      renderNavLink(item, {
-                        onNavigate: () => setMobileMenuOpen(false),
-                        tone: "panel",
-                      }),
-                    )}
-                  </div>
-
-                  {secondaryNavItems.length > 0 && (
-                    <>
-                      <div className="border-t border-base pt-2" />
-                      <div className="space-y-0.5">
-                        <div className="px-2.5 pt-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-muted">
-                          Tools
-                        </div>
-                        {secondaryNavItems.map((item) =>
-                          renderNavLink(item, {
-                            onNavigate: () => setMobileMenuOpen(false),
-                            tone: "panel",
-                          }),
-                        )}
-                      </div>
-                    </>
-                  )}
-
-                  <div className="border-t border-base pt-3">
-                    <AccountSettings
-                      isAdminUser={isAdminUser}
-                      onInvite={() => {
-                        setMobileMenuOpen(false);
-                        setInviteModalOpen(true);
-                      }}
-                      onCompanyLook={() => {
-                        setMobileMenuOpen(false);
-                        setBrandingOpen(true);
-                      }}
-                      onLogout={() => {
+                <div className="sheet-body scrollbar-theme">
+                  <NavList unread={unread} onNavigate={() => setMobileMenuOpen(false)} />
+                  <div className="rail-group border-t border-base pt-3">
+                    <Link href="/settings" className="rail-link" onClick={() => setMobileMenuOpen(false)}>
+                      <Icon name="sliders" className="h-[1.05rem] w-[1.05rem]" />
+                      <span>Preferences</span>
+                    </Link>
+                    {isAdmin ? (
+                      <button
+                        type="button"
+                        className="rail-link"
+                        onClick={() => {
+                          setMobileMenuOpen(false);
+                          setInviteModalOpen(true);
+                        }}
+                      >
+                        <Icon name="userPlus" className="h-[1.05rem] w-[1.05rem]" />
+                        <span>Invite someone</span>
+                      </button>
+                    ) : null}
+                    <button
+                      type="button"
+                      className="rail-link text-danger"
+                      onClick={() => {
                         setMobileMenuOpen(false);
                         setLogoutConfirmOpen(true);
                       }}
-                    />
+                    >
+                      <Icon name="logOut" className="h-[1.05rem] w-[1.05rem]" />
+                      <span>Log out</span>
+                    </button>
                   </div>
                 </div>
               </div>
             </>
-          )}
+          ) : null}
 
-          {/* PAGE */}
-          <main className="scrollbar-none min-h-0 min-w-0 flex-1 overflow-y-auto overscroll-y-none">
+          <main className="workspace-main scrollbar-none" id="main">
             <div className="page-wrap">
               <div className="page-stack">
                 {right ? <div className="page-actions lg:hidden">{right}</div> : null}
@@ -1176,73 +456,45 @@ function AppShellFrame({ children }) {
             </div>
           </main>
 
-          {/* MOBILE BOTTOM NAV — in-flow so iOS overscroll cannot drag it off-screen */}
-          <nav
-            className="flex shrink-0 items-center justify-around border-t border-chrome bg-chrome py-1.5 text-chrome lg:hidden"
-            style={{ paddingBottom: "max(0.375rem, env(safe-area-inset-bottom, 0px))" }}
-          >
-            {[
-              { href: "/dashboard", label: "Home", icon: "home" },
-              { href: "/leads", label: "Leads", icon: "users" },
-              { href: "/jobs", label: "Jobs", icon: "briefcase" },
-              { href: "/tasks", label: "Tasks", icon: "checklist" },
-              { href: "/reports", label: "Reports", icon: "chart" },
-            ].map((item) => {
-              const active = isActivePath(pathname, item.href);
-              return (
-                <Link
-                  key={item.href}
-                  href={item.href}
-                  onClick={() => clearReturnStack()}
-                  className={cx(
-                    "flex min-w-[3.25rem] flex-col items-center gap-0.5 px-2 py-1 text-[10px] transition",
-                    active ? "font-semibold text-chrome" : "text-chrome-muted",
-                  )}
-                >
-                  <Icon name={item.icon} className="h-4 w-4" />
-                  <span>{item.label}</span>
-                </Link>
-              );
-            })}
-          </nav>
+          <MobileTabBar
+            entityContext={entityContext}
+            createOpen={wide ? undefined : createOpen}
+            onCreateOpenChange={wide ? undefined : setCreateOpen}
+          />
         </div>
 
-        <InviteUserModal
-          open={inviteModalOpen}
-          onClose={() => setInviteModalOpen(false)}
-        />
-        <CompanyBrandingModal
-          open={brandingOpen}
-          company={company}
-          onClose={() => setBrandingOpen(false)}
-          onSaved={(next) => {
-            setCompany(next);
-            if (next?.palette_id) setCompanyPaletteId(next.palette_id);
-            if (next?.slug) writeStoredCompanySlug(next.slug);
-          }}
-        />
+        <PeekPanel />
+
+        <InviteUserModal open={inviteModalOpen} onClose={() => setInviteModalOpen(false)} />
         <ConfirmModal
           open={logoutConfirmOpen}
           onClose={() => setLogoutConfirmOpen(false)}
           onConfirm={handleLogout}
           title="Log out?"
-          description="Are you sure you want to log out? You can sign back in anytime."
+          description="You can sign back in anytime. Your workspace layout is saved to your account."
           confirmLabel="Log out"
           cancelLabel="Cancel"
           tone="danger"
         />
+        <ShortcutsDialog open={shortcutsOpen} onClose={() => setShortcutsOpen(false)} />
         <CommandPalette
           open={searchOpen}
-          onClose={closeSearch}
+          onClose={() => {
+            setSearchOpen(false);
+            setSearchQuery("");
+          }}
           query={searchQuery}
           onQueryChange={setSearchQuery}
-          autoFocus={searchSurface === "palette"}
-          showInput={searchSurface === "palette"}
-          externalKeyDownRef={searchSurface === "topbar" ? searchKeyDownRef : null}
+          autoFocus
+          showInput
+          externalKeyDownRef={null}
           entityContext={entityContext}
-          isAdminUser={isAdminUser}
+          isAdminUser={isAdmin}
           onInviteUser={() => setInviteModalOpen(true)}
-          onMarkAllNotificationsRead={handleMarkAllRead}
+          onMarkAllNotificationsRead={async () => {
+            await api("/notifications/read-all", { method: "PATCH" }).catch(() => {});
+            setUnread(0);
+          }}
         />
       </div>
     </ReturnToProvider>
@@ -1253,12 +505,7 @@ export function AppShell({ children, title, description, right, back }) {
   const setChrome = useContext(ChromeDispatchContext);
 
   useLayoutEffect(() => {
-    setChrome({
-      title,
-      description,
-      right: right ?? null,
-      back,
-    });
+    setChrome({ title, description, right: right ?? null, back });
   }, [title, description, right, back, setChrome]);
 
   useLayoutEffect(() => () => setChrome(EMPTY_CHROME), [setChrome]);
@@ -1278,10 +525,16 @@ export function ShellGate({ children }) {
   return (
     <ChromeDispatchContext.Provider value={setChromeStable}>
       <ChromeValueContext.Provider value={chrome}>
-        <AppShellFrame>
-          <StablePage>{children}</StablePage>
-        </AppShellFrame>
+        <WorkspaceProvider>
+          <PeekProvider>
+            <AppShellFrame>
+              <StablePage>{children}</StablePage>
+            </AppShellFrame>
+          </PeekProvider>
+        </WorkspaceProvider>
       </ChromeValueContext.Provider>
     </ChromeDispatchContext.Provider>
   );
 }
+
+export { isActivePath };

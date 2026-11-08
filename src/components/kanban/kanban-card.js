@@ -2,12 +2,12 @@
 
 import { CSS } from "@dnd-kit/utilities";
 import { useSortable } from "@dnd-kit/sortable";
-import { useReturnPush } from "@/components/return-to";
+import { usePeek } from "@/components/peek/peek-provider";
 import { formatDate, formatDaysInStatus } from "@/lib/helper";
 import { formatPhoneDisplay } from "@/lib/input-format";
 
 export function KanbanCard({ lead }) {
-  const push = useReturnPush();
+  const { openPeek } = usePeek();
   const sortableId = `lead:${lead.id}`;
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } =
     useSortable({
@@ -31,17 +31,17 @@ export function KanbanCard({ lead }) {
       ref={setNodeRef}
       style={style}
       className={`kanban-card ${isDragging ? "kanban-card-dragging" : ""}`}
-      role="link"
+      role="button"
       tabIndex={0}
       onClick={() => {
         if (!isDragging) {
-          push(`/leads/${lead.id}`);
+          openPeek("lead", lead.id);
         }
       }}
       onKeyDown={(e) => {
         if ((e.key === "Enter" || e.key === " ") && !isDragging) {
           e.preventDefault();
-          push(`/leads/${lead.id}`);
+          openPeek("lead", lead.id);
         }
       }}
     >

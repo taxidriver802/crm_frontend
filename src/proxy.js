@@ -14,6 +14,7 @@ export function proxy(request) {
     "/files",
     "/notifications",
     "/jobs",
+    "/settings",
   ];
 
   const isProtected = protectedRoutes.some((route) => pathname.startsWith(route));
@@ -38,6 +39,7 @@ export const config = {
     "/files/:path*",
     "/jobs/:path*",
     "/notifications",
+    "/settings",
     "/login",
     "/register",
   ],
