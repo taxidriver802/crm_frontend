@@ -196,7 +196,8 @@ function timeLabel(task) {
   return d.toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" });
 }
 
-export function AgendaWidget({ tasks, loading }) {
+/** Upcoming visits and tasks by day. In the team view each line says who. */
+export function AgendaWidget({ tasks, loading, showOwner = false }) {
   const groups = [];
   const byDay = new Map();
   for (const task of tasks) {
@@ -226,7 +227,7 @@ export function AgendaWidget({ tasks, loading }) {
           <div className="skeleton h-9 w-full" />
         </div>
       ) : groups.length === 0 ? (
-        <div className="widget-empty">Nothing on the calendar this week.</div>
+        <div className="widget-empty">Nothing scheduled ahead.</div>
       ) : (
         <div className="space-y-2" data-testid="agenda">
           {groups.slice(0, 4).map((group) => (
@@ -235,6 +236,11 @@ export function AgendaWidget({ tasks, loading }) {
               <ul>
                 {group.items.map((task) => {
                   const where = task.job_title || task.lead?.name || task.job_lead?.name;
+                  const who = showOwner
+                    ? task.assigned_user
+                      ? `${task.assigned_user.first_name || ""} ${task.assigned_user.last_name || ""}`.trim()
+                      : "Unassigned"
+                    : null;
                   return (
                     <li
                       key={task.id}
@@ -245,8 +251,10 @@ export function AgendaWidget({ tasks, loading }) {
                         <PeekLink kind="task" id={task.id} className="block truncate font-medium hover:text-accent">
                           {task.title}
                         </PeekLink>
-                        {where || task.location ? (
+                        {who || where || task.location ? (
                           <div className="truncate text-xs text-muted">
+                            {who ? <span className="font-medium text-main">{who}</span> : null}
+                            {who && (where || task.location) ? " · " : ""}
                             {[where, task.location].filter(Boolean).join(" · ")}
                           </div>
                         ) : null}

@@ -127,7 +127,14 @@ export default function TodayPage() {
       case "needs-you":
         return <NeedsYouWidget key={widget.id} items={needsYou} loading={loading} onTaskDone={load} />;
       case "agenda":
-        return <AgendaWidget key={widget.id} tasks={agendaTasks} loading={loading} />;
+        return (
+          <AgendaWidget
+            key={widget.id}
+            tasks={agendaTasks}
+            loading={loading}
+            showOwner={isAdmin && viewScope === "all"}
+          />
+        );
       case "handoffs":
         return (
           <HandoffsWidget
