@@ -96,10 +96,10 @@ export function JobNextStep({ job, estimates, invoices, onSchedule, compact = fa
 
   const docs = pickJobDocuments(estimates, invoices);
   // The server words the visit date in UTC; say it in the viewer's own time.
+  // Starting the work means the work appointment, not an earlier site visit.
+  const workAt = job.next_work_appointment_at || job.next_appointment_at;
   const detail =
-    step.action === "start_work" && job.next_appointment_at
-      ? `Scheduled ${formatDue(job.next_appointment_at)}.`
-      : step.detail;
+    step.action === "start_work" && workAt ? `Scheduled ${formatDue(workAt)}.` : step.detail;
 
   async function moveTo(status) {
     setBusy(true);

@@ -30,6 +30,7 @@ import { CompanyMark } from "@/components/brand/company-mark";
 import { WorkspaceProvider, useWorkspace } from "@/components/workspace/workspace-provider";
 import { PeekProvider } from "@/components/peek/peek-provider";
 import { PeekPanel } from "@/components/peek/peek-panel";
+import { DockPanel } from "@/components/workspace/dock-panel";
 import { HelpProvider, useHelp } from "@/components/help/help-provider";
 import { useModChord } from "@/lib/mod-key";
 import { HelpPanel } from "@/components/help/help-panel";
@@ -113,32 +114,46 @@ function crumbFor(pathname) {
 }
 
 function OfflineBanner() {
-  const [offline, setOffline] = useState(false);
+  // "offline": the browser has no network. "unreachable": the browser is
+  // online but a request could not reach the CRM server. The second clears
+  // as soon as any request gets through, not only on a browser online event.
+  const [state, setState] = useState(null);
 
   useEffect(() => {
     function syncOnline() {
-      setOffline(typeof navigator !== "undefined" && navigator.onLine === false);
+      const offline = typeof navigator !== "undefined" && navigator.onLine === false;
+      setState(offline ? "offline" : null);
     }
     function onApiOffline() {
-      setOffline(true);
+      const offline = typeof navigator !== "undefined" && navigator.onLine === false;
+      setState(offline ? "offline" : "unreachable");
+    }
+    function onApiOnline() {
+      setState((s) => (s === "unreachable" ? null : s));
     }
     syncOnline();
     window.addEventListener("offline", syncOnline);
     window.addEventListener("online", syncOnline);
     window.addEventListener("crm-offline", onApiOffline);
+    window.addEventListener("crm-online", onApiOnline);
     return () => {
       window.removeEventListener("offline", syncOnline);
       window.removeEventListener("online", syncOnline);
       window.removeEventListener("crm-offline", onApiOffline);
+      window.removeEventListener("crm-online", onApiOnline);
     };
   }, []);
 
-  if (!offline) return null;
+  if (!state) return null;
 
   return (
     <div className="shrink-0 border-b border-base px-4 py-2 sm:px-6">
       <Alert tone="warning" className="flex flex-wrap items-center justify-between gap-2">
-        <span>You&apos;re offline. Data needs a connection.</span>
+        <span>
+          {state === "offline"
+            ? "You’re offline. Data needs a connection."
+            : "Can’t reach the CRM right now. Changes may not be saved."}
+        </span>
         <button type="button" className="btn btn-sm" onClick={() => window.location.reload()}>
           Retry
         </button>
@@ -278,6 +293,21 @@ function AppShellFrame({ children }) {
   const [shortcutsOpen, setShortcutsOpen] = useState(false);
   const [unread, setUnread] = useState(0);
   useViewportLock();
+
+  // The tab names the company you are signed in to, not the app's default.
+  // Next writes the layout's metadata title after loads and navigations, so
+  // put the company's back whenever the title changes.
+  useEffect(() => {
+    if (!company?.name) return undefined;
+    const wanted = `${company.name} CRM`;
+    const apply = () => {
+      if (document.title !== wanted) document.title = wanted;
+    };
+    apply();
+    const observer = new MutationObserver(apply);
+    observer.observe(document.head, { subtree: true, childList: true, characterData: true });
+    return () => observer.disconnect();
+  }, [company?.name]);
 
   // The rail paints from localStorage first (no flash; layout.js marks
   // <html data-sidebar>) and then follows the saved preference once loaded.
@@ -481,6 +511,7 @@ function AppShellFrame({ children }) {
           />
         </div>
 
+        <DockPanel />
         <PeekPanel />
         <HelpPanel />
 

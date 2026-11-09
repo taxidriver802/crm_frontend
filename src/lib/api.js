@@ -35,6 +35,12 @@ export async function api(path, options = {}) {
     );
   }
 
+  // The API answered, so any "can't reach" banner can go. A 5xx may be the
+  // dev proxy failing to reach the API, so it does not count.
+  if (typeof window !== "undefined" && res.status < 500) {
+    window.dispatchEvent(new CustomEvent("crm-online"));
+  }
+
   const data = await res.json().catch(() => ({}));
 
   if (!res.ok) {

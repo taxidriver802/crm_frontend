@@ -13,6 +13,7 @@ import { Menu, MenuDivider, MenuItem } from "@/components/ui/menu";
 import { Icon } from "@/components/icons";
 import { PeekLink } from "@/components/peek/peek-provider";
 import { useWorkspace } from "@/components/workspace/workspace-provider";
+import { PinMenu } from "@/components/workspace/pin-menu";
 import { DetailList, RecordUnavailable, StatusPill } from "@/components/records/record-bits";
 import { RailPanel, TabPanel, Tabs, useRecordSections, useUrlTab } from "@/components/records/record-layout";
 import {
@@ -303,22 +304,7 @@ export default function InvoiceRecordPage() {
               </div>
             </div>
             <div className="flex shrink-0 flex-wrap items-center gap-2">
-              <button
-                type="button"
-                className="btn btn-sm"
-                aria-pressed={pinned}
-                onClick={() =>
-                  workspace.togglePin({
-                    kind: "invoice",
-                    id: invoice.id,
-                    label: invoice.invoice_number,
-                    href: `/invoices/${invoice.id}`,
-                  })
-                }
-              >
-                <Icon name="pin" className="h-3.5 w-3.5" />
-                {pinned ? "Pinned" : "Pin"}
-              </button>
+              <PinMenu kind="invoice" id={invoice.id} label={invoice.invoice_number} href={`/invoices/${invoice.id}`} />
               <Menu
                 align="end"
                 label="Invoice actions"

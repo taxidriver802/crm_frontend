@@ -250,6 +250,31 @@ export function WorkspaceProvider({ children }) {
     [pins, updatePrefs, showToast],
   );
 
+  // One record kept open beside pages on wide screens. Saved with the
+  // account like pins; its width is per device (the dock keeps that).
+  const dock = prefs.nav?.dock || null;
+  const isDocked = useCallback(
+    (kind, id) => Boolean(dock && dock.kind === kind && String(dock.id) === String(id)),
+    [dock],
+  );
+  const setDock = useCallback(
+    (next) => {
+      updatePrefs({
+        nav: {
+          dock: next
+            ? {
+                kind: next.kind,
+                id: Number(next.id),
+                label: String(next.label || `${next.kind} ${next.id}`).slice(0, 120),
+                href: next.href,
+              }
+            : null,
+        },
+      });
+    },
+    [updatePrefs],
+  );
+
   const value = useMemo(
     () => ({
       user,
@@ -269,6 +294,9 @@ export function WorkspaceProvider({ children }) {
       saveAsDefaults,
       isPinned,
       togglePin,
+      dock,
+      isDocked,
+      setDock,
     }),
     [
       user,
@@ -285,6 +313,9 @@ export function WorkspaceProvider({ children }) {
       saveAsDefaults,
       isPinned,
       togglePin,
+      dock,
+      isDocked,
+      setDock,
     ],
   );
 

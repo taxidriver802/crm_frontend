@@ -219,9 +219,15 @@ export function EstimateNextStep({
   onOpenInvoice,
   onAddScope,
   startDeposit = false,
+  depositRequest = null,
   compact = false,
 }) {
-  const [depositOpen, setDepositOpen] = useState(startDeposit);
+  const [depositOpen, setDepositOpen] = useState(startDeposit || depositRequest != null);
+  const [seenRequest, setSeenRequest] = useState(depositRequest);
+  if (depositRequest != null && depositRequest !== seenRequest) {
+    setSeenRequest(depositRequest);
+    setDepositOpen(true);
+  }
   const [confirmApprove, setConfirmApprove] = useState(false);
   const step = estimateNextStep(estimate);
   if (!step) return null;

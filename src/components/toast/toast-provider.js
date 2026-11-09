@@ -10,7 +10,7 @@ const ToastContext = createContext({ showToast: () => {}, dismissToast: () => {}
  * header and the peek panel. A toast may carry one action (usually Undo);
  * those stay a little longer so there is time to use them.
  *
- * showToast(message, { tone?: "neutral" | "success" | "danger", action?: { label, onClick } })
+ * showToast(message, { tone?: "neutral" | "success" | "danger", action?: { label, onClick }, duration?: ms })
  */
 export function ToastProvider({ children }) {
   const [toasts, setToasts] = useState([]);
@@ -31,7 +31,7 @@ export function ToastProvider({ children }) {
         action: options.action || null,
       };
       setToasts((prev) => [...prev.slice(-3), toast]);
-      setTimeout(() => dismissToast(id), toast.action ? 6500 : 3200);
+      setTimeout(() => dismissToast(id), options.duration || (toast.action ? 6500 : 3200));
       return id;
     },
     [dismissToast],

@@ -35,6 +35,7 @@ import {
   useUrlTab,
 } from "@/components/records/record-layout";
 import { useWorkspace } from "@/components/workspace/workspace-provider";
+import { PinMenu } from "@/components/workspace/pin-menu";
 import { Icon } from "@/components/icons";
 import { formatMoney } from "@/lib/job-lifecycle";
 
@@ -330,17 +331,7 @@ export default function LeadDetailPage() {
                     <Icon name="briefcase" className="h-3.5 w-3.5" />
                     New job
                   </Link>
-                  <button
-                    type="button"
-                    className="btn btn-sm"
-                    aria-pressed={workspace.isPinned("lead", lead.id)}
-                    onClick={() =>
-                      workspace.togglePin({ kind: "lead", id: lead.id, label: leadName, href: `/leads/${lead.id}` })
-                    }
-                  >
-                    <Icon name="pin" className="h-3.5 w-3.5" />
-                    {workspace.isPinned("lead", lead.id) ? "Pinned" : "Pin"}
-                  </button>
+                  <PinMenu kind="lead" id={lead.id} label={leadName} href={`/leads/${lead.id}`} />
                   <Link href={`/leads/${id}/edit`} className="btn btn-sm">
                     Edit
                   </Link>

@@ -12,6 +12,7 @@ import { Menu, MenuDivider, MenuItem } from "@/components/ui/menu";
 import { Icon } from "@/components/icons";
 import { PeekLink, usePeek } from "@/components/peek/peek-provider";
 import { useWorkspace } from "@/components/workspace/workspace-provider";
+import { PinMenu } from "@/components/workspace/pin-menu";
 import { DetailList, RecordUnavailable, StatusPill } from "@/components/records/record-bits";
 import { RailPanel, TabPanel, Tabs, useRecordSections, useUrlTab } from "@/components/records/record-layout";
 import { EstimateLineItemForm, createEmptyLineItem } from "@/components/forms/estimate-line-item-form";
@@ -330,22 +331,7 @@ export default function EstimateRecordPage() {
               </div>
             </div>
             <div className="flex shrink-0 flex-wrap items-center gap-2">
-              <button
-                type="button"
-                className="btn btn-sm"
-                aria-pressed={pinned}
-                onClick={() =>
-                  workspace.togglePin({
-                    kind: "estimate",
-                    id: estimate.id,
-                    label: estimate.title,
-                    href: `/estimates/${estimate.id}`,
-                  })
-                }
-              >
-                <Icon name="pin" className="h-3.5 w-3.5" />
-                {pinned ? "Pinned" : "Pin"}
-              </button>
+              <PinMenu kind="estimate" id={estimate.id} label={estimate.title} href={`/estimates/${estimate.id}`} />
               <Link className="btn btn-sm" href={`/estimates/${estimate.id}/edit`}>
                 Edit
               </Link>

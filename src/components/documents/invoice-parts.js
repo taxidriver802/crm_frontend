@@ -146,13 +146,15 @@ export function useInvoiceActions(invoice, onUpdated) {
         });
         changed(res.invoice);
         announceChange({ kind: "job", id: res.invoice.job_id });
+        const closed = res.job?.status === "Closed";
         showToast(
-          res.job?.status === "Closed"
+          closed
             ? "Paid in full. The job is settled and closed."
             : res.invoice?.status === "Paid"
               ? `${res.invoice.invoice_number} is paid in full.`
               : `Payment saved. ${formatMoney(res.invoice?.balance_due)} still due.`,
-          { tone: "success" },
+          // Closing the job is the end of the loop: leave time to read it.
+          { tone: "success", duration: closed ? 8000 : undefined },
         );
         return res.invoice;
       }),
@@ -308,8 +310,15 @@ export function PaymentForm({ invoice, busy = false, onSubmit, onCancel, compact
  * The one thing to do with this invoice now, with the control that does it.
  * Used in the record head and in the peek.
  */
-export function InvoiceNextStep({ invoice, actions, startPaying = false, compact = false }) {
-  const [paying, setPaying] = useState(startPaying);
+export function InvoiceNextStep({ invoice, actions, startPaying = false, payRequest = null, compact = false }) {
+  const [paying, setPaying] = useState(startPaying || payRequest != null);
+  // Each new request (Record payment on the job while this is already open)
+  // opens the form again, not only the one that mounted it.
+  const [seenRequest, setSeenRequest] = useState(payRequest);
+  if (payRequest != null && payRequest !== seenRequest) {
+    setSeenRequest(payRequest);
+    setPaying(true);
+  }
   const step = invoiceNextStep(invoice);
   if (!step) return null;
 

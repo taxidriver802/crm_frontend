@@ -70,6 +70,7 @@ import {
   useUrlTab,
 } from "@/components/records/record-layout";
 import { useWorkspace } from "@/components/workspace/workspace-provider";
+import { PinMenu } from "@/components/workspace/pin-menu";
 import { Icon } from "@/components/icons";
 
 const JOB_TABS = ["overview", "work", "money", "files", "activity"];
@@ -865,17 +866,7 @@ export default function JobDetailPage() {
                   {portalHint ? <p className="text-sm text-muted">{portalHint}</p> : null}
                 </div>
                 <div className="flex shrink-0 flex-wrap items-center gap-2">
-                  <button
-                    type="button"
-                    className="btn btn-sm"
-                    aria-pressed={workspace.isPinned("job", job.id)}
-                    onClick={() =>
-                      workspace.togglePin({ kind: "job", id: job.id, label: job.title, href: `/jobs/${job.id}` })
-                    }
-                  >
-                    <Icon name="pin" className="h-3.5 w-3.5" />
-                    {workspace.isPinned("job", job.id) ? "Pinned" : "Pin"}
-                  </button>
+                  <PinMenu kind="job" id={job.id} label={job.title} href={`/jobs/${job.id}`} />
                   <Link href={`/jobs/${id}/edit`} className="btn btn-sm">
                     Edit
                   </Link>

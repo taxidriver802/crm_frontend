@@ -1,6 +1,6 @@
 "use client";
 
-import { createContext, useCallback, useContext, useMemo, useState, useSyncExternalStore } from "react";
+import { createContext, useCallback, useContext, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
@@ -27,8 +27,11 @@ export function recordHref(kind, id) {
 const PeekContext = createContext({
   peek: null,
   intent: null,
+  intentToken: null,
+  intentFor: () => null,
   openPeek: () => {},
   closePeek: () => {},
+  registerDock: () => () => {},
 });
 
 function parsePeekParam(value) {
@@ -78,9 +81,28 @@ export function PeekProvider({ children }) {
   // URL: a reload shows the record, not a half-filled form.
   const [pending, setPending] = useState(null);
 
+  // The record kept open beside pages, if any. Opening that record again
+  // (a link, Record payment on its job) goes to the side panel, not a peek.
+  const dockRef = useRef(null);
+  const registerDock = useCallback((entry) => {
+    dockRef.current = entry;
+    return () => {
+      if (dockRef.current === entry) dockRef.current = null;
+    };
+  }, []);
+
   const openPeek = useCallback((kind, id, options = {}) => {
     if (!PEEK_KINDS.includes(kind) || !Number.isFinite(Number(id))) return;
-    setPending(options.intent ? { key: `${kind}:${Number(id)}`, intent: options.intent } : null);
+    const key = `${kind}:${Number(id)}`;
+    // A fresh token each time, so asking again for a record that is already
+    // open (Record payment with the invoice beside the job) still reaches it.
+    setPending(
+      options.intent ? { key, intent: options.intent, token: Date.now() + Math.random() } : null,
+    );
+    if (dockRef.current?.key === key) {
+      dockRef.current.reveal?.();
+      return;
+    }
     writePeekParam({ kind, id: Number(id) });
   }, []);
 
@@ -89,11 +111,18 @@ export function PeekProvider({ children }) {
     writePeekParam(null);
   }, []);
 
-  const intent = peek && pending?.key === `${peek.kind}:${peek.id}` ? pending.intent : null;
+  const intentFor = useCallback(
+    (kind, id) => (pending && pending.key === `${kind}:${Number(id)}` ? pending : null),
+    [pending],
+  );
+
+  const matches = peek && pending?.key === `${peek.kind}:${peek.id}`;
+  const intent = matches ? pending.intent : null;
+  const intentToken = matches ? pending.token : null;
 
   const value = useMemo(
-    () => ({ peek, intent, openPeek, closePeek }),
-    [peek, intent, openPeek, closePeek],
+    () => ({ peek, intent, intentToken, intentFor, openPeek, closePeek, registerDock }),
+    [peek, intent, intentToken, intentFor, openPeek, closePeek, registerDock],
   );
   return <PeekContext.Provider value={value}>{children}</PeekContext.Provider>;
 }

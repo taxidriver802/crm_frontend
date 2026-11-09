@@ -13,6 +13,7 @@ import { JobNextStep, useJobDocuments } from "@/components/jobs/job-next-step";
 import { Icon } from "@/components/icons";
 import { useToast } from "@/components/toast/toast-provider";
 import { useOptionalWorkspace } from "@/components/workspace/workspace-provider";
+import { PinMenu } from "@/components/workspace/pin-menu";
 import { PeekLink, recordHref, usePeek } from "./peek-provider";
 import {
   ContactLinks,
@@ -255,7 +256,7 @@ function TaskPeek({ task, setRecord }) {
   );
 }
 
-function InvoicePeek({ invoice, setRecord, intent }) {
+function InvoicePeek({ invoice, setRecord, intent, intentToken }) {
   const actions = useInvoiceActions(invoice, setRecord);
   return (
     <>
@@ -270,7 +271,12 @@ function InvoicePeek({ invoice, setRecord, intent }) {
           {invoice.due_date ? ` · due ${formatDate(invoice.due_date)}` : ""}
         </p>
       </div>
-      <InvoiceNextStep invoice={invoice} actions={actions} startPaying={intent === "pay"} compact />
+      <InvoiceNextStep
+        invoice={invoice}
+        actions={actions}
+        payRequest={intent === "pay" ? intentToken : null}
+        compact
+      />
       <Section title="Payments">
         <PaymentLines invoice={invoice} />
       </Section>
@@ -287,7 +293,7 @@ function InvoicePeek({ invoice, setRecord, intent }) {
   );
 }
 
-function EstimatePeek({ estimate, setRecord, intent }) {
+function EstimatePeek({ estimate, setRecord, intent, intentToken }) {
   const { openPeek } = usePeek();
   const actions = useEstimateActions(estimate, setRecord);
   return (
@@ -306,7 +312,7 @@ function EstimatePeek({ estimate, setRecord, intent }) {
       <EstimateNextStep
         estimate={estimate}
         actions={actions}
-        startDeposit={intent === "deposit"}
+        depositRequest={intent === "deposit" ? intentToken : null}
         onBilled={(invoice) => openPeek("invoice", invoice.id)}
         onOpenInvoice={(invoiceId) => openPeek("invoice", invoiceId)}
         compact
@@ -341,49 +347,125 @@ const BODIES = {
 
 /* ------------------------------------------------------------------ */
 
-export function PeekPanel() {
-  const { peek, closePeek, intent } = usePeek();
-  const workspace = useOptionalWorkspace();
-  const [record, setRecord] = useState(null);
-  const [error, setError] = useState(null);
-  const [loading, setLoading] = useState(false);
-  const panelRef = useRef(null);
-
-  const load = useCallback(async () => {
-    if (!peek) return;
-    try {
-      const data = await LOADERS[peek.kind](peek.id);
-      setRecord(data);
-      setError(null);
-    } catch (e) {
-      setError(e);
-      setRecord(null);
-    } finally {
-      setLoading(false);
-    }
-  }, [peek]);
+/**
+ * Loads one record for a panel (the peek, or the one kept open beside
+ * pages) and keeps it current. The loaded record remembers which record it
+ * belongs to: a slow reload of the one you just left (an estimate, after
+ * billing its deposit) never fills the panel for the one you are on now.
+ */
+export function useRecordLoader(target, { onDeleted } = {}) {
+  const key = target ? `${target.kind}:${target.id}` : null;
+  const [loaded, setLoaded] = useState(null);
+  const [failed, setFailed] = useState(null);
+  const [loadingKey, setLoadingKey] = useState(null);
+  const currentKey = useRef(key);
 
   useEffect(() => {
-    if (!peek) {
-      setRecord(null);
+    currentKey.current = key;
+  }, [key]);
+
+  const record = loaded && loaded.key === key ? loaded.data : null;
+  const error = failed && failed.key === key ? failed.error : null;
+  const loading = loadingKey != null && loadingKey === key;
+
+  const setRecord = useCallback(
+    (data) => {
+      if (key && currentKey.current === key) setLoaded({ key, data });
+    },
+    [key],
+  );
+
+  const kind = target?.kind;
+  const id = target?.id;
+  const load = useCallback(async () => {
+    if (!kind || id == null) return;
+    const mine = `${kind}:${id}`;
+    try {
+      const data = await LOADERS[kind](id);
+      if (currentKey.current !== mine) return;
+      setLoaded({ key: mine, data });
+      setFailed(null);
+    } catch (e) {
+      if (currentKey.current !== mine) return;
+      setFailed({ key: mine, error: e });
+      setLoaded(null);
+    } finally {
+      setLoadingKey((k) => (k === mine ? null : k));
+    }
+  }, [kind, id]);
+
+  useEffect(() => {
+    if (!key) {
+      setLoaded(null);
       return;
     }
-    setLoading(true);
-    setRecord(null);
+    currentKey.current = key;
+    setLoadingKey(key);
     load();
-  }, [peek, load]);
+  }, [key, load]);
 
   // Something changed this record elsewhere (the page underneath, another
-  // peek): show the new state. A deleted record closes the peek.
+  // panel): show the new state.
   useRecordChanges((detail) => {
-    if (!peek) return;
-    const same = detail.kind === peek.kind && String(detail.id) === String(peek.id);
+    if (!kind) return;
+    const same = detail.kind === kind && String(detail.id) === String(id);
     if (same && detail.deleted) {
-      closePeek();
+      onDeleted?.();
       return;
     }
-    if (same || (peek.kind === "job" && touchesJob(detail, peek.id))) load();
+    if (same || (kind === "job" && touchesJob(detail, id))) load();
   });
+
+  return { record, setRecord, error, loading, load };
+}
+
+/** The panel heading for a loaded (or loading) record. */
+export function recordPaneHeading(kind, state) {
+  const { record, loading, error } = state;
+  return {
+    eyebrow:
+      kind === "job" && record ? `Job · ${phaseLabel(phaseOf(record.status))}` : KIND_LABEL[kind],
+    title: loading ? "Loading…" : error ? KIND_LABEL[kind] : titleFor(kind, record),
+    label: titleFor(kind, record),
+  };
+}
+
+/** A record's panel contents: the summary, next step and related lines. */
+export function RecordPaneBody({ kind, state, intent = null, intentToken = null }) {
+  const { record, setRecord, error, loading, load } = state;
+  if (error) {
+    return <RecordUnavailable noun={KIND_LABEL[kind].toLowerCase()} error={error} onRetry={load} compact />;
+  }
+  if (loading || !record) {
+    return (
+      <div className="space-y-3">
+        <div className="skeleton h-6 w-2/3" />
+        <div className="skeleton h-4 w-1/2" />
+        <div className="skeleton h-24 w-full" />
+      </div>
+    );
+  }
+  const Body = BODIES[kind];
+  return (
+    <Body
+      job={record}
+      lead={record}
+      task={record}
+      invoice={record}
+      estimate={record}
+      setRecord={setRecord}
+      reload={load}
+      intent={intent}
+      intentToken={intentToken}
+    />
+  );
+}
+
+export function PeekPanel() {
+  const { peek, closePeek, intent, intentToken } = usePeek();
+  const workspace = useOptionalWorkspace();
+  const panelRef = useRef(null);
+  const state = useRecordLoader(peek, { onDeleted: closePeek });
 
   useEffect(() => {
     if (!peek) return;
@@ -397,14 +479,8 @@ export function PeekPanel() {
 
   if (!peek) return null;
 
-  const Body = BODIES[peek.kind];
-  const title = titleFor(peek.kind, record);
+  const { eyebrow, title, label } = recordPaneHeading(peek.kind, state);
   const href = recordHref(peek.kind, peek.id);
-  const pinned = workspace?.isPinned(peek.kind, peek.id);
-  const eyebrow =
-    peek.kind === "job" && record
-      ? `Job · ${phaseLabel(phaseOf(record.status))}`
-      : KIND_LABEL[peek.kind];
 
   return (
     <>
@@ -421,22 +497,19 @@ export function PeekPanel() {
         <header className="peek-head">
           <div className="min-w-0">
             <Eyebrow>{eyebrow}</Eyebrow>
-            <h2 className="peek-title">{loading ? "Loading…" : error ? KIND_LABEL[peek.kind] : title}</h2>
+            <h2 className="peek-title">{title}</h2>
           </div>
           <div className="flex shrink-0 items-center gap-1">
-            {workspace && record ? (
-              <button
-                type="button"
-                className={cx("icon-btn icon-btn-quiet", pinned && "icon-btn-on")}
-                aria-pressed={Boolean(pinned)}
-                aria-label={pinned ? "Unpin" : "Pin to sidebar"}
-                title={pinned ? "Unpin" : "Pin to sidebar"}
-                onClick={() =>
-                  workspace.togglePin({ kind: peek.kind, id: peek.id, label: title, href })
-                }
-              >
-                <Icon name="pin" className="h-4 w-4" />
-              </button>
+            {workspace && state.record ? (
+              <PinMenu
+                variant="icon"
+                kind={peek.kind}
+                id={peek.id}
+                label={label}
+                href={href}
+                // Kept open beside pages, it no longer needs the peek.
+                onDocked={closePeek}
+              />
             ) : null}
             <Link href={href} className="icon-btn icon-btn-quiet" aria-label="Open full page" title="Open full page">
               <Icon name="arrowUpRight" className="h-4 w-4" />
@@ -447,26 +520,7 @@ export function PeekPanel() {
           </div>
         </header>
         <div className="peek-body">
-          {error ? (
-            <RecordUnavailable noun={KIND_LABEL[peek.kind].toLowerCase()} error={error} onRetry={load} compact />
-          ) : loading || !record ? (
-            <div className="space-y-3">
-              <div className="skeleton h-6 w-2/3" />
-              <div className="skeleton h-4 w-1/2" />
-              <div className="skeleton h-24 w-full" />
-            </div>
-          ) : (
-            <Body
-              job={record}
-              lead={record}
-              task={record}
-              invoice={record}
-              estimate={record}
-              setRecord={setRecord}
-              reload={load}
-              intent={intent}
-            />
-          )}
+          <RecordPaneBody kind={peek.kind} state={state} intent={intent} intentToken={intentToken} />
         </div>
       </aside>
     </>

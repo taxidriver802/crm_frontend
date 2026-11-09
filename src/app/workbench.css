@@ -58,6 +58,7 @@ html[data-motion="reduce"] *::after {
 @media (prefers-reduced-motion: reduce) {
   .peek-scrim,
   .peek-panel,
+  .dock-overlay,
   .menu-panel,
   .toast,
   .sheet,
@@ -1346,6 +1347,144 @@ a.related-line:hover {
     box-shadow: var(--shadow-pop);
   }
 }
+/* Peeks float over the page, not over a record kept open beside it. */
+@media (min-width: 768px) {
+  .peek-panel {
+    right: calc(8px + var(--dock-space, 0px));
+  }
+  .peek-scrim {
+    right: var(--dock-space, 0px);
+  }
+}
+
+/* ------------------------------------------------------------------ */
+/* Kept open beside pages (the dock)                                   */
+/* ------------------------------------------------------------------ */
+.dock-panel {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  background: var(--surface-elevated);
+  outline: none;
+}
+.dock-inline {
+  position: relative;
+  flex: none;
+  width: var(--dock-w);
+  border-left: 1px solid var(--border);
+}
+.dock-overlay {
+  position: fixed;
+  top: 8px;
+  right: 8px;
+  bottom: 8px;
+  z-index: 45;
+  width: min(var(--dock-w), calc(100vw - 4rem));
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  box-shadow: var(--shadow-pop);
+  animation: wb-slide-in 180ms var(--ease-out);
+}
+.dock-resize {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: -4px;
+  z-index: 2;
+  width: 8px;
+  cursor: col-resize;
+  touch-action: none;
+}
+.dock-resize::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 3px;
+  width: 2px;
+  background: transparent;
+  transition: background 120ms;
+}
+.dock-resize:hover::after,
+.dock-resize:focus-visible::after,
+.is-resizing-dock .dock-resize::after {
+  background: var(--accent);
+}
+.dock-resize:focus-visible {
+  outline: none;
+}
+.is-resizing-dock,
+.is-resizing-dock * {
+  cursor: col-resize !important;
+  user-select: none;
+}
+.dock-tab {
+  position: fixed;
+  top: 50%;
+  right: 0;
+  z-index: 43;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  max-height: 14rem;
+  padding: 10px 6px;
+  transform: translateY(-50%);
+  border: 1px solid var(--border);
+  border-right: 0;
+  border-radius: 10px 0 0 10px;
+  background: var(--surface-elevated);
+  box-shadow: var(--shadow-pop);
+  color: var(--text-muted);
+  font-size: 12px;
+  font-weight: 500;
+}
+.dock-tab:hover {
+  color: var(--text);
+}
+.dock-tab-label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  writing-mode: vertical-rl;
+  transform: rotate(180deg);
+}
+
+/* Pin with its menu: the button and its chevron read as one control. */
+.pin-menu {
+  display: inline-flex;
+  align-items: center;
+}
+.pin-menu-button .pin-menu-main {
+  border-top-right-radius: 0;
+  border-bottom-right-radius: 0;
+}
+.pin-menu-button .pin-menu-chevron {
+  margin-left: -1px;
+  padding-left: 6px;
+  padding-right: 6px;
+  border-top-left-radius: 0;
+  border-bottom-left-radius: 0;
+}
+.pin-menu-icon .pin-menu-chevron {
+  width: 1.25rem;
+  margin-left: -4px;
+}
+.pin-menu-item {
+  display: flex;
+  width: 100%;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 8px 12px;
+  text-align: left;
+  font-size: 13.5px;
+}
+.pin-menu-item:hover,
+.pin-menu-item:focus-visible {
+  background: var(--surface-muted, color-mix(in srgb, var(--text) 6%, transparent));
+  outline: none;
+}
+
 .peek-head {
   display: flex;
   align-items: flex-start;
