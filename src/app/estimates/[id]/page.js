@@ -1,809 +1,696 @@
 "use client";
 
-import { Alert } from "@/components/ui/alert";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
+import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { AppShell } from "@/components/app-shell";
-import { ReturnLink } from "@/components/return-to";
 import { useConfirmModal } from "@/components/modals/confirm-modal";
 import { api } from "@/lib/api";
-import { Field } from "@/components/ui/field";
-import { DetailMoreMenu, DetailMoreMenuItem } from "@/components/detail-more-menu";
-import {
-  EstimateLineItemForm,
-  createEmptyLineItem,
-} from "@/components/forms/estimate-line-item-form";
-import Link from "next/link";
-import { API_BASE } from "@/lib/helper";
-import { StatusBadge } from "@/components/ui/status-badge";
-import { DetailHeader } from "@/components/ui/detail-header";
-import { SectionCard } from "@/components/ui/section-card";
-import { MetaItem } from "@/components/ui/meta";
-import {
-  buildEstimateShareMessage,
-  copyText,
-  firstNameFromLeadName,
-  formatMessageAmount,
-  logOutboundEmailOnJob,
-} from "@/lib/message-templates";
+import { formatDate } from "@/lib/helper";
+import { Alert } from "@/components/ui/alert";
+import { Menu, MenuDivider, MenuItem } from "@/components/ui/menu";
+import { Icon } from "@/components/icons";
+import { PeekLink, usePeek } from "@/components/peek/peek-provider";
+import { useWorkspace } from "@/components/workspace/workspace-provider";
+import { DetailList, RecordUnavailable, StatusPill } from "@/components/records/record-bits";
+import { RailPanel, TabPanel, Tabs, useRecordSections, useUrlTab } from "@/components/records/record-layout";
+import { EstimateLineItemForm, createEmptyLineItem } from "@/components/forms/estimate-line-item-form";
+import { EstimateNextStep, useEstimateActions } from "@/components/documents/estimate-parts";
+import { INVOICE_KIND_LABEL, formatMoney } from "@/lib/job-lifecycle";
+import { announceChange, useRecordChanges } from "@/lib/record-events";
 
-export default function EstimateDetailPage() {
+const TABS = ["scope", "billing"];
+
+function EstimateTotals({ estimate }) {
+  const rows = [
+    { label: "Subtotal", value: formatMoney(estimate.subtotal) },
+    estimate.discount_total > 0 ? { label: "Discount", value: `−${formatMoney(estimate.discount_total)}` } : null,
+    estimate.tax_total > 0 ? { label: "Tax", value: formatMoney(estimate.tax_total) } : null,
+    { label: "Total", value: formatMoney(estimate.grand_total), strong: true, testId: "estimate-total" },
+  ].filter(Boolean);
+  return (
+    <div className="totals">
+      {rows.map((row) => (
+        <div key={row.label} className={row.strong ? "totals-row totals-row-strong" : "totals-row"}>
+          <span>{row.label}</span>
+          <span className="num" data-testid={row.testId}>
+            {row.value}
+          </span>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+/** What the client said on the link, and what that means now. */
+function ClientResponse({ estimate }) {
+  if (!estimate.client_responded_at) return null;
+  const said =
+    estimate.status === "Approved"
+      ? "The client approved this estimate."
+      : estimate.status === "Rejected"
+        ? "The client declined."
+        : "The client asked for changes.";
+  return (
+    <section className="panel" data-testid="client-response">
+      <div className="panel-head">
+        <h2 className="panel-title">Client response</h2>
+        <span className="text-xs text-muted">{formatDate(estimate.client_responded_at)}</span>
+      </div>
+      <div className="panel-body space-y-2 text-sm">
+        <p>{said}</p>
+        {estimate.client_response_note ? (
+          <blockquote className="whitespace-pre-wrap rounded-md border border-dashed border-base p-3">
+            {estimate.client_response_note}
+          </blockquote>
+        ) : null}
+      </div>
+    </section>
+  );
+}
+
+export default function EstimateRecordPage() {
   const { id } = useParams();
   const router = useRouter();
+  const workspace = useWorkspace();
+  const { openPeek } = usePeek();
   const { askConfirm, confirmModal } = useConfirmModal();
+  const [tab, setTab] = useUrlTab("scope", TABS);
+  const layout = useRecordSections("estimate", []);
+  const lineFormRef = useRef(null);
 
   const [estimate, setEstimate] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [isCreateOpen, setIsCreateOpen] = useState(false);
-  const [error, setError] = useState("");
-  const [lineItemForm, setLineItemForm] = useState(createEmptyLineItem());
-  const [savingItem, setSavingItem] = useState(false);
-  const [editingLineItem, setEditingLineItem] = useState(null);
-  const [sortBy, setSortBy] = useState("updated_at");
-  const [sortDirection, setSortDirection] = useState("desc");
-  const [pdfBusy, setPdfBusy] = useState(false);
-  const [shareBusy, setShareBusy] = useState(false);
-  const [messageBusy, setMessageBusy] = useState(false);
-  const [resendBusy, setResendBusy] = useState(false);
-  const [shareHint, setShareHint] = useState("");
-  const [invoiceBusy, setInvoiceBusy] = useState(false);
+  const [siblings, setSiblings] = useState([]);
   const [templates, setTemplates] = useState([]);
-  const [applyTemplateId, setApplyTemplateId] = useState("");
-  const [applyBusy, setApplyBusy] = useState(false);
-  const lineItems = estimate?.line_items || [];
+  const [loadError, setLoadError] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [lineForm, setLineForm] = useState(null);
+  const [editingLine, setEditingLine] = useState(null);
+  const [lineBusy, setLineBusy] = useState(false);
+  const [lineError, setLineError] = useState("");
+  const [templateId, setTemplateId] = useState("");
+  const [templateBusy, setTemplateBusy] = useState(false);
 
-  async function loadEstimate() {
-    const res = await api(`/estimates/${id}`);
-
-    const data = res?.estimate ?? res;
-    setEstimate(data);
-  }
-
-  async function downloadPdf() {
-    setPdfBusy(true);
-    setShareHint("");
+  const load = useCallback(async () => {
     try {
-      const res = await fetch(`${API_BASE}/estimates/${id}/pdf`, {
-        credentials: "include",
-      });
-      if (!res.ok) {
-        const data = await res.json().catch(() => ({}));
-        throw new Error(data?.error || `Download failed (${res.status})`);
-      }
-      const blob = await res.blob();
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = `estimate-${id}.pdf`;
-      a.click();
-      URL.revokeObjectURL(url);
+      const res = await api(`/estimates/${id}`);
+      const next = res?.estimate ?? res;
+      setEstimate(next);
+      setLoadError(null);
+      // Change orders live beside the estimate they amend, on the same job.
+      api(`/estimates/job/${next.job_id}`)
+        .then((list) => setSiblings(list?.estimates || []))
+        .catch(() => setSiblings([]));
     } catch (e) {
-      setError(e?.message || "Could not download PDF");
-    } finally {
-      setPdfBusy(false);
-    }
-  }
-
-  async function createShareLink() {
-    setShareBusy(true);
-    setShareHint("");
-    try {
-      const res = await api(`/estimates/${id}/share`, { method: "POST" });
-      const url = res.share_url;
-      if (navigator.clipboard?.writeText) {
-        await navigator.clipboard.writeText(url);
-        setShareHint("Share link copied to clipboard (expires with the estimate link).");
-      } else {
-        setShareHint(url);
-      }
-      if (res.estimate) {
-        setEstimate(res.estimate);
-      } else {
-        await loadEstimate();
-      }
-    } catch (e) {
-      setError(e?.message || "Could not create share link");
-    } finally {
-      setShareBusy(false);
-    }
-  }
-
-  async function copyMessage() {
-    setMessageBusy(true);
-    setShareHint("");
-    setError("");
-    try {
-      const res = await api(`/estimates/${id}/share`, { method: "POST" });
-      const url = res.share_url;
-      if (!url) throw new Error("Could not create share link");
-      if (res.estimate) {
-        setEstimate(res.estimate);
-      }
-      const data = res.estimate || estimate;
-      const message = buildEstimateShareMessage({
-        first_name: firstNameFromLeadName(data?.job?.lead_name),
-        job_title: data?.job?.title || "your job",
-        amount: formatMessageAmount(data?.grand_total),
-        due_date: "",
-        link: url,
-      });
-      const copied = await copyText(message);
-      try {
-        await logOutboundEmailOnJob(data.job_id, message);
-        setShareHint(
-          copied
-            ? "Message copied and logged on the job."
-            : "Message logged on the job. Copy it from the communication log.",
-        );
-      } catch {
-        setShareHint(copied ? "Message copied. Could not log communication." : message);
-      }
-    } catch (e) {
-      setError(e?.message || "Could not copy message");
-    } finally {
-      setMessageBusy(false);
-    }
-  }
-
-  /** After client declines or asks for revision: clear response, set Sent, new token, copy link. */
-  async function resendToClient() {
-    setResendBusy(true);
-    setShareHint("");
-    setError("");
-    try {
-      const res = await api(`/estimates/${id}/resend`, { method: "POST" });
-      const url = res.share_url;
-      if (navigator.clipboard?.writeText) {
-        await navigator.clipboard.writeText(url);
-        setShareHint(
-          "New share link copied. Status is now Sent — the client can respond again on the new link.",
-        );
-      } else {
-        setShareHint(url);
-      }
-      if (res.estimate) {
-        setEstimate(res.estimate);
-      } else {
-        await loadEstimate();
-      }
-    } catch (e) {
-      setError(e?.message || "Could not resend to client");
-    } finally {
-      setResendBusy(false);
-    }
-  }
-
-  async function loadPage() {
-    try {
-      setLoading(true);
-      setError("");
-
-      const [templatesRes] = await Promise.all([
-        api("/estimate-templates").catch(() => ({ templates: [] })),
-        loadEstimate(),
-      ]);
-      setTemplates(templatesRes?.templates || []);
-    } catch (e) {
-      setError(e?.message || "Failed to load estimate");
+      setLoadError(e);
     } finally {
       setLoading(false);
     }
-  }
-
-  async function applyTemplate() {
-    if (!applyTemplateId || applyBusy) return;
-
-    const run = async () => {
-      setApplyBusy(true);
-      setError("");
-      try {
-        const res = await api(`/estimates/${id}/apply-template`, {
-          method: "POST",
-          body: JSON.stringify({ template_id: Number(applyTemplateId) }),
-        });
-        if (res?.estimate) {
-          setEstimate(res.estimate);
-        } else {
-          await loadEstimate();
-        }
-        setApplyTemplateId("");
-      } catch (e) {
-        setError(e?.message || "Failed to apply template");
-      } finally {
-        setApplyBusy(false);
-      }
-    };
-
-    if (lineItems.length > 0) {
-      askConfirm({
-        title: "Add template lines?",
-        description:
-          "This appends the template’s line items. Existing lines stay on the estimate.",
-        confirmLabel: "Apply template",
-        onConfirm: run,
-      });
-      return;
-    }
-
-    await run();
-  }
-
-  async function handleCreateInvoice(body = { kind: "final" }) {
-    setInvoiceBusy(true);
-    setError("");
-    try {
-      const res = await api(`/invoices/from-estimate/${id}`, {
-        method: "POST",
-        body: JSON.stringify(body),
-      });
-      router.push(`/invoices/${res.invoice.id}`);
-    } catch (e) {
-      setError(e?.message || "Failed to create invoice");
-    } finally {
-      setInvoiceBusy(false);
-    }
-  }
-
-  async function handleChangeOrder() {
-    setInvoiceBusy(true);
-    setError("");
-    try {
-      const res = await api(`/estimates/${id}/change-order`, {
-        method: "POST",
-        body: JSON.stringify({}),
-      });
-      router.push(`/estimates/${res.estimate.id}`);
-    } catch (e) {
-      setError(e?.message || "Could not start a change order");
-    } finally {
-      setInvoiceBusy(false);
-    }
-  }
-
-  useEffect(() => {
-    if (id) loadPage();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id]);
 
-  async function handleSubmitLineItem(e) {
-    e.preventDefault();
-    setSavingItem(true);
+  useEffect(() => {
+    setLoading(true);
+    load();
+  }, [load]);
 
-    const quantity = lineItemForm.quantity === "" ? 1 : Number(lineItemForm.quantity);
-    if (quantity < 1) {
-      setError("Quantity must be at least 1.");
-      setSavingItem(false);
-      return;
-    }
+  useEffect(() => {
+    if (estimate?.status !== "Draft") return;
+    let cancelled = false;
+    api("/estimate-templates")
+      .then((res) => {
+        if (!cancelled) setTemplates(res?.templates || []);
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [estimate?.status]);
 
-    try {
-      const path = editingLineItem
-        ? `/estimates/${id}/line-items/${editingLineItem.id}`
-        : `/estimates/${id}/line-items`;
+  // An invoice paid or voided in a peek changes what this estimate's billing shows.
+  useRecordChanges((detail) => {
+    if (!estimate) return;
+    if (detail.kind === "estimate" && String(detail.id) === String(id)) return;
+    if (detail.kind === "invoice" && String(detail.jobId) === String(estimate.job_id)) load();
+  });
 
-      const method = editingLineItem ? "PATCH" : "POST";
+  const actions = useEstimateActions(estimate || { id, job_id: null }, setEstimate);
 
-      const res = await api(path, {
-        method,
-        body: JSON.stringify(lineItemForm),
-      });
+  useEffect(() => {
+    if (lineForm) lineFormRef.current?.querySelector("input")?.focus();
+  }, [lineForm]);
 
-      setEstimate(res.estimate);
-      setLineItemForm(createEmptyLineItem());
-      setEditingLineItem(null);
-      setIsCreateOpen(false);
-    } catch (e) {
-      console.error(e);
-      setError(e?.message || "Failed to save line item");
-    } finally {
-      setSavingItem(false);
-    }
+  if (loading && !estimate) {
+    return (
+      <AppShell title="Estimate">
+        <div className="space-y-4" aria-busy="true">
+          <div className="skeleton h-40 w-full rounded-xl" />
+          <div className="skeleton h-64 w-full rounded-xl" />
+        </div>
+      </AppShell>
+    );
   }
 
-  function handleDeleteLineItem() {
-    if (!editingLineItem) return;
-
-    askConfirm({
-      title: "Delete this line item?",
-      confirmLabel: "Delete",
-      onConfirm: async () => {
-        setSavingItem(true);
-        setError("");
-
-        try {
-          await api(`/estimates/${id}/line-items/${editingLineItem.id}`, {
-            method: "DELETE",
-          });
-
-          await loadEstimate();
-          setLineItemForm(createEmptyLineItem());
-          setEditingLineItem(null);
-          setIsCreateOpen(false);
-        } catch (e) {
-          setError(e?.message || "Failed to delete line item");
-        } finally {
-          setSavingItem(false);
-        }
-      },
-    });
+  if (!estimate) {
+    return (
+      <AppShell title="Estimate">
+        <RecordUnavailable
+          noun="estimate"
+          error={loadError}
+          listHref="/estimates"
+          listLabel="Estimates"
+          onRetry={load}
+        />
+      </AppShell>
+    );
   }
 
-  function handleEditLineItem(item) {
-    if (isCreateOpen && editingLineItem?.id === item.id) {
-      setIsCreateOpen(false);
-      setEditingLineItem(null);
-      setLineItemForm(createEmptyLineItem());
-      setError("");
-      return;
-    }
+  const lines = estimate.line_items || [];
+  const locked = estimate.locked;
+  const pinned = workspace.isPinned("estimate", estimate.id);
+  const changeOrders = siblings.filter((e) => String(e.change_order_of) === String(estimate.id));
+  const invoices = estimate.invoices || [];
 
-    setLineItemForm({
+  function startLine() {
+    setTab("scope");
+    setEditingLine(null);
+    setLineError("");
+    setLineForm(createEmptyLineItem());
+  }
+
+  function editLine(item) {
+    setEditingLine(item);
+    setLineError("");
+    setLineForm({
       name: item.name,
       description: item.description ?? "",
       quantity: item.quantity,
       unit_price: item.unit_price,
     });
-    setEditingLineItem(item);
-    setIsCreateOpen(true);
-    setError("");
   }
 
-  const formatCurrency = (num) => {
-    return Number(num || 0).toLocaleString("en-US", {
-      minimumFractionDigits: 2,
-      maximumFractionDigits: 2,
+  function closeLineForm() {
+    setLineForm(null);
+    setEditingLine(null);
+    setLineError("");
+  }
+
+  async function saveLine(event) {
+    event.preventDefault();
+    const quantity = lineForm.quantity === "" ? 1 : Number(lineForm.quantity);
+    if (!(quantity >= 1)) {
+      setLineError("Quantity must be at least 1.");
+      return;
+    }
+    setLineBusy(true);
+    setLineError("");
+    try {
+      const path = editingLine
+        ? `/estimates/${estimate.id}/line-items/${editingLine.id}`
+        : `/estimates/${estimate.id}/line-items`;
+      const res = await api(path, {
+        method: editingLine ? "PATCH" : "POST",
+        body: JSON.stringify({ ...lineForm, quantity }),
+      });
+      setEstimate(res.estimate);
+      closeLineForm();
+      announceChange({ kind: "estimate", id: estimate.id, jobId: estimate.job_id });
+    } catch (e) {
+      setLineError(e?.message || "Could not save the line");
+    } finally {
+      setLineBusy(false);
+    }
+  }
+
+  function deleteLine() {
+    if (!editingLine) return;
+    askConfirm({
+      title: "Delete this line?",
+      confirmLabel: "Delete",
+      tone: "danger",
+      onConfirm: async () => {
+        try {
+          await api(`/estimates/${estimate.id}/line-items/${editingLine.id}`, { method: "DELETE" });
+          closeLineForm();
+          await load();
+          announceChange({ kind: "estimate", id: estimate.id, jobId: estimate.job_id });
+        } catch (e) {
+          setLineError(e?.message || "Could not delete the line");
+        }
+      },
     });
-  };
-
-  function formatDate(input) {
-    const date = new Date(input);
-    const month = String(date.getMonth() + 1).padStart(2, "0");
-    const day = String(date.getDate()).padStart(2, "0");
-    const year = date.getFullYear();
-
-    return `${month}/${day}/${year}`;
   }
 
-  function sortLineItems(items, sortBy, sortDirection = "desc") {
-    return [...items].sort((a, b) => {
-      let aVal;
-      let bVal;
-
-      if (sortBy === "line_total" || sortBy === "unit_price" || sortBy === "quantity") {
-        aVal = Number(a[sortBy] ?? 0);
-        bVal = Number(b[sortBy] ?? 0);
-      } else if (sortBy === "updated_at") {
-        aVal = new Date(a.updated_at || a.created_at).getTime();
-        bVal = new Date(b.updated_at || b.created_at).getTime();
-      } else if (sortBy === "created_at") {
-        aVal = new Date(a.created_at).getTime();
-        bVal = new Date(b.created_at).getTime();
-      } else {
-        aVal = String(a[sortBy] ?? "").toLowerCase();
-        bVal = String(b[sortBy] ?? "").toLowerCase();
-
-        if (aVal < bVal) return sortDirection === "asc" ? -1 : 1;
-        if (aVal > bVal) return sortDirection === "asc" ? 1 : -1;
-        return 0;
+  async function applyTemplate() {
+    if (!templateId) return;
+    const run = async () => {
+      setTemplateBusy(true);
+      setLineError("");
+      try {
+        const res = await api(`/estimates/${estimate.id}/apply-template`, {
+          method: "POST",
+          body: JSON.stringify({ template_id: Number(templateId) }),
+        });
+        if (res?.estimate) setEstimate(res.estimate);
+        else await load();
+        setTemplateId("");
+        announceChange({ kind: "estimate", id: estimate.id, jobId: estimate.job_id });
+      } catch (e) {
+        setLineError(e?.message || "Could not apply the template");
+      } finally {
+        setTemplateBusy(false);
       }
-
-      return sortDirection === "asc" ? aVal - bVal : bVal - aVal;
-    });
+    };
+    if (lines.length > 0) {
+      askConfirm({
+        title: "Add the template's lines?",
+        description: "They are added after the lines already here.",
+        confirmLabel: "Apply template",
+        tone: "default",
+        onConfirm: run,
+      });
+      return;
+    }
+    await run();
   }
 
-  const sortedLineItems = sortLineItems(lineItems, sortBy, sortDirection);
-  const billedInvoices = estimate?.invoices || [];
-  const finalInvoice = billedInvoices.find((inv) => inv.kind !== "deposit") || null;
-  const depositInvoice = billedInvoices.find((inv) => inv.kind === "deposit") || null;
-  const jobTitle =
-    estimate?.job?.title || (estimate?.job_id ? `Job #${estimate.job_id}` : "");
-  const jobHref = `/jobs/${estimate?.job?.id ?? estimate?.job_id}`;
+  async function startChangeOrder() {
+    const next = await actions.changeOrder();
+    if (next) router.push(`/estimates/${next.id}`);
+  }
+
+  function confirmDeclined() {
+    askConfirm({
+      title: "Mark this estimate declined?",
+      description: "Use this when the client said no another way. You can revise and resend it after.",
+      confirmLabel: "Mark declined",
+      tone: "danger",
+      onConfirm: () => actions.setStatus("Rejected", "Marked declined."),
+    });
+  }
 
   return (
-    <AppShell
-      title={estimate?.title || `Estimate #${id}`}
-      description={jobTitle || undefined}
-    >
-      <div className="space-y-6">
-        {error ? <Alert variant="inline">{error}</Alert> : null}
-
-        {loading ? (
-          <section className="card p-4">
-            <div className="text-sm text-muted">Loading estimate…</div>
-          </section>
-        ) : !estimate ? (
-          <section className="card p-4">
-            <p className="text-sm text-muted">Estimate not found.</p>
-          </section>
-        ) : (
-          <DetailHeader
-            subtitle={
-              estimate.job_id || estimate.job?.id ? (
-                <>
-                  <ReturnLink
-                    href={jobHref}
-                    className="underline underline-offset-4 hover:opacity-80"
-                  >
-                    {jobTitle}
-                  </ReturnLink>
-                  {estimate.change_order_of ? (
-                    <div className="mt-1 text-xs">
-                      Change order to{" "}
-                      <ReturnLink
-                        href={`/estimates/${estimate.change_order_of}`}
-                        className="underline underline-offset-4 hover:opacity-80"
-                      >
-                        {estimate.change_order_of_title || `Estimate #${estimate.change_order_of}`}
-                      </ReturnLink>
-                    </div>
-                  ) : null}
-                </>
-              ) : (
-                "No job linked"
-              )
-            }
-            badges={<StatusBadge kind="estimate" status={estimate.status} />}
-            actions={
-              <>
-                {estimate.status === "Approved" ? (
-                  finalInvoice ? (
-                    <Link className="btn btn-primary btn-sm" href={`/invoices/${finalInvoice.id}`}>
-                      Open {finalInvoice.invoice_number}
-                    </Link>
-                  ) : (
-                    <button
-                      type="button"
-                      className="btn btn-primary btn-sm"
-                      disabled={invoiceBusy}
-                      onClick={() => handleCreateInvoice({ kind: "final" })}
-                    >
-                      {invoiceBusy
-                        ? "Creating…"
-                        : depositInvoice
-                          ? "Final invoice (less deposit)"
-                          : "Final invoice"}
-                    </button>
-                  )
+    <AppShell title={estimate.title || `Estimate #${estimate.id}`} description={estimate.job?.title || undefined}>
+      <div className="min-w-0 space-y-4">
+        <section className="record-head" data-testid="estimate-head">
+          <div className="record-head-top">
+            <div className="min-w-0 space-y-2">
+              <div className="record-meta">
+                <StatusPill kind="estimate" status={estimate.status} />
+                {estimate.change_order_of ? <span className="tag">Change order</span> : null}
+                <span>
+                  Job{" "}
+                  <PeekLink kind="job" id={estimate.job_id} className="link">
+                    {estimate.job?.title || `Job #${estimate.job_id}`}
+                  </PeekLink>
+                </span>
+                {estimate.job?.lead_id ? (
+                  <span>
+                    Client{" "}
+                    <PeekLink kind="lead" id={estimate.job.lead_id} className="link">
+                      {estimate.job.lead_name}
+                    </PeekLink>
+                  </span>
                 ) : null}
-                <Link className="btn btn-sm" href={`/estimates/${estimate.id}/edit`}>
-                  Edit
-                </Link>
-                <DetailMoreMenu label="More">
-                  {estimate.status === "Approved" ? (
-                    <>
-                      {billedInvoices.length === 0 ? (
-                        <DetailMoreMenuItem
-                          type="button"
-                          disabled={invoiceBusy}
-                          onClick={() =>
-                            handleCreateInvoice({ kind: "deposit", deposit_percent: 30 })
-                          }
-                        >
-                          Request 30% deposit
-                        </DetailMoreMenuItem>
-                      ) : null}
-                      <DetailMoreMenuItem
-                        type="button"
-                        disabled={invoiceBusy}
-                        onClick={handleChangeOrder}
-                      >
-                        Add change order
-                      </DetailMoreMenuItem>
-                    </>
-                  ) : null}
-                  <DetailMoreMenuItem
-                    type="button"
-                    disabled={pdfBusy}
-                    onClick={downloadPdf}
-                  >
-                    {pdfBusy ? "PDF…" : "Download PDF"}
-                  </DetailMoreMenuItem>
-                  <DetailMoreMenuItem
-                    type="button"
-                    disabled={shareBusy}
-                    onClick={createShareLink}
-                  >
-                    {shareBusy ? "Link…" : "Copy share link"}
-                  </DetailMoreMenuItem>
-                  <DetailMoreMenuItem
-                    type="button"
-                    disabled={messageBusy}
-                    onClick={copyMessage}
-                  >
-                    {messageBusy ? "Message…" : "Copy message"}
-                  </DetailMoreMenuItem>
-                  {estimate.status === "Draft" || estimate.status === "Rejected" ? (
-                    <DetailMoreMenuItem
-                      type="button"
-                      disabled={resendBusy}
-                      onClick={resendToClient}
-                    >
-                      {resendBusy ? "Working…" : "Resend to client"}
-                    </DetailMoreMenuItem>
-                  ) : null}
-                </DetailMoreMenu>
-              </>
-            }
-          >
-            {shareHint ? <div className="text-sm text-muted">{shareHint}</div> : null}
-
-            {estimate.share_expires_at ? (
-              <div className="text-xs text-muted">
-                Share link active until{" "}
-                {new Date(estimate.share_expires_at).toLocaleString()}
-              </div>
-            ) : null}
-
-            {estimate.client_responded_at ? (
-              <div className="space-y-3 rounded-md border border-base p-3 text-sm">
-                <div>
-                  <div className="font-medium">Client response</div>
-                  <div className="mt-1 text-xs text-muted">
-                    {new Date(estimate.client_responded_at).toLocaleString()}
-                  </div>
-                </div>
-
-                {estimate.status === "Approved" ? (
-                  <p className="leading-relaxed text-main">
-                    The client accepted this estimate.
-                  </p>
-                ) : estimate.status === "Rejected" ? (
-                  <p className="leading-relaxed text-main">
-                    The client declined. Adjust line items or pricing, then use{" "}
-                    <strong>Resend to client</strong> when you are ready to send a fresh
-                    link.
-                  </p>
-                ) : (
-                  <p className="leading-relaxed text-main">
-                    The client asked for changes (or you moved back to Draft). Update the
-                    scope or pricing here or on <strong>Edit</strong>, then resend when
-                    the estimate is ready to review again.
-                  </p>
-                )}
-
-                {estimate.client_response_note ? (
-                  <div className="whitespace-pre-wrap rounded-md border border-dashed border-base bg-surface p-3">
-                    {estimate.client_response_note}
-                  </div>
+                {estimate.change_order_of ? (
+                  <span>
+                    Amends{" "}
+                    <PeekLink kind="estimate" id={estimate.change_order_of} className="link">
+                      {estimate.change_order_of_title || `Estimate #${estimate.change_order_of}`}
+                    </PeekLink>
+                  </span>
                 ) : null}
-
-                {(estimate.status === "Draft" || estimate.status === "Rejected") && (
-                  <div className="space-y-2 border-t border-base pt-3">
-                    <div className="text-xs font-medium">Your next steps</div>
-                    <ul className="list-inside list-disc space-y-1 text-xs leading-relaxed text-muted">
-                      <li>
-                        Edit line items below, or open{" "}
-                        <Link
-                          href={`/estimates/${estimate.id}/edit`}
-                          className="text-main underline underline-offset-2"
-                        >
-                          Edit
-                        </Link>{" "}
-                        to change title, notes, or status.
-                      </li>
-                      <li>
-                        When the estimate is ready to send again, click{" "}
-                        <strong>Resend to client</strong>. That clears this response
-                        record, sets status to <strong>Sent</strong>, creates a new link,
-                        and copies it — the previous link stops working.
-                      </li>
-                    </ul>
-                    <div className="flex flex-wrap gap-2 pt-1">
-                      <Link
-                        className="btn btn-ghost btn-sm px-3 py-1.5"
-                        href={`/estimates/${estimate.id}/edit`}
-                      >
-                        Edit details
-                      </Link>
-                      <button
-                        type="button"
-                        className="btn btn-sm px-3 py-1.5"
-                        disabled={resendBusy}
-                        onClick={resendToClient}
-                      >
-                        {resendBusy ? "Working…" : "Resend to client"}
-                      </button>
-                    </div>
-                  </div>
-                )}
               </div>
-            ) : null}
-
-            {estimate.status === "Approved" ? (
-              <div className="flex flex-wrap items-center justify-between gap-3 rounded-md border border-base p-3 text-sm">
-                <p className="min-w-0 leading-relaxed text-main">
-                  Approved{estimate.approved_at ? ` ${formatDate(estimate.approved_at)}` : ""}. This
-                  scope is locked — it is what the client agreed to. Add a change order for new
-                  or different work.
-                </p>
-                <button
-                  type="button"
-                  className="btn btn-sm"
-                  disabled={invoiceBusy}
-                  onClick={handleChangeOrder}
-                >
-                  Add change order
-                </button>
+              <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
+                <span className="big-number num">{formatMoney(estimate.grand_total)}</span>
+                <span className="text-sm text-muted">
+                  {lines.length} line{lines.length === 1 ? "" : "s"}
+                  {estimate.approved_at ? ` · approved ${formatDate(estimate.approved_at)}` : ""}
+                  {!estimate.approved_at && estimate.sent_at ? ` · sent ${formatDate(estimate.sent_at)}` : ""}
+                </span>
               </div>
-            ) : null}
-
-            {estimate.notes ? (
-              <MetaItem label="Notes">
-                <span className="whitespace-pre-wrap">{estimate.notes}</span>
-              </MetaItem>
-            ) : null}
-          </DetailHeader>
-        )}
-
-        {estimate?.status === "Draft" ? (
-          <SectionCard
-            size="lg"
-            title="Apply template"
-            description="Copies package lines onto this draft. Existing lines are kept."
-          >
-            <div className="flex flex-wrap items-end gap-2">
-              <Field label="Template" className="min-w-[12rem] flex-1">
-                <select
-                  className="input"
-                  value={applyTemplateId}
-                  onChange={(e) => setApplyTemplateId(e.target.value)}
-                  disabled={applyBusy}
-                >
-                  <option value="">Select a template…</option>
-                  {templates.map((template) => (
-                    <option key={template.id} value={template.id}>
-                      {template.name}
-                    </option>
-                  ))}
-                </select>
-              </Field>
+            </div>
+            <div className="flex shrink-0 flex-wrap items-center gap-2">
               <button
                 type="button"
-                className="btn btn-primary btn-sm"
-                disabled={!applyTemplateId || applyBusy}
-                onClick={applyTemplate}
+                className="btn btn-sm"
+                aria-pressed={pinned}
+                onClick={() =>
+                  workspace.togglePin({
+                    kind: "estimate",
+                    id: estimate.id,
+                    label: estimate.title,
+                    href: `/estimates/${estimate.id}`,
+                  })
+                }
               >
-                {applyBusy ? "Applying…" : "Apply template"}
+                <Icon name="pin" className="h-3.5 w-3.5" />
+                {pinned ? "Pinned" : "Pin"}
+              </button>
+              <Link className="btn btn-sm" href={`/estimates/${estimate.id}/edit`}>
+                Edit
+              </Link>
+              <Menu
+                align="end"
+                label="Estimate actions"
+                className="w-60"
+                trigger={(props) => (
+                  <button type="button" {...props} className="btn btn-sm" aria-label="More estimate actions">
+                    More
+                    <Icon name="chevronDown" className="h-3.5 w-3.5" />
+                  </button>
+                )}
+              >
+                {(close) => (
+                  <>
+                    <MenuItem
+                      icon={<Icon name="download" className="h-4 w-4 text-muted" />}
+                      onSelect={() => {
+                        close();
+                        actions.downloadPdf();
+                      }}
+                    >
+                      Download PDF
+                    </MenuItem>
+                    {lines.length > 0 ? (
+                      <>
+                        <MenuItem
+                          icon={<Icon name="link" className="h-4 w-4 text-muted" />}
+                          onSelect={() => {
+                            close();
+                            actions.send();
+                          }}
+                        >
+                          {estimate.status === "Draft" && !estimate.client_responded_at
+                            ? "Copy link (sends it)"
+                            : "Copy a new client link"}
+                        </MenuItem>
+                        <MenuItem
+                          icon={<Icon name="mail" className="h-4 w-4 text-muted" />}
+                          onSelect={() => {
+                            close();
+                            actions.copyMessage();
+                          }}
+                        >
+                          Copy message
+                        </MenuItem>
+                      </>
+                    ) : null}
+                    {estimate.status === "Approved" ? (
+                      <>
+                        <MenuDivider />
+                        <MenuItem
+                          icon={<Icon name="plus" className="h-4 w-4 text-muted" />}
+                          onSelect={() => {
+                            close();
+                            startChangeOrder();
+                          }}
+                        >
+                          Add change order
+                        </MenuItem>
+                      </>
+                    ) : null}
+                    {estimate.status === "Sent" ? (
+                      <>
+                        <MenuDivider />
+                        <MenuItem
+                          danger
+                          onSelect={() => {
+                            close();
+                            confirmDeclined();
+                          }}
+                        >
+                          Mark declined
+                        </MenuItem>
+                      </>
+                    ) : null}
+                  </>
+                )}
+              </Menu>
+              <button
+                type="button"
+                className="btn btn-sm btn-ghost hidden xl:inline-flex"
+                onClick={() => layout.setRailVisible(!layout.railVisible)}
+                aria-pressed={layout.railVisible}
+                title={layout.railVisible ? "Hide the details panel" : "Show the details panel"}
+              >
+                <Icon name="panelLeft" className="h-3.5 w-3.5 rotate-180" />
+                Details
               </button>
             </div>
-          </SectionCard>
-        ) : null}
+          </div>
+          <EstimateNextStep
+            estimate={estimate}
+            actions={actions}
+            onAddScope={startLine}
+            onBilled={(invoice) => openPeek("invoice", invoice.id)}
+            onOpenInvoice={(invoiceId) => openPeek("invoice", invoiceId)}
+          />
+        </section>
 
-        <SectionCard
-          size="lg"
-          title="Line items"
-          description={
-            estimate?.locked
-              ? "Locked after approval."
-              : "Breakdown of materials and labor"
-          }
-          right={
-            estimate?.locked ? null : (
-            <button
-              type="button"
-              className="btn btn-primary btn-sm"
-              onClick={() => {
-                if (isCreateOpen && !editingLineItem) {
-                  setIsCreateOpen(false);
-                  return;
-                }
-                setEditingLineItem(null);
-                setLineItemForm(createEmptyLineItem());
-                setIsCreateOpen(true);
-              }}
-            >
-              {isCreateOpen && !editingLineItem ? "Hide" : "New item"}
-            </button>
-            )
-          }
-        >
-          <div className="space-y-4">
-            {isCreateOpen ? (
-              <EstimateLineItemForm
-                form={lineItemForm}
-                onChange={setLineItemForm}
-                onSubmit={handleSubmitLineItem}
-                saving={savingItem}
-                onCancel={() => {
-                  setLineItemForm(createEmptyLineItem());
-                  setEditingLineItem(null);
-                  setIsCreateOpen(false);
-                }}
-                submitLabel={editingLineItem ? "Update Item" : "Add Item"}
-                deleteButton={!!editingLineItem}
-                onDelete={handleDeleteLineItem}
-              />
-            ) : null}
+        <div className={layout.railVisible ? "record-grid" : "record-grid record-grid-norail"}>
+          <div className="record-main">
+            <Tabs
+              label="Estimate sections"
+              value={tab}
+              onChange={setTab}
+              tabs={[
+                { id: "scope", label: "Scope", count: lines.length },
+                { id: "billing", label: "Billing", count: invoices.length + changeOrders.length },
+              ]}
+            />
 
-            {lineItems.length > 0 ? (
-              <div className="flex min-w-0 max-w-full items-center gap-2">
-                <div className="shrink-0 text-sm text-muted">Sort</div>
-                <div className="relative min-w-0 flex-1">
-                  <div className="scrollbar-theme flex min-w-0 touch-pan-x items-center gap-2 overflow-x-auto overscroll-x-contain rounded-theme-md border border-base bg-surface py-1 pl-1.5 pr-6">
-                    {[
-                      { key: "updated_at", label: "Last updated" },
-                      { key: "created_at", label: "Created at" },
-                      { key: "unit_price", label: "Unit price" },
-                      { key: "quantity", label: "Quantity" },
-                      { key: "line_total", label: "Total price" },
-                    ].map(({ key, label }) => (
-                      <button
-                        key={key}
-                        type="button"
-                        onClick={() => {
-                          if (sortBy === key) {
-                            setSortDirection((prev) => (prev === "asc" ? "desc" : "asc"));
-                          } else {
-                            setSortBy(key);
-                            setSortDirection("desc");
-                          }
-                        }}
-                        className={`btn btn-sm shrink-0 whitespace-nowrap ${
-                          sortBy === key ? "btn-primary" : "btn-ghost"
-                        }`}
-                      >
-                        {label}
-                        {sortBy === key && (sortDirection === "desc" ? " ↓" : " ↑")}
+            <TabPanel id="scope" active={tab === "scope"}>
+              <div className="space-y-4">
+                <ClientResponse estimate={estimate} />
+                <section className="panel">
+                  <div className="panel-head">
+                    <h2 className="panel-title">Line items</h2>
+                    {!locked && !lineForm ? (
+                      <button type="button" className="btn btn-sm" onClick={startLine}>
+                        <Icon name="plus" className="h-3.5 w-3.5" />
+                        Add line
                       </button>
-                    ))}
+                    ) : null}
                   </div>
-                  <div
-                    aria-hidden="true"
-                    className="pointer-events-none absolute inset-y-px right-px w-8 rounded-r-[calc(var(--radius-md)-1px)] bg-gradient-to-l from-surface to-transparent"
-                  />
-                </div>
+                  <div className="panel-body space-y-3">
+                    {locked ? (
+                      <p className="text-sm text-muted">
+                        Approved scope is what the client agreed to, so it is locked. New or different work
+                        goes on a change order.
+                      </p>
+                    ) : null}
+                    {lineError ? <Alert>{lineError}</Alert> : null}
+                    {estimate.status === "Draft" && templates.length > 0 && !lineForm ? (
+                      <div className="doc-form flex-row flex-wrap items-end" data-testid="apply-template">
+                        <label className="field-label block min-w-[12rem] flex-1">
+                          Start from a template
+                          <select
+                            className="input mt-1"
+                            value={templateId}
+                            onChange={(e) => setTemplateId(e.target.value)}
+                            disabled={templateBusy}
+                          >
+                            <option value="">Choose a template…</option>
+                            {templates.map((template) => (
+                              <option key={template.id} value={template.id}>
+                                {template.name}
+                              </option>
+                            ))}
+                          </select>
+                        </label>
+                        <button
+                          type="button"
+                          className="btn btn-sm"
+                          disabled={!templateId || templateBusy}
+                          onClick={applyTemplate}
+                        >
+                          {templateBusy ? "Applying…" : "Apply template"}
+                        </button>
+                      </div>
+                    ) : null}
+                    {lineForm ? (
+                      <div ref={lineFormRef} className="doc-form" data-testid="estimate-line-form">
+                        <EstimateLineItemForm
+                          form={lineForm}
+                          onChange={setLineForm}
+                          onSubmit={saveLine}
+                          saving={lineBusy}
+                          onCancel={closeLineForm}
+                          submitLabel={editingLine ? "Update line" : "Add line"}
+                          deleteButton={!!editingLine}
+                          onDelete={deleteLine}
+                        />
+                      </div>
+                    ) : null}
+                    {lines.length === 0 ? (
+                      <p className="px-1 text-sm text-muted">No lines yet. Add what the client is buying.</p>
+                    ) : (
+                      <ul className="doc-lines">
+                        {lines.map((item) => {
+                          const body = (
+                            <>
+                              <div className="min-w-0 flex-1">
+                                <div className="font-medium">{item.name}</div>
+                                <div className="doc-line-sub">
+                                  {item.description ? `${item.description} · ` : ""}
+                                  {Number(item.quantity).toLocaleString("en-US")} × {formatMoney(item.unit_price)}
+                                </div>
+                              </div>
+                              <div className="num shrink-0 font-semibold">{formatMoney(item.line_total)}</div>
+                            </>
+                          );
+                          return (
+                            <li key={item.id}>
+                              {locked ? (
+                                <div className="doc-line">{body}</div>
+                              ) : (
+                                <button
+                                  type="button"
+                                  className="doc-line"
+                                  aria-label={`Edit ${item.name}`}
+                                  onClick={() => editLine(item)}
+                                >
+                                  {body}
+                                </button>
+                              )}
+                            </li>
+                          );
+                        })}
+                      </ul>
+                    )}
+                    <div className="border-t border-base pt-3">
+                      <EstimateTotals estimate={estimate} />
+                    </div>
+                  </div>
+                </section>
+                {estimate.notes ? (
+                  <section className="panel">
+                    <div className="panel-head">
+                      <h2 className="panel-title">Notes</h2>
+                      <span className="text-xs text-muted">The client sees these</span>
+                    </div>
+                    <div className="panel-body">
+                      <p className="whitespace-pre-wrap text-sm">{estimate.notes}</p>
+                    </div>
+                  </section>
+                ) : null}
               </div>
-            ) : null}
+            </TabPanel>
 
-            {loading ? (
-              <div className="text-sm text-muted">Loading items…</div>
-            ) : lineItems.length === 0 ? (
-              <div className="rounded-lg border border-dashed p-4 text-sm text-muted">
-                No line items yet.
-              </div>
-            ) : (
-              <div className="space-y-3">
-                {sortedLineItems.map((item) => (
-                  <div
-                    key={item.id}
-                    className={`list-row flex w-full items-start justify-between text-left ${
-                      estimate?.locked ? "" : "list-row-interactive"
-                    }`}
-                    onClick={() => (estimate?.locked ? null : handleEditLineItem(item))}
-                  >
-                    <div>
-                      <div className="font-medium">{item.name}</div>
-
-                      {item.description ? (
-                        <div className="mt-1 text-sm text-muted">{item.description}</div>
+            <TabPanel id="billing" active={tab === "billing"}>
+              <div className="space-y-4">
+                <section className="panel">
+                  <div className="panel-head">
+                    <h2 className="panel-title">Invoices from this estimate</h2>
+                  </div>
+                  <div className="panel-body">
+                    {invoices.length === 0 ? (
+                      <p className="text-sm text-muted">
+                        {estimate.status === "Approved"
+                          ? "Not billed yet. Request a deposit or bill it all from the next step above."
+                          : "Billing starts once the client approves."}
+                      </p>
+                    ) : (
+                      <ul className="doc-lines">
+                        {invoices.map((inv) => (
+                          <li key={inv.id}>
+                            <PeekLink kind="invoice" id={inv.id} className="doc-line">
+                              <div className="min-w-0 flex-1">
+                                <div className="font-medium">{inv.invoice_number}</div>
+                                <div className="doc-line-sub">{INVOICE_KIND_LABEL[inv.kind] || "Invoice"}</div>
+                              </div>
+                              <StatusPill kind="invoice" status={inv.status} />
+                              <div className="num shrink-0 font-semibold">{formatMoney(inv.grand_total)}</div>
+                            </PeekLink>
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                  </div>
+                </section>
+                {!estimate.change_order_of ? (
+                  <section className="panel">
+                    <div className="panel-head">
+                      <h2 className="panel-title">Change orders</h2>
+                      {estimate.status === "Approved" ? (
+                        <button
+                          type="button"
+                          className="btn btn-sm"
+                          disabled={!!actions.busy}
+                          onClick={startChangeOrder}
+                        >
+                          <Icon name="plus" className="h-3.5 w-3.5" />
+                          Add change order
+                        </button>
                       ) : null}
-
-                      <div className="mt-1 text-xs text-muted">
-                        {Number(item.quantity).toLocaleString("en-US")} × $
-                        {formatCurrency(item.unit_price)}
-                      </div>
                     </div>
-
-                    <div className="flex flex-col items-end gap-2 font-semibold">
-                      ${formatCurrency(item.line_total)}
-                      <div className="text-sm text-muted">
-                        {item.updated_at === item.created_at ? "Created: " : "Updated: "}
-                        {formatDate(item.updated_at || item.created_at)}
-                      </div>
+                    <div className="panel-body">
+                      {changeOrders.length === 0 ? (
+                        <p className="text-sm text-muted">
+                          {estimate.status === "Approved"
+                            ? "None. Extra or different work after approval goes on a change order the client approves separately."
+                            : "Change orders amend an approved estimate."}
+                        </p>
+                      ) : (
+                        <ul className="doc-lines">
+                          {changeOrders.map((co) => (
+                            <li key={co.id}>
+                              <PeekLink kind="estimate" id={co.id} className="doc-line">
+                                <div className="min-w-0 flex-1 font-medium">{co.title}</div>
+                                <StatusPill kind="estimate" status={co.status} />
+                                <div className="num shrink-0 font-semibold">{formatMoney(co.grand_total)}</div>
+                              </PeekLink>
+                            </li>
+                          ))}
+                        </ul>
+                      )}
                     </div>
-                  </div>
-                ))}
+                  </section>
+                ) : null}
               </div>
-            )}
+            </TabPanel>
           </div>
-        </SectionCard>
 
-        <SectionCard title="Total">
-          <div className="flex justify-between text-lg font-semibold">
-            <span>Total</span>
-            <span>${formatCurrency(estimate?.grand_total)}</span>
-          </div>
-        </SectionCard>
+          {layout.railVisible ? (
+            <aside className="record-rail" aria-label="Estimate details">
+              <RailPanel title="Totals">
+                <EstimateTotals estimate={estimate} />
+              </RailPanel>
+              <RailPanel title="Dates">
+                <DetailList
+                  items={[
+                    { label: "Created", value: formatDate(estimate.created_at) },
+                    {
+                      label: "Sent",
+                      value: estimate.sent_at
+                        ? formatDate(estimate.sent_at)
+                        : estimate.status === "Draft"
+                          ? "Not yet"
+                          : null,
+                    },
+                    { label: "Approved", value: estimate.approved_at ? formatDate(estimate.approved_at) : null },
+                    {
+                      label: "Answered",
+                      value: estimate.client_responded_at ? formatDate(estimate.client_responded_at) : null,
+                    },
+                  ]}
+                />
+              </RailPanel>
+              <RailPanel title="Client sees">
+                <p className="text-xs text-muted">
+                  {estimate.status === "Draft" && !estimate.sent_at
+                    ? "Nothing yet. Copying the link sends it."
+                    : estimate.status === "Approved"
+                      ? "The approved scope, the total and the notes, marked approved."
+                      : "The scope, the total, the notes, and buttons to approve, decline or ask for changes."}
+                </p>
+                {estimate.share_expires_at ? (
+                  <p className="text-xs text-muted">Link open until {formatDate(estimate.share_expires_at)}.</p>
+                ) : null}
+              </RailPanel>
+            </aside>
+          ) : null}
+        </div>
       </div>
       {confirmModal}
     </AppShell>

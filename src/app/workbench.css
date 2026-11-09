@@ -1546,6 +1546,91 @@ a.related-line:hover {
   color: var(--text-muted);
 }
 
+/* Documents (estimates, invoices) inside records and peeks            */
+.next-step-quiet {
+  border-color: var(--border);
+  background: var(--surface);
+}
+.doc-form {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-top: 10px;
+  padding: 12px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--surface-elevated);
+}
+.doc-form.flex-row {
+  flex-direction: row;
+}
+.doc-lines {
+  display: flex;
+  flex-direction: column;
+}
+.doc-line {
+  display: flex;
+  min-height: var(--d-row);
+  align-items: center;
+  gap: 0.75rem;
+  padding: 8px 4px;
+  border-bottom: 1px solid var(--border);
+  font-size: 13.5px;
+}
+.doc-line:last-child {
+  border-bottom: 0;
+}
+button.doc-line,
+a.doc-line {
+  width: 100%;
+  border-radius: 8px;
+  text-align: left;
+}
+button.doc-line:hover,
+a.doc-line:hover {
+  background: var(--hover);
+}
+.doc-line-sub {
+  font-size: 12px;
+  color: var(--text-muted);
+}
+.doc-section + .doc-section {
+  margin-top: 18px;
+}
+.totals {
+  display: flex;
+  flex-direction: column;
+}
+.totals-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 4px 0;
+  font-size: 13.5px;
+}
+.totals-row dt {
+  color: var(--text-muted);
+}
+.totals-row-strong {
+  margin-top: 2px;
+  padding-top: 6px;
+  border-top: 1px solid var(--border);
+  font-weight: 650;
+}
+.totals-row-strong dt {
+  color: var(--text);
+}
+.record-unavailable {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+  padding: calc(var(--d-pad) + 6px) var(--d-pad);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background: var(--surface-elevated);
+}
+
 /* ------------------------------------------------------------------ */
 /* Tables                                                              */
 /* ------------------------------------------------------------------ */

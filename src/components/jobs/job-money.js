@@ -1,13 +1,9 @@
 "use client";
 
-import { useState } from "react";
-import Link from "next/link";
-import { ReturnLink } from "@/components/return-to";
-import { SectionCard } from "@/components/ui/section-card";
-import { StatusBadge } from "@/components/ui/status-badge";
-import { Alert } from "@/components/ui/alert";
 import { SectionSkeleton } from "@/components/loading/loadingSkeletons";
-import { NumberInput } from "@/components/ui/formatted-inputs";
+import { Alert } from "@/components/ui/alert";
+import { PeekLink } from "@/components/peek/peek-provider";
+import { StatusPill } from "@/components/records/record-bits";
 import { cx } from "@/lib/cx";
 import { formatDate } from "@/lib/helper";
 import { INVOICE_KIND_LABEL, formatMoney } from "@/lib/job-lifecycle";
@@ -18,7 +14,7 @@ function Figure({ label, value, tone, testId }) {
       <div className="kv-label">{label}</div>
       <div
         className={cx(
-          "mt-0.5 truncate text-lg font-semibold tracking-tight",
+          "num mt-0.5 truncate text-lg font-semibold tracking-tight",
           tone === "danger" && "text-danger",
           tone === "warning" && "text-warning",
           tone === "success" && "text-success",
@@ -30,56 +26,41 @@ function Figure({ label, value, tone, testId }) {
   );
 }
 
-function billingStateFor(estimate, invoices) {
+function billingNote(estimate, invoices) {
+  if (estimate.status !== "Approved") return null;
   const live = invoices.filter(
-    (inv) => inv.estimate_id === estimate.id && inv.status !== "Void",
+    (inv) => String(inv.estimate_id) === String(estimate.id) && inv.status !== "Void",
   );
-  const deposit = live.find((inv) => inv.kind === "deposit") || null;
-  const final = live.find((inv) => inv.kind !== "deposit") || null;
-  return { deposit, final };
+  const deposit = live.find((inv) => inv.kind === "deposit");
+  const final = live.find((inv) => inv.kind !== "deposit");
+  if (final) return `Billed on ${final.invoice_number}`;
+  if (deposit) return `Deposit on ${deposit.invoice_number} · rest not billed`;
+  return "Not billed yet";
 }
 
 /**
- * The job's money in one place: what was agreed, what was billed, what came
- * in, and what is still owed — plus the billing actions that move it.
+ * The job's money in one place: what was agreed, billed, collected and still
+ * owed, and the documents behind those numbers. Each document opens beside
+ * the job; billing happens on the document or from the job's next step.
  */
-export function JobMoneyCard({
-  job,
-  estimates = [],
-  invoices = [],
-  loading = false,
-  error = "",
-  busyKey = null,
-  actionError = "",
-  onBill,
-}) {
-  const [depositFor, setDepositFor] = useState(null);
-  const [depositPercent, setDepositPercent] = useState("30");
+export function JobMoneyCard({ job, estimates = [], invoices = [], loading = false, error = "" }) {
   const money = job?.money || {};
-  const approved = estimates.filter((estimate) => estimate.status === "Approved");
+  const sortedEstimates = [...estimates].sort(
+    (a, b) => new Date(a.created_at) - new Date(b.created_at),
+  );
   const sortedInvoices = [...invoices].sort(
     (a, b) => new Date(a.created_at) - new Date(b.created_at),
   );
 
   return (
-    <SectionCard
-      id="section-money"
-      size="lg"
-      title="Money"
-      description="Agreed, billed, collected, and still owed on this job"
-      right={
-        <Link href={`/invoices/new?job_id=${job.id}`} className="btn btn-sm">
-          New invoice
-        </Link>
-      }
-    >
-      <div className="space-y-5">
+    <section id="section-money" className="panel" data-testid="job-money">
+      <div className="panel-head">
+        <h2 className="panel-title">Money</h2>
+        <span className="text-xs text-muted">Agreed, billed, collected, still owed</span>
+      </div>
+      <div className="panel-body space-y-5">
         <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
-          <Figure
-            label="Contract"
-            value={formatMoney(money.contract_total)}
-            testId="money-contract"
-          />
+          <Figure label="Contract" value={formatMoney(money.contract_total)} testId="money-contract" />
           <Figure label="Invoiced" value={formatMoney(money.invoiced_total)} />
           <Figure
             label="Collected"
@@ -89,13 +70,7 @@ export function JobMoneyCard({
           <Figure
             label="Balance due"
             value={formatMoney(money.outstanding_total)}
-            tone={
-              money.overdue_total > 0
-                ? "danger"
-                : money.outstanding_total > 0
-                  ? "warning"
-                  : undefined
-            }
+            tone={money.overdue_total > 0 ? "danger" : money.outstanding_total > 0 ? "warning" : undefined}
             testId="money-balance"
           />
         </div>
@@ -106,163 +81,76 @@ export function JobMoneyCard({
           </Alert>
         ) : null}
 
-        {actionError ? <Alert>{actionError}</Alert> : null}
+        {error ? <Alert variant="inline">{error}</Alert> : null}
 
-        <div className="space-y-2">
-          <div className="text-xs font-medium uppercase tracking-wide text-muted">
-            Approved scope
-          </div>
-          {approved.length === 0 ? (
-            <div className="rounded-lg border border-dashed p-4 text-sm text-muted">
-              No approved estimate yet. The contract value appears when the client
-              approves.
-            </div>
+        <div className="doc-section" data-testid="job-estimates">
+          <div className="eyebrow">Estimates</div>
+          {loading ? (
+            <SectionSkeleton rows={2} />
+          ) : sortedEstimates.length === 0 ? (
+            <p className="px-1 text-sm text-muted">
+              No estimates yet. Start one from the next step, or Create → Estimate for this job.
+            </p>
           ) : (
-            approved.map((estimate) => {
-              const { deposit, final } = billingStateFor(estimate, invoices);
-              const showDepositForm = depositFor === estimate.id;
-              return (
-                <div key={estimate.id} className="list-row space-y-3">
-                  <div className="flex min-w-0 flex-wrap items-start justify-between gap-3">
-                    <div className="min-w-0">
-                      <ReturnLink
-                        href={`/estimates/${estimate.id}`}
-                        className="font-medium underline underline-offset-4 hover:opacity-80"
-                      >
-                        {estimate.title}
-                      </ReturnLink>
-                      <div className="mt-1 text-xs text-muted">
-                        {estimate.change_order_of ? "Change order · " : ""}
-                        {formatMoney(estimate.grand_total)}
-                        {deposit ? ` · deposit ${deposit.invoice_number}` : ""}
-                        {final ? ` · billed on ${final.invoice_number}` : ""}
+            <ul className="doc-lines">
+              {sortedEstimates.map((estimate) => {
+                const note = billingNote(estimate, invoices);
+                return (
+                  <li key={estimate.id}>
+                    <PeekLink kind="estimate" id={estimate.id} className="doc-line">
+                      <div className="min-w-0 flex-1">
+                        <div className="truncate font-medium">{estimate.title}</div>
+                        <div className="doc-line-sub">
+                          {estimate.change_order_of ? "Change order · " : ""}
+                          {note || formatDate(estimate.updated_at || estimate.created_at)}
+                        </div>
                       </div>
-                    </div>
-                    {final ? (
-                      <StatusBadge tone="success">Billed</StatusBadge>
-                    ) : (
-                      <div className="flex flex-wrap gap-2">
-                        {!deposit ? (
-                          <button
-                            type="button"
-                            className="btn btn-sm"
-                            disabled={!!busyKey}
-                            onClick={() =>
-                              setDepositFor((current) =>
-                                current === estimate.id ? null : estimate.id,
-                              )
-                            }
-                          >
-                            Request deposit
-                          </button>
-                        ) : null}
-                        <button
-                          type="button"
-                          className="btn btn-primary btn-sm"
-                          disabled={!!busyKey}
-                          onClick={() => onBill(estimate.id, { kind: "final" })}
-                        >
-                          {busyKey === `final-${estimate.id}`
-                            ? "Creating…"
-                            : deposit
-                              ? "Final invoice (less deposit)"
-                              : "Final invoice"}
-                        </button>
-                      </div>
-                    )}
-                  </div>
-
-                  {showDepositForm ? (
-                    <form
-                      className="flex flex-wrap items-end gap-2 border-t border-base pt-3"
-                      onSubmit={(event) => {
-                        event.preventDefault();
-                        onBill(estimate.id, {
-                          kind: "deposit",
-                          deposit_percent: Number(depositPercent),
-                        });
-                        setDepositFor(null);
-                      }}
-                    >
-                      <label className="block text-xs text-muted">
-                        Deposit %
-                        <NumberInput
-                          className="input mt-1 w-24"
-                          allowDecimal
-                          value={depositPercent}
-                          onChange={(value) => setDepositPercent(String(value))}
-                        />
-                      </label>
-                      <div className="pb-2 text-sm text-muted">
-                        ={" "}
-                        {formatMoney(
-                          (Number(estimate.grand_total || 0) * Number(depositPercent || 0)) /
-                            100,
-                        )}
-                      </div>
-                      <button
-                        type="submit"
-                        className="btn btn-primary btn-sm"
-                        disabled={!!busyKey || !(Number(depositPercent) > 0)}
-                      >
-                        {busyKey === `deposit-${estimate.id}` ? "Creating…" : "Create deposit invoice"}
-                      </button>
-                    </form>
-                  ) : null}
-                </div>
-              );
-            })
+                      <StatusPill kind="estimate" status={estimate.status} />
+                      <div className="num shrink-0 font-semibold">{formatMoney(estimate.grand_total)}</div>
+                    </PeekLink>
+                  </li>
+                );
+              })}
+            </ul>
           )}
         </div>
 
-        <div className="space-y-2">
-          <div className="text-xs font-medium uppercase tracking-wide text-muted">
-            Invoices
-          </div>
+        <div className="doc-section" data-testid="job-invoices">
+          <div className="eyebrow">Invoices</div>
           {loading ? (
             <SectionSkeleton rows={2} />
-          ) : error ? (
-            <Alert variant="inline">{error}</Alert>
           ) : sortedInvoices.length === 0 ? (
-            <div className="rounded-lg border border-dashed p-4 text-sm text-muted">
-              No invoices for this job yet.
-            </div>
+            <p className="px-1 text-sm text-muted">No invoices yet. They are billed from an approved estimate.</p>
           ) : (
-            sortedInvoices.map((inv) => (
-              <ReturnLink
-                key={inv.id}
-                href={`/invoices/${inv.id}`}
-                className="flex min-w-0 items-start justify-between gap-3 rounded-lg border p-4 transition hover:bg-accent"
-              >
-                <div className="min-w-0 flex-1">
-                  <div className="font-medium">
-                    {inv.invoice_number}
-                    <span className="ml-2 text-xs font-normal text-muted">
-                      {INVOICE_KIND_LABEL[inv.kind] || "Invoice"}
-                    </span>
-                  </div>
-                  <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-muted">
-                    <span>{formatDate(inv.sent_at || inv.created_at)}</span>
-                    {inv.due_date ? (
-                      <>
-                        <span>•</span>
-                        <span>Due {formatDate(inv.due_date)}</span>
-                      </>
-                    ) : null}
-                  </div>
-                </div>
-                <div className="flex shrink-0 flex-col items-end gap-2">
-                  <StatusBadge kind="invoice" status={inv.status} />
-                  <div className="text-sm font-semibold">{formatMoney(inv.grand_total)}</div>
-                  {inv.balance_due > 0 && inv.status !== "Draft" ? (
-                    <div className="text-xs text-muted">{formatMoney(inv.balance_due)} due</div>
-                  ) : null}
-                </div>
-              </ReturnLink>
-            ))
+            <ul className="doc-lines">
+              {sortedInvoices.map((inv) => (
+                <li key={inv.id}>
+                  <PeekLink kind="invoice" id={inv.id} className="doc-line">
+                    <div className="min-w-0 flex-1">
+                      <div className="font-medium">
+                        {inv.invoice_number}
+                        <span className="ml-2 text-xs font-normal text-muted">
+                          {INVOICE_KIND_LABEL[inv.kind] || "Invoice"}
+                        </span>
+                      </div>
+                      <div className="doc-line-sub">
+                        {inv.status === "Draft"
+                          ? "Not sent"
+                          : `${formatDate(inv.sent_at || inv.created_at)}${inv.due_date ? ` · due ${formatDate(inv.due_date)}` : ""}`}
+                        {inv.balance_due > 0 && !["Draft", "Void"].includes(inv.status)
+                          ? ` · ${formatMoney(inv.balance_due)} due`
+                          : ""}
+                      </div>
+                    </div>
+                    <StatusPill kind="invoice" status={inv.status} />
+                    <div className="num shrink-0 font-semibold">{formatMoney(inv.grand_total)}</div>
+                  </PeekLink>
+                </li>
+              ))}
+            </ul>
           )}
         </div>
       </div>
-    </SectionCard>
+    </section>
   );
 }

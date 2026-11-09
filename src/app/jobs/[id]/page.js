@@ -2,7 +2,7 @@
 
 import { Alert } from "@/components/ui/alert";
 import { useEffect, useState } from "react";
-import { useParams, useRouter } from "next/navigation";
+import { useParams } from "next/navigation";
 import Link from "next/link";
 import { AppShell } from "@/components/app-shell";
 import { ReturnLink } from "@/components/return-to";
@@ -47,6 +47,8 @@ import { formatNumberDisplay } from "@/lib/input-format";
 import { EmptyState } from "@/components/error-boundary";
 import { JobLifecycleCard } from "@/components/jobs/job-lifecycle";
 import { JobMoneyCard } from "@/components/jobs/job-money";
+import { JobNextStep } from "@/components/jobs/job-next-step";
+import { announceChange, touchesJob, useRecordChanges } from "@/lib/record-events";
 import { JOB_PATH, formatMoney } from "@/lib/job-lifecycle";
 import { PeekLink } from "@/components/peek/peek-provider";
 import {
@@ -56,6 +58,7 @@ import {
   MoneyStrip,
   PhaseRail,
   QuickTasks,
+  RecordUnavailable,
   StatusPill,
 } from "@/components/records/record-bits";
 import {
@@ -91,7 +94,6 @@ const DEFAULT_VISIBLE_TASKS = 6;
 
 export default function JobDetailPage() {
   const { id } = useParams();
-  const router = useRouter();
   const { askConfirm, confirmModal } = useConfirmModal();
   const [tab, setTab] = useUrlTab("overview", JOB_TABS);
   const layout = useRecordSections("job", OVERVIEW_SECTIONS);
@@ -149,8 +151,7 @@ export default function JobDetailPage() {
   const [updatingStatus, setUpdatingStatus] = useState(null);
   const [statusError, setStatusError] = useState("");
   const [statusBlockers, setStatusBlockers] = useState([]);
-  const [billingBusy, setBillingBusy] = useState(null);
-  const [billingError, setBillingError] = useState("");
+  const [taskFormError, setTaskFormError] = useState("");
 
   const [isTaskFormOpen, setIsTaskFormOpen] = useState(false);
   const [updateJobStatusOnSchedule, setUpdateJobStatusOnSchedule] = useState(true);
@@ -224,7 +225,7 @@ export default function JobDetailPage() {
       const data = await api(`/jobs/${id}/tasks`);
       setTasks(data.tasks || []);
     } catch (e) {
-      setError(e.message || "Failed to load job tasks");
+      setError(e);
     } finally {
       setLoadingTasks(false);
     }
@@ -298,7 +299,7 @@ export default function JobDetailPage() {
         loadInvoices(),
       ]);
     } catch (e) {
-      setError(e.message || "Failed to load job");
+      setError(e);
     } finally {
       setLoading(false);
     }
@@ -342,22 +343,6 @@ export default function JobDetailPage() {
       return;
     }
     commitJobStatus(newStatus, extra);
-  }
-
-  async function handleBill(estimateId, body) {
-    setBillingError("");
-    setBillingBusy(`${body.kind}-${estimateId}`);
-    try {
-      const res = await api(`/invoices/from-estimate/${estimateId}`, {
-        method: "POST",
-        body: JSON.stringify(body),
-      });
-      router.push(`/invoices/${res.invoice.id}`);
-    } catch (e) {
-      setBillingError(e?.message || "Could not create the invoice");
-    } finally {
-      setBillingBusy(null);
-    }
   }
 
   async function handleSaveMeasurement(e) {
@@ -439,7 +424,7 @@ export default function JobDetailPage() {
   async function handleCreateTask(e) {
     e.preventDefault();
     setCreatingTask(true);
-    setError(null);
+    setTaskFormError("");
 
     try {
       if (!taskForm.title.trim()) {
@@ -483,8 +468,9 @@ export default function JobDetailPage() {
 
       await loadActivity();
       setIsTaskFormOpen(false);
+      announceChange({ kind: "job", id });
     } catch (e) {
-      setError(e.message || "Failed to create task");
+      setTaskFormError(e.message || "Could not save. Try again.");
     } finally {
       setCreatingTask(false);
     }
@@ -676,7 +662,10 @@ export default function JobDetailPage() {
     }
   }
 
-  const canManageFiles = currentUser?.role === "owner" || currentUser?.role === "admin";
+  const isAdmin = currentUser?.role === "owner" || currentUser?.role === "admin";
+  // Anyone who can see the job adds and tags photos; deleting is owner/admin.
+  const canManageFiles = true;
+  const canDeleteFiles = isAdmin;
 
   useEffect(() => {
     let cancelled = false;
@@ -767,22 +756,12 @@ export default function JobDetailPage() {
     return aTime - bTime;
   });
 
-  const formatCurrency = (num) => {
-    return Number(num || 0).toLocaleString("en-US", {
-      minimumFractionDigits: 2,
-      maximumFractionDigits: 2,
-    });
-  };
 
   const visibleTasks = showAllTasks
     ? sortedTasks
     : sortedTasks.slice(0, DEFAULT_VISIBLE_TASKS);
 
   const hiddenTaskCount = Math.max(0, sortedTasks.length - visibleTasks.length);
-  const sortedEstimates = [...estimates].sort(
-    (a, b) =>
-      new Date(b.updated_at || b.created_at) - new Date(a.updated_at || a.created_at),
-  );
 
   const isInitialLoading = loading && !job;
   const leadName = lead
@@ -793,104 +772,28 @@ export default function JobDetailPage() {
   const daysInStatus = job ? formatDaysInStatus(job.status_changed_at) : "";
   const canReopenClosed = currentUser?.role === "owner" || currentUser?.role === "admin";
 
-  function renderNextStepAction() {
-    const step = job?.next_step;
-    if (!step) return null;
-    const draftEstimate = estimates.find((e) => e.status === "Draft");
-    const awaitingEstimate = estimates.find((e) => e.status === "Sent");
-    const openInvoice = [...invoices]
-      .filter((inv) => ["Overdue", "Partially Paid", "Sent"].includes(inv.status))
-      .sort((a, b) => new Date(a.due_date || a.created_at) - new Date(b.due_date || b.created_at))[0];
-    const draftInvoice = invoices.find((inv) => inv.status === "Draft");
-    const unbilledEstimate = estimates.find(
-      (e) =>
-        e.status === "Approved" &&
-        !invoices.some(
-          (inv) => inv.estimate_id === e.id && inv.kind !== "deposit" && inv.status !== "Void",
-        ),
-    );
+  // A payment recorded in a peek, an invoice drafted from an estimate, a
+  // status moved from the next step: reload what this page shows of it.
+  useRecordChanges((detail) => {
+    if (!touchesJob(detail, id)) return;
+    loadJob().catch(() => {});
+    loadEstimates();
+    loadInvoices();
+    loadActivity();
+    if (detail.kind === "task") loadTasks();
+  });
 
-    switch (step.action) {
-      case "schedule_visit":
-      case "schedule_work":
-        return (
-          <button type="button" className="btn btn-primary btn-sm" onClick={openScheduleAppointmentForm}>
-            Schedule
-          </button>
-        );
-      case "create_estimate":
-        return (
-          <Link href={`/estimates/new?job_id=${id}`} className="btn btn-primary btn-sm">
-            New estimate
-          </Link>
-        );
-      case "send_estimate":
-        return draftEstimate ? (
-          <ReturnLink href={`/estimates/${draftEstimate.id}`} className="btn btn-primary btn-sm">
-            Open estimate
-          </ReturnLink>
-        ) : null;
-      case "await_client":
-        return awaitingEstimate ? (
-          <ReturnLink href={`/estimates/${awaitingEstimate.id}`} className="btn btn-sm">
-            View estimate
-          </ReturnLink>
-        ) : null;
-      case "request_deposit":
-        return (
-          <button
-            type="button"
-            className="btn btn-primary btn-sm"
-            onClick={() => {
-              setTab("money");
-              requestAnimationFrame(() =>
-                document.getElementById("section-money")?.scrollIntoView({ behavior: "smooth" }),
-              );
-            }}
-          >
-            Bill deposit
-          </button>
-        );
-      case "final_invoice":
-        return unbilledEstimate ? (
-          <button
-            type="button"
-            className="btn btn-primary btn-sm"
-            disabled={!!billingBusy}
-            onClick={() => handleBill(unbilledEstimate.id, { kind: "final" })}
-          >
-            Create final invoice
-          </button>
-        ) : null;
-      case "send_invoice":
-        return draftInvoice ? (
-          <ReturnLink href={`/invoices/${draftInvoice.id}`} className="btn btn-primary btn-sm">
-            Open draft
-          </ReturnLink>
-        ) : null;
-      case "collect_payment":
-        return openInvoice ? (
-          <ReturnLink href={`/invoices/${openInvoice.id}#payments`} className="btn btn-primary btn-sm">
-            Record payment
-          </ReturnLink>
-        ) : null;
-      case "start_work":
-      case "complete_work":
-      case "close_job":
-        return step.to_status ? (
-          <button
-            type="button"
-            className="btn btn-primary btn-sm"
-            disabled={!!updatingStatus}
-            onClick={() => updateJobStatus(step.to_status)}
-          >
-            Move to {step.to_status}
-          </button>
-        ) : null;
-      default:
-        return null;
-    }
-  }
+  // The job peek's "Schedule" lands here with ?schedule=1.
+  useEffect(() => {
+    if (!job || typeof window === "undefined") return undefined;
+    const url = new URL(window.location.href);
+    if (url.searchParams.get("schedule") !== "1") return undefined;
+    url.searchParams.delete("schedule");
+    window.history.replaceState(window.history.state, "", url.toString());
+    const frame = requestAnimationFrame(() => openScheduleAppointmentForm());
+    return () => cancelAnimationFrame(frame);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [job?.id]);
 
   return (
     <AppShell
@@ -916,7 +819,17 @@ export default function JobDetailPage() {
           </div>
         ) : null}
 
-        {error ? <PageError message={error} /> : null}
+        {error && !job && !isInitialLoading ? (
+          <RecordUnavailable
+            noun="job"
+            error={error}
+            listHref="/jobs"
+            listLabel="Jobs"
+            onRetry={loadPage}
+          />
+        ) : error && job ? (
+          <PageError message={error.message || String(error)} />
+        ) : null}
 
         {!isInitialLoading && job ? (
           <div className="min-w-0 space-y-4">
@@ -979,18 +892,12 @@ export default function JobDetailPage() {
                 </div>
               </div>
               <PhaseRail status={job.status} />
-              {job.next_step && job.next_step.action !== "none" ? (
-                <div className="next-step next-step-row" data-testid="job-next-step">
-                  <div className="min-w-0">
-                    <div className="eyebrow">Next step</div>
-                    <div className="font-medium">{job.next_step.label}</div>
-                    {job.next_step.detail ? (
-                      <div className="text-sm text-muted">{job.next_step.detail}</div>
-                    ) : null}
-                  </div>
-                  <div className="shrink-0">{renderNextStepAction()}</div>
-                </div>
-              ) : null}
+              <JobNextStep
+                job={job}
+                estimates={estimates}
+                invoices={invoices}
+                onSchedule={openScheduleAppointmentForm}
+              />
             </section>
 
             <div className={layout.railVisible ? "record-grid" : "record-grid record-grid-norail"}>
@@ -1221,9 +1128,6 @@ export default function JobDetailPage() {
                   description="Follow-ups and appointments for this job"
                   right={
                     <div className="flex min-w-0 max-w-full flex-wrap items-center justify-end gap-2">
-                      <ReturnLink href={`/tasks/new?job_id=${id}`} className="btn btn-sm">
-                        Full form
-                      </ReturnLink>
                       <button
                         type="button"
                         className="btn btn-primary btn-sm"
@@ -1265,7 +1169,7 @@ export default function JobDetailPage() {
                           onChange={setTaskForm}
                           onSubmit={handleCreateTask}
                           saving={creatingTask}
-                          error=""
+                          error={taskFormError}
                           submitLabel={
                             taskForm.kind === "appointment"
                               ? "Schedule appointment"
@@ -1392,77 +1296,9 @@ export default function JobDetailPage() {
                   job={job}
                   estimates={estimates}
                   invoices={invoices}
-                  loading={!isInitialLoading && loadingInvoices}
-                  error={invoicesError}
-                  busyKey={billingBusy}
-                  actionError={billingError}
-                  onBill={handleBill}
+                  loading={!isInitialLoading && (loadingInvoices || loadingEstimates)}
+                  error={invoicesError || estimatesError}
                 />
-                <SectionCard
-                  size="lg"
-                  title="Estimates"
-                  description="Pricing and scope tied to this job"
-                  right={
-                    <Link
-                      href={`/estimates/new?job_id=${id}`}
-                      className="btn btn-primary btn-sm"
-                    >
-                      New estimate
-                    </Link>
-                  }
-                >
-                  {!isInitialLoading && loadingEstimates ? (
-                    <SectionSkeleton rows={3} />
-                  ) : estimatesError ? (
-                    <Alert variant="inline">{estimatesError}</Alert>
-                  ) : estimates.length === 0 ? (
-                    <div className="rounded-lg border border-dashed p-4 text-sm text-muted">
-                      No estimates for this job yet.
-                    </div>
-                  ) : (
-                    <div className="min-w-0 space-y-3">
-                      {sortedEstimates.map((estimate) => (
-                        <ReturnLink
-                          key={estimate.id}
-                          href={`/estimates/${estimate.id}`}
-                          className="list-row list-row-interactive list-row-split"
-                        >
-                          <div className="min-w-0 flex-1">
-                            <div className="break-words font-medium">{estimate.title}</div>
-
-                            <div className="mt-1 flex min-w-0 items-center gap-2 text-xs text-muted">
-                              <span className="shrink-0">
-                                {formatDate(estimate.updated_at || estimate.created_at)}
-                              </span>
-
-                              {estimate.job?.address ? (
-                                <>
-                                  <span className="shrink-0">•</span>
-                                  <span className="min-w-0 truncate">
-                                    {estimate.job.address}
-                                  </span>
-                                </>
-                              ) : null}
-                            </div>
-
-                            {estimate.notes ? (
-                              <div className="mt-2 line-clamp-2 break-words text-sm text-muted">
-                                {estimate.notes}
-                              </div>
-                            ) : null}
-                          </div>
-
-                          <div className="flex flex-wrap items-center gap-2 sm:shrink-0 sm:flex-col sm:items-end">
-                            <StatusBadge kind="estimate" status={estimate.status} />
-                            <div className="text-sm font-semibold">
-                              ${formatCurrency(Number(estimate.grand_total || 0).toFixed(2))}
-                            </div>
-                          </div>
-                        </ReturnLink>
-                      ))}
-                    </div>
-                  )}
-                </SectionCard>
                 </TabPanel>
 
                 <TabPanel id="files" active={tab === "files"}>
@@ -1556,7 +1392,7 @@ export default function JobDetailPage() {
                                 </a>
                               )}
 
-                              {canManageFiles ? (
+                              {canDeleteFiles ? (
                                 <button
                                   onClick={() => handleDeleteFile(file.id)}
                                   disabled={busyFileId === file.id}
@@ -1747,6 +1583,7 @@ export default function JobDetailPage() {
                     <p className="text-xs text-muted">
                       What the client sees: progress, what was sent, what they owe. Drafts never show.
                     </p>
+                    {isAdmin ? (
                     <div className="flex flex-wrap gap-2">
                       <button
                         type="button"
@@ -1765,6 +1602,9 @@ export default function JobDetailPage() {
                         {portalMessageBusy ? "Message…" : "Copy message"}
                       </button>
                     </div>
+                    ) : (
+                      <p className="text-xs text-muted">An owner or admin shares the portal link.</p>
+                    )}
                   </RailPanel>
                 </aside>
               ) : null}

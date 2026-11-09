@@ -5,7 +5,11 @@ import Link from "next/link";
 import { api } from "@/lib/api";
 import { cx } from "@/lib/cx";
 import { formatDate, formatTaskSchedule } from "@/lib/helper";
-import { INVOICE_KIND_LABEL, formatMoney, paymentMethodLabel, phaseLabel, phaseOf } from "@/lib/job-lifecycle";
+import { INVOICE_KIND_LABEL, formatMoney, phaseLabel, phaseOf } from "@/lib/job-lifecycle";
+import { touchesJob, useRecordChanges } from "@/lib/record-events";
+import { InvoiceNextStep, InvoiceTotals, PaymentLines, useInvoiceActions } from "@/components/documents/invoice-parts";
+import { EstimateNextStep, useEstimateActions } from "@/components/documents/estimate-parts";
+import { JobNextStep, useJobDocuments } from "@/components/jobs/job-next-step";
 import { Icon } from "@/components/icons";
 import { useToast } from "@/components/toast/toast-provider";
 import { useOptionalWorkspace } from "@/components/workspace/workspace-provider";
@@ -19,6 +23,7 @@ import {
   PhaseRail,
   QuickNotes,
   QuickTasks,
+  RecordUnavailable,
   StatusPill,
 } from "@/components/records/record-bits";
 
@@ -60,7 +65,7 @@ function Section({ title, children, right }) {
 /* ------------------------------------------------------------------ */
 
 function JobPeek({ job, reload }) {
-  const step = job.next_step;
+  const docs = useJobDocuments(job.id);
   return (
     <>
       <div className="peek-summary">
@@ -80,16 +85,7 @@ function JobPeek({ job, reload }) {
         ) : null}
       </div>
 
-      {step && step.action !== "none" ? (
-        <div className="next-step">
-          <Eyebrow>Next step</Eyebrow>
-          <div className="font-medium">{step.label}</div>
-          {step.detail ? <div className="text-sm text-muted">{step.detail}</div> : null}
-          <Link href={`/jobs/${job.id}`} className="link mt-1 inline-flex items-center gap-1 text-sm">
-            Do it on the job <Icon name="arrowUpRight" className="h-3.5 w-3.5" />
-          </Link>
-        </div>
-      ) : null}
+      <JobNextStep job={job} estimates={docs.estimates} invoices={docs.invoices} compact />
 
       <Section title="Money">
         <MoneyStrip money={job.money} />
@@ -259,7 +255,8 @@ function TaskPeek({ task, setRecord }) {
   );
 }
 
-function InvoicePeek({ invoice }) {
+function InvoicePeek({ invoice, setRecord, intent }) {
+  const actions = useInvoiceActions(invoice, setRecord);
   return (
     <>
       <div className="peek-summary">
@@ -272,31 +269,13 @@ function InvoicePeek({ invoice }) {
           due of {formatMoney(invoice.grand_total)}
           {invoice.due_date ? ` · due ${formatDate(invoice.due_date)}` : ""}
         </p>
-        <div className="flex flex-wrap gap-2">
-          {invoice.balance_due > 0 && invoice.status !== "Void" ? (
-            <Link href={`/invoices/${invoice.id}#payments`} className="btn btn-primary btn-sm">
-              <Icon name="dollar" className="h-3.5 w-3.5" />
-              Record payment
-            </Link>
-          ) : null}
-        </div>
       </div>
+      <InvoiceNextStep invoice={invoice} actions={actions} startPaying={intent === "pay"} compact />
       <Section title="Payments">
-        {(invoice.payments || []).length === 0 ? (
-          <p className="px-1 text-sm text-muted">No payments yet.</p>
-        ) : (
-          <ul className="related-lines">
-            {invoice.payments.map((p) => (
-              <li key={p.id} className="related-line">
-                <span>
-                  {formatDate(p.received_at)} · {paymentMethodLabel(p.method)}
-                  {p.reference ? ` #${p.reference}` : ""}
-                </span>
-                <span className="num font-medium">{formatMoney(p.amount)}</span>
-              </li>
-            ))}
-          </ul>
-        )}
+        <PaymentLines invoice={invoice} />
+      </Section>
+      <Section title="Totals">
+        <InvoiceTotals invoice={invoice} />
       </Section>
       <Section title="Job">
         <PeekLink kind="job" id={invoice.job_id} className="related-line">
@@ -308,7 +287,9 @@ function InvoicePeek({ invoice }) {
   );
 }
 
-function EstimatePeek({ estimate }) {
+function EstimatePeek({ estimate, setRecord, intent }) {
+  const { openPeek } = usePeek();
+  const actions = useEstimateActions(estimate, setRecord);
   return (
     <>
       <div className="peek-summary">
@@ -322,6 +303,14 @@ function EstimatePeek({ estimate }) {
           {estimate.approved_at ? ` · approved ${formatDate(estimate.approved_at)}` : ""}
         </p>
       </div>
+      <EstimateNextStep
+        estimate={estimate}
+        actions={actions}
+        startDeposit={intent === "deposit"}
+        onBilled={(invoice) => openPeek("invoice", invoice.id)}
+        onOpenInvoice={(invoiceId) => openPeek("invoice", invoiceId)}
+        compact
+      />
       <Section title="Scope">
         <ul className="related-lines">
           {(estimate.line_items || []).slice(0, 8).map((item) => (
@@ -353,21 +342,21 @@ const BODIES = {
 /* ------------------------------------------------------------------ */
 
 export function PeekPanel() {
-  const { peek, closePeek } = usePeek();
+  const { peek, closePeek, intent } = usePeek();
   const workspace = useOptionalWorkspace();
   const [record, setRecord] = useState(null);
-  const [error, setError] = useState("");
+  const [error, setError] = useState(null);
   const [loading, setLoading] = useState(false);
   const panelRef = useRef(null);
 
   const load = useCallback(async () => {
     if (!peek) return;
-    setError("");
     try {
       const data = await LOADERS[peek.kind](peek.id);
       setRecord(data);
+      setError(null);
     } catch (e) {
-      setError(e?.message || "Could not open this record");
+      setError(e);
       setRecord(null);
     } finally {
       setLoading(false);
@@ -383,6 +372,18 @@ export function PeekPanel() {
     setRecord(null);
     load();
   }, [peek, load]);
+
+  // Something changed this record elsewhere (the page underneath, another
+  // peek): show the new state. A deleted record closes the peek.
+  useRecordChanges((detail) => {
+    if (!peek) return;
+    const same = detail.kind === peek.kind && String(detail.id) === String(peek.id);
+    if (same && detail.deleted) {
+      closePeek();
+      return;
+    }
+    if (same || (peek.kind === "job" && touchesJob(detail, peek.id))) load();
+  });
 
   useEffect(() => {
     if (!peek) return;
@@ -420,7 +421,7 @@ export function PeekPanel() {
         <header className="peek-head">
           <div className="min-w-0">
             <Eyebrow>{eyebrow}</Eyebrow>
-            <h2 className="peek-title">{loading ? "Loading…" : title}</h2>
+            <h2 className="peek-title">{loading ? "Loading…" : error ? KIND_LABEL[peek.kind] : title}</h2>
           </div>
           <div className="flex shrink-0 items-center gap-1">
             {workspace && record ? (
@@ -447,7 +448,7 @@ export function PeekPanel() {
         </header>
         <div className="peek-body">
           {error ? (
-            <p className="text-sm text-danger">{error}</p>
+            <RecordUnavailable noun={KIND_LABEL[peek.kind].toLowerCase()} error={error} onRetry={load} compact />
           ) : loading || !record ? (
             <div className="space-y-3">
               <div className="skeleton h-6 w-2/3" />
@@ -463,6 +464,7 @@ export function PeekPanel() {
               estimate={record}
               setRecord={setRecord}
               reload={load}
+              intent={intent}
             />
           )}
         </div>

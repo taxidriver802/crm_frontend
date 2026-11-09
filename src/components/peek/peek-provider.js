@@ -1,6 +1,6 @@
 "use client";
 
-import { createContext, useCallback, useContext, useMemo, useSyncExternalStore } from "react";
+import { createContext, useCallback, useContext, useMemo, useState, useSyncExternalStore } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
@@ -26,6 +26,7 @@ export function recordHref(kind, id) {
 
 const PeekContext = createContext({
   peek: null,
+  intent: null,
   openPeek: () => {},
   closePeek: () => {},
 });
@@ -73,16 +74,27 @@ export function PeekProvider({ children }) {
     [search],
   );
 
-  const openPeek = useCallback((kind, id) => {
+  // What the person opened the record to do ("pay", "send"), kept out of the
+  // URL: a reload shows the record, not a half-filled form.
+  const [pending, setPending] = useState(null);
+
+  const openPeek = useCallback((kind, id, options = {}) => {
     if (!PEEK_KINDS.includes(kind) || !Number.isFinite(Number(id))) return;
+    setPending(options.intent ? { key: `${kind}:${Number(id)}`, intent: options.intent } : null);
     writePeekParam({ kind, id: Number(id) });
   }, []);
 
   const closePeek = useCallback(() => {
+    setPending(null);
     writePeekParam(null);
   }, []);
 
-  const value = useMemo(() => ({ peek, openPeek, closePeek }), [peek, openPeek, closePeek]);
+  const intent = peek && pending?.key === `${peek.kind}:${peek.id}` ? pending.intent : null;
+
+  const value = useMemo(
+    () => ({ peek, intent, openPeek, closePeek }),
+    [peek, intent, openPeek, closePeek],
+  );
   return <PeekContext.Provider value={value}>{children}</PeekContext.Provider>;
 }
 

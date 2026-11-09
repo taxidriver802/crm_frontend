@@ -9,6 +9,7 @@ import { toneFor } from "@/lib/status-tones";
 import { useToast } from "@/components/toast/toast-provider";
 import { Icon } from "@/components/icons";
 import { PeekLink } from "@/components/peek/peek-provider";
+import Link from "next/link";
 
 /* ------------------------------------------------------------------ */
 /* Small typographic pieces                                            */
@@ -420,5 +421,51 @@ export function DetailList({ items }) {
         </div>
       ))}
     </dl>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/* Unavailable records                                                 */
+/* ------------------------------------------------------------------ */
+
+/** True when the server said the record is not there for this person (missing or not theirs). */
+export function isUnavailable(error) {
+  return error?.status === 404 || error?.status === 403;
+}
+
+/**
+ * What a record page or peek shows when it cannot show the record. A record
+ * that is not yours reads the same as one that does not exist: the server
+ * scopes both to 404, and the page must not offer controls for either.
+ */
+export function RecordUnavailable({ noun, error, listHref, listLabel, onRetry, compact = false }) {
+  const missing = isUnavailable(error);
+  return (
+    <section
+      className={cx(compact ? "flex flex-col items-start gap-2" : "record-unavailable")}
+      data-testid="record-unavailable"
+      role="status"
+    >
+      <h2 className="text-base font-semibold">
+        {missing ? `This ${noun} isn’t available` : `This ${noun} could not load`}
+      </h2>
+      <p className="text-sm text-muted">
+        {missing
+          ? `It may have been deleted, or it isn’t assigned to you. If you need it, ask an owner to assign it to you.`
+          : error?.message || "Check your connection and try again."}
+      </p>
+      <div className="flex flex-wrap gap-2">
+        {!missing && onRetry ? (
+          <button type="button" className="btn btn-sm" onClick={onRetry}>
+            Try again
+          </button>
+        ) : null}
+        {listHref ? (
+          <Link href={listHref} className="btn btn-sm">
+            Back to {listLabel}
+          </Link>
+        ) : null}
+      </div>
+    </section>
   );
 }
