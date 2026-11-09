@@ -115,7 +115,7 @@ export function useGlobalShortcuts({ onSearch, onCreate, onToggleRail, onHelp })
   }, [router, onSearch, onCreate, onToggleRail, onHelp]);
 }
 
-export function ShortcutsDialog({ open, onClose }) {
+export function ShortcutsDialog({ open, onClose, onOpenHelp }) {
   if (!open) return null;
   return (
     <ModalFrame
@@ -158,6 +158,15 @@ export function ShortcutsDialog({ open, onClose }) {
         Navigation items you hide in Preferences keep their shortcuts.{" "}
         {NAV_ITEMS.length} destinations in all.
       </p>
+      {onOpenHelp ? (
+        <p className="mt-2 text-sm">
+          How to do a task is in{" "}
+          <button type="button" className="link" onClick={onOpenHelp}>
+            Help, the user guide
+          </button>
+          .
+        </p>
+      ) : null}
     </ModalFrame>
   );
 }

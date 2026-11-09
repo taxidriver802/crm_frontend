@@ -49,7 +49,7 @@ function Segment({ value, options, onChange, label }) {
  * account. Workspace-wide admin settings live on /settings as well, so this
  * menu stays short.
  */
-export function UserMenu({ collapsed, onInvite, onShortcuts, onLogout, side = "top" }) {
+export function UserMenu({ collapsed, onInvite, onShortcuts, onHelp, onLogout, side = "top" }) {
   const { user, isAdmin, prefs, updatePrefs } = useWorkspace();
   const { theme } = useTheme();
   const { canInstall, promptInstall } = usePwaInstall();
@@ -119,6 +119,15 @@ export function UserMenu({ collapsed, onInvite, onShortcuts, onLogout, side = "t
             icon={<Icon name="sliders" className="h-4 w-4 text-muted" />}
           >
             Preferences
+          </MenuItem>
+          <MenuItem
+            onSelect={() => {
+              close();
+              onHelp?.();
+            }}
+            icon={<Icon name="help" className="h-4 w-4 text-muted" />}
+          >
+            Help
           </MenuItem>
           <MenuItem
             onSelect={() => {

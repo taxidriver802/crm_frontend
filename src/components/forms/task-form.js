@@ -74,7 +74,7 @@ export function TaskForm({
   onSubmit,
   saving = false,
   error = "",
-  submitLabel = "Create task",
+  submitLabel,
   cancelLabel,
   onCancel,
   contextType,

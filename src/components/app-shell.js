@@ -30,6 +30,8 @@ import { CompanyMark } from "@/components/brand/company-mark";
 import { WorkspaceProvider, useWorkspace } from "@/components/workspace/workspace-provider";
 import { PeekProvider } from "@/components/peek/peek-provider";
 import { PeekPanel } from "@/components/peek/peek-panel";
+import { HelpProvider, useHelp } from "@/components/help/help-provider";
+import { HelpPanel } from "@/components/help/help-panel";
 import { NavList, NavRail, isActivePath, useNavItems } from "@/components/shell/nav-rail";
 import { NotificationsMenu } from "@/components/shell/notifications-menu";
 import { CreateMenu } from "@/components/shell/create-menu";
@@ -260,6 +262,7 @@ function AppShellFrame({ children }) {
   const pathname = usePathname();
   const router = useRouter();
   const { user, company, isAdmin, prefs, loaded, updatePrefs } = useWorkspace();
+  const help = useHelp();
 
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
@@ -310,13 +313,14 @@ function AppShellFrame({ children }) {
   const openSearch = useCallback(() => setSearchOpen(true), []);
   // One open state drives both Create buttons; only the one on screen is visible.
   const openCreate = useCallback(() => setCreateOpen(true), []);
-  const openHelp = useCallback(() => setShortcutsOpen(true), []);
+  const openShortcuts = useCallback(() => setShortcutsOpen(true), []);
+  const openGuide = help.openHelp;
 
   useGlobalShortcuts({
     onSearch: openSearch,
     onCreate: openCreate,
     onToggleRail: toggleRail,
-    onHelp: openHelp,
+    onHelp: openShortcuts,
   });
 
   const entityContext = useMemo(() => parseEntityContext(pathname), [pathname]);
@@ -339,7 +343,8 @@ function AppShellFrame({ children }) {
           onCreateOpenChange={wide ? setCreateOpen : undefined}
           onSearch={openSearch}
           onInvite={() => setInviteModalOpen(true)}
-          onShortcuts={openHelp}
+          onShortcuts={openShortcuts}
+          onHelp={() => openGuide()}
           onLogout={() => setLogoutConfirmOpen(true)}
         />
 
@@ -417,6 +422,17 @@ function AppShellFrame({ children }) {
                       <Icon name="sliders" className="h-[1.05rem] w-[1.05rem]" />
                       <span>Preferences</span>
                     </Link>
+                    <button
+                      type="button"
+                      className="rail-link"
+                      onClick={() => {
+                        setMobileMenuOpen(false);
+                        openGuide();
+                      }}
+                    >
+                      <Icon name="help" className="h-[1.05rem] w-[1.05rem]" />
+                      <span>Help</span>
+                    </button>
                     {isAdmin ? (
                       <button
                         type="button"
@@ -464,6 +480,7 @@ function AppShellFrame({ children }) {
         </div>
 
         <PeekPanel />
+        <HelpPanel />
 
         <InviteUserModal open={inviteModalOpen} onClose={() => setInviteModalOpen(false)} />
         <ConfirmModal
@@ -476,7 +493,14 @@ function AppShellFrame({ children }) {
           cancelLabel="Cancel"
           tone="danger"
         />
-        <ShortcutsDialog open={shortcutsOpen} onClose={() => setShortcutsOpen(false)} />
+        <ShortcutsDialog
+          open={shortcutsOpen}
+          onClose={() => setShortcutsOpen(false)}
+          onOpenHelp={() => {
+            setShortcutsOpen(false);
+            openGuide();
+          }}
+        />
         <CommandPalette
           open={searchOpen}
           onClose={() => {
@@ -490,6 +514,8 @@ function AppShellFrame({ children }) {
           externalKeyDownRef={null}
           entityContext={entityContext}
           isAdminUser={isAdmin}
+          helpArticles={help.articles}
+          onOpenHelp={openGuide}
           onInviteUser={() => setInviteModalOpen(true)}
           onMarkAllNotificationsRead={async () => {
             await api("/notifications/read-all", { method: "PATCH" }).catch(() => {});
@@ -527,9 +553,11 @@ export function ShellGate({ children }) {
       <ChromeValueContext.Provider value={chrome}>
         <WorkspaceProvider>
           <PeekProvider>
-            <AppShellFrame>
-              <StablePage>{children}</StablePage>
-            </AppShellFrame>
+            <HelpProvider>
+              <AppShellFrame>
+                <StablePage>{children}</StablePage>
+              </AppShellFrame>
+            </HelpProvider>
           </PeekProvider>
         </WorkspaceProvider>
       </ChromeValueContext.Provider>

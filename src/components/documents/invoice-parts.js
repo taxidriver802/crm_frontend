@@ -21,6 +21,8 @@ import { CurrencyInput } from "@/components/ui/formatted-inputs";
 import { Alert } from "@/components/ui/alert";
 import { Eyebrow } from "@/components/records/record-bits";
 import { Icon } from "@/components/icons";
+import { HelpLink } from "@/components/help/help-provider";
+import { INVOICE_STEP_ARTICLE } from "@/lib/help";
 
 async function tryCopy(text) {
   try {
@@ -318,7 +320,10 @@ export function InvoiceNextStep({ invoice, actions, startPaying = false, compact
       data-testid="invoice-next-step"
     >
       <div className="min-w-0">
-        <Eyebrow>{isDone ? "Status" : "Next step"}</Eyebrow>
+        <div className="flex items-center gap-2">
+          <Eyebrow>{isDone ? "Status" : "Next step"}</Eyebrow>
+          <HelpLink article={INVOICE_STEP_ARTICLE[step.action]} />
+        </div>
         <div className={cx("font-medium", step.tone === "danger" && "text-danger")}>{step.label}</div>
         {step.detail ? <div className="text-sm text-muted">{step.detail}</div> : null}
       </div>

@@ -144,6 +144,7 @@ export function NavRail({
   onSearch,
   onInvite,
   onShortcuts,
+  onHelp,
   onLogout,
 }) {
   const { company } = useWorkspace();
@@ -201,7 +202,13 @@ export function NavRail({
       </div>
 
       <div className="rail-foot">
-        <UserMenu collapsed={collapsed} onInvite={onInvite} onShortcuts={onShortcuts} onLogout={onLogout} />
+        <UserMenu
+          collapsed={collapsed}
+          onInvite={onInvite}
+          onShortcuts={onShortcuts}
+          onHelp={onHelp}
+          onLogout={onLogout}
+        />
       </div>
     </aside>
   );

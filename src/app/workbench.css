@@ -2074,3 +2074,106 @@ a.phase-bar-row:hover {
   white-space: nowrap;
   border: 0;
 }
+
+/* ------------------------------------------------------------------ */
+/* Help: the user guide in a panel, over the work (or beside a peek)   */
+/* ------------------------------------------------------------------ */
+.help-panel {
+  z-index: 47;
+}
+@media (min-width: 1280px) {
+  .help-panel.help-beside-peek {
+    right: calc(min(32rem, calc(100vw - 4rem)) + 16px);
+  }
+}
+.help-link {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text-muted);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  text-decoration-color: color-mix(in srgb, var(--text-muted) 45%, transparent);
+}
+.help-link:hover {
+  color: var(--text);
+}
+.help-start {
+  display: grid;
+  gap: 8px;
+}
+.help-card {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 12px 14px;
+  border-radius: 12px;
+  border: 1px solid var(--border);
+  text-align: left;
+  transition: border-color var(--duration-fast, 120ms);
+}
+.help-card:hover {
+  border-color: color-mix(in srgb, var(--accent) 45%, var(--border));
+}
+.help-card-strong {
+  border-color: color-mix(in srgb, var(--accent) 35%, var(--border));
+  background: color-mix(in srgb, var(--accent) 7%, var(--surface-elevated));
+}
+.help-list {
+  display: flex;
+  flex-direction: column;
+  border-top: 1px solid var(--border);
+}
+.help-row {
+  display: flex;
+  width: 100%;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-height: var(--d-row, 40px);
+  padding: 6px 2px;
+  border-bottom: 1px solid var(--border);
+  text-align: left;
+  font-size: 14px;
+}
+.help-row:hover {
+  color: var(--accent);
+}
+.help-screen {
+  display: flex;
+}
+.help-article {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  font-size: 14px;
+  line-height: 1.55;
+}
+.help-h3 {
+  margin-top: 8px;
+  font-size: 15px;
+  font-weight: 650;
+  letter-spacing: -0.01em;
+}
+.help-ol,
+.help-ul {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding-left: 1.3rem;
+}
+.help-ol {
+  list-style: decimal;
+}
+.help-ul {
+  list-style: disc;
+}
+.help-ol li::marker {
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+}
+.help-code {
+  padding: 1px 5px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  font-size: 12.5px;
+}

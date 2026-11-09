@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { matchHelp } from "@/lib/help";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { api } from "@/lib/api";
 import { Overlay } from "@/components/ui/overlay";
@@ -116,12 +117,21 @@ function parseActionsQuery(query) {
 }
 
 function buildActionItems({
+  onOpenHelp,
   filter,
   isAdminUser,
   onInviteUser,
   onMarkAllNotificationsRead,
 }) {
   const actions = [
+    {
+      key: "action-help",
+      label: "Open Help",
+      sublabel: "The user guide, one task at a time",
+      group: "Actions",
+      icon: "help",
+      onSelect: () => onOpenHelp?.(),
+    },
     {
       key: "action-create-lead",
       href: "/leads/new",
@@ -309,16 +319,20 @@ function flattenResults(
     isAdminUser,
     onInviteUser,
     onMarkAllNotificationsRead,
+    helpArticles = [],
+    onOpenHelp,
     includeCreateFromQuery = false,
     createFromQueryText = "",
     entityContext = null,
     jumpActive = false,
     browseEmpty = false,
+    helpQuery = "",
   } = {},
 ) {
   const { isActionsMode, filter: actionFilter } = parseActionsQuery(query);
   if (isActionsMode) {
     return buildActionItems({
+      onOpenHelp: () => onOpenHelp?.(),
       filter: actionFilter,
       isAdminUser,
       onInviteUser,
@@ -374,6 +388,20 @@ function flattenResults(
     for (const item of globalItems) {
       if (relatedHrefs.has(item.href)) continue;
       output.push(item);
+    }
+
+    // Help answers the task typed, apart from the records it found.
+    if (helpQuery) {
+      for (const article of matchHelp(helpArticles, helpQuery).slice(0, 5)) {
+        output.push({
+          key: `help-${article.id}`,
+          label: article.title,
+          sublabel: article.kind === "start" ? "Start here" : article.group || "Help",
+          group: "Help",
+          icon: "help",
+          onSelect: () => onOpenHelp?.(article.id),
+        });
+      }
     }
 
     if (
@@ -500,6 +528,8 @@ export function CommandPalette({
   isAdminUser = false,
   onInviteUser,
   onMarkAllNotificationsRead,
+  helpArticles = [],
+  onOpenHelp,
 }) {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
@@ -531,6 +561,8 @@ export function CommandPalette({
 
   const inviteUserRef = useRef(onInviteUser);
   const markAllReadRef = useRef(onMarkAllNotificationsRead);
+  const openHelpRef = useRef(onOpenHelp);
+  openHelpRef.current = onOpenHelp;
   inviteUserRef.current = onInviteUser;
   markAllReadRef.current = onMarkAllNotificationsRead;
 
@@ -540,6 +572,9 @@ export function CommandPalette({
         isAdminUser,
         onInviteUser: () => inviteUserRef.current?.(),
         onMarkAllNotificationsRead: () => markAllReadRef.current?.(),
+        helpArticles,
+        onOpenHelp: (id) => openHelpRef.current?.(id),
+        helpQuery: parsedQuery.types.length || parsedQuery.status || parsedQuery.assigned ? "" : parsedQuery.text,
         includeCreateFromQuery: searchReady && !loading && Boolean(parsedQuery.text),
         createFromQueryText: parsedQuery.text,
         entityContext,
@@ -556,6 +591,7 @@ export function CommandPalette({
       navigationMode,
       recents,
       isAdminUser,
+      helpArticles,
       searchReady,
       loading,
       parsedQuery.text,

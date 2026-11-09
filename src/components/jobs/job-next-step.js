@@ -13,6 +13,8 @@ import { useToast } from "@/components/toast/toast-provider";
 import { Alert } from "@/components/ui/alert";
 import { Eyebrow } from "@/components/records/record-bits";
 import { Icon } from "@/components/icons";
+import { HelpLink } from "@/components/help/help-provider";
+import { NEXT_STEP_ARTICLE } from "@/lib/help";
 
 /** A job's estimates and invoices, kept current as they change anywhere on screen. */
 export function useJobDocuments(jobId) {
@@ -227,7 +229,10 @@ export function JobNextStep({ job, estimates, invoices, onSchedule, compact = fa
   return (
     <div className={cx("next-step", !compact && "next-step-row")} data-testid="job-next-step">
       <div className="min-w-0">
-        <Eyebrow>Next step</Eyebrow>
+        <div className="flex items-center gap-2">
+          <Eyebrow>Next step</Eyebrow>
+          <HelpLink article={NEXT_STEP_ARTICLE[step.action]} />
+        </div>
         <div className="font-medium">{step.label}</div>
         {detail ? <div className="text-sm text-muted">{detail}</div> : null}
       </div>

@@ -8,6 +8,9 @@ import { formatActivity, formatActivityTimestamp, getActivityHref } from "@/lib/
 import { JOB_PHASES, formatMoney, phaseOf } from "@/lib/job-lifecycle";
 import { Icon } from "@/components/icons";
 import { PeekLink } from "@/components/peek/peek-provider";
+import { HelpLink } from "@/components/help/help-provider";
+import { useOptionalWorkspace } from "@/components/workspace/workspace-provider";
+import { EMPTY_TODAY_ARTICLE } from "@/lib/help";
 import { useToast } from "@/components/toast/toast-provider";
 import { matchesQueueFilter, isOverdueItem, formatActionWhen } from "@/components/dashboard/queue";
 
@@ -51,6 +54,8 @@ function toneFor(item) {
 }
 
 export function NeedsYouWidget({ items, loading, onTaskDone }) {
+  const workspace = useOptionalWorkspace();
+  const emptyArticle = workspace?.isAdmin ? EMPTY_TODAY_ARTICLE.admin : EMPTY_TODAY_ARTICLE.agent;
   const { showToast } = useToast();
   const [filter, setFilter] = useState("all");
   const [expanded, setExpanded] = useState(false);
@@ -132,6 +137,13 @@ export function NeedsYouWidget({ items, loading, onTaskDone }) {
       ) : shown.length === 0 ? (
         <div className="widget-empty">
           {filter === "all" ? "Nothing needs you right now. Clear desk." : "Nothing in this slice."}
+          {filter === "all" && items.length === 0 ? (
+            <div className="mt-2">
+              <HelpLink article={emptyArticle}>
+                {emptyArticle === EMPTY_TODAY_ARTICLE.admin ? "New here? Start with your first job" : "How Today works"}
+              </HelpLink>
+            </div>
+          ) : null}
         </div>
       ) : (
         <ul data-testid="needs-you-list">

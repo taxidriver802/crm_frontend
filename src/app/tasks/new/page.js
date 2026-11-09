@@ -168,7 +168,6 @@ function NewTaskPageInner() {
           onSubmit={onSubmit}
           saving={saving}
           error={error}
-          submitLabel="Create task"
           cancelLabel="Cancel"
           onCancel={() => router.back()}
           contextType={contextType}

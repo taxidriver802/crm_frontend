@@ -20,6 +20,12 @@ const ICONS = {
     </>
   ),
   check: <path d="m5 12.5 4.5 4.5L19 7.5" />,
+  help: (
+    <>
+      <circle cx="12" cy="12" r="9" />
+      <path d="M9.6 9.3a2.5 2.5 0 0 1 4.8.9c0 1.7-2.4 2.2-2.4 3.6M12 17h.01" />
+    </>
+  ),
   keyboard: (
     <>
       <rect x="2.5" y="6" width="19" height="12" rx="2" />
