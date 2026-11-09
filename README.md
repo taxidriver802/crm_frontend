@@ -75,12 +75,15 @@ unless you have also set up cross-site cookies.
 ```
 src/
   app/           App Router routes (one folder per surface)
-  components/    Shell, lists, forms, dashboard, kanban, calendar, ui primitives
-  lib/           api client, helpers, search recents/filters, status tones
+  components/    shell, workspace (preferences, AdminOnly), peek, records,
+                 documents (estimate/invoice parts), jobs, today, lists,
+                 forms, kanban, calendar, ui primitives
+  lib/           api client, lifecycle vocabulary, documents, record events,
+                 url filters, preferences, helpers, status tones
   theme/         Palette registry and token maps
   assets/        Logo
   proxy.js       Next.js 16 request proxy (auth redirects)
-docs/            Design language, tokens, visual-overhaul checklist
+docs/            Older design language and visual-overhaul notes (history)
 ```
 
 There is no `hooks/`, `store/`, or Pages Router `pages/` tree. Almost every
@@ -103,39 +106,66 @@ Three shells. Do not mix them.
 | Public | `/public/portal`, `/public/intake`, `/public/estimate` | `PublicFrame`                   |
 
 `src/proxy.js` is Next 16’s proxy file (the old `middleware` convention). Its
-matcher only covers `/dashboard`, `/leads`, `/tasks`, `/files`, `/jobs`,
-`/notifications`, and `/login`. Other signed-in routes either redirect in the
-page (`/users`) or currently render the shell unsigned (`/invoices` is the
-documented example). Widen the matcher when you add a protected page that
-should bounce before paint.
+matcher covers `/dashboard`, `/leads`, `/tasks`, `/files`, `/jobs`,
+`/notifications`, `/settings`, `/login` and `/register`. Other signed-in
+routes redirect in the page: owner/admin areas (`/users`, templates,
+automation, integrations) go through `AdminOnly`, which sends a signed-out
+visitor to `/login` and tells anyone else the area is for owners and admins.
+`/invoices` and record pages outside the matcher (such as `/estimates/:id`)
+still render the shell before the API answers 401 (a known gap; see
+`crm_qa` auth tier 3). Widen the matcher when you add a
+protected page that should bounce before paint.
 
-## Shared UI
+## Shared UI (the Workbench)
 
 Reuse these instead of inventing a parallel set:
 
-- **Chrome:** `AppShell`, `AuthFrame`, `PublicFrame`, `CommandPalette`
-- **Lists:** `EntityList` (`layout="flush"`) for work records; `DataTable` for
-  Files and Users
-- **List chrome:** `PageToolbar`, `Segmented`, `SavedViewsControls`
-- **Metrics:** `StatCard`, `AttentionStrip`
-- **Records:** `DetailHeader` (no second title), `SectionCard`, `StatusBadge`,
-  `HealthBadge`
+- **Chrome:** `AppShell` (rail, top bar, phone tab bar, Create, search,
+  inbox), `CommandPalette`, `AuthFrame`, `PublicFrame`
+- **Workspace state:** `useWorkspace()` from
+  `components/workspace/workspace-provider.js` — user, role, preferences,
+  pins. Preferences save to the server (`/me/preferences`).
+- **Lists:** `RecordTable` with `lists/columns.js`, `PageToolbar`,
+  `Segmented` filters with counts, `SavedViewsControls`. Filters live in the
+  URL through `useUrlFilterSync` (`lib/url-filters.js`); a saved view is
+  `?view=<id>` and can be pinned.
+- **Peek:** `PeekLink` / `usePeek().openPeek(kind, id, { intent })` open a
+  record beside where you are (`?peek=kind:id`). `intent: "pay"` and
+  `"deposit"` open an invoice or estimate with that form ready.
+- **Records:** `components/records/record-layout.js` (`Tabs` + `useUrlTab`,
+  `RailPanel`, `useRecordSections`) and `record-bits.js` (`StatusPill`,
+  `Eyebrow`, `RecordUnavailable`). Head pattern: `record-head` with the
+  status, related records, the big number, Pin, More, and the next step.
+- **Next step:** the backend computes the job's next step
+  (`job.next_step`); `JobNextStep` gives each action a control.
+  `EstimateNextStep` and `InvoiceNextStep` (`components/documents/*`) do the
+  same for documents, so the record, its peek and the job agree.
+- **Keeping screens current:** after a write, `announceChange({ kind, id,
+  jobId })` (`lib/record-events.js`); anything showing that record or job
+  reloads through `useRecordChanges`.
+- **Older pieces still in use:** `SectionCard`, `StatusBadge`, `StatCard`
+  (reports), `DataTable` (Files, Users, team report), `DetailHeader` (task
+  page only), `AttentionStrip` (tasks).
 - **Forms:** `Field`, `FormActions`, entity forms under `components/forms/`
-- **Entity rows:** `leads-list`, `jobs-list`, `tasks-list`, `invoices-list`
 - **Feedback:** `Alert`, `EmptyState` / `PageError`, toasts, skeletons
 
-`ListToolbar`, `FilterBar`, `ActionQueue`, and `ToggleFormSection` are leftover
-and unused. Prefer `PageToolbar` and `SectionCard`.
+The lifecycle vocabulary in `lib/job-lifecycle.js` and `lib/status-tones.js`
+mirrors the backend by hand. `crm_qa`'s `npm run qa:drift-check` fails when
+they disagree, so change both sides together.
 
 ## Design system
 
 Do not paste tokens or layout rules into new files — follow these:
 
-- `[docs/design-language.md](docs/design-language.md)` — locked page structure
-  (headers, lists vs tool panels, Job as the detail template, forms, auth/public)
-- `[src/theme/tokens.md](src/theme/tokens.md)` — CSS variables, palettes, print/PWA
-- `[docs/VISUAL_OVERHAUL.md](docs/VISUAL_OVERHAUL.md)` — phased visual work
-- `[docs/crm-design-language.md](docs/crm-design-language.md)` — archive (classic vs new teardown)
+- `src/app/workbench.css` — the Workbench classes (shell, record head, next
+  step, peek, documents, lists) in the Field Ledger language
+- `crm_backend/docs/EXPERIMENT_UI_UX.md` — the Workbench thesis, layout and
+  preference model
+- [src/theme/tokens.md](src/theme/tokens.md) — CSS variables, palettes, print/PWA
+- [docs/design-language.md](docs/design-language.md),
+  [docs/VISUAL_OVERHAUL.md](docs/VISUAL_OVERHAUL.md),
+  [docs/crm-design-language.md](docs/crm-design-language.md) — pre-Workbench
+  page structure and visual work, kept for history
 
 Appearance goes through CSS variables from `src/theme` and Tailwind mappings in
 `tailwind.config.js`. No raw palette colors (`red-500`, `green-50`, …) for chrome
@@ -148,33 +178,34 @@ or status. Do not branch UI on palette ids.
 3. Pick the shell from the table above. `AppShell` `title` is the only `h1`.
 4. Fetch with `api()` from `@/lib/api` (JSON + cookies). File URLs use
    `API_BASE` from `@/lib/helper`.
-5. Work indexes (leads, jobs, tasks, invoices): `EntityList` + status
-   `Segmented` with counts + `PageToolbar`. Pipeline pages do not get an
-   overdue `StatCard` strip; Tasks may.
+5. Work indexes (leads, jobs, tasks, invoices): `RecordTable` + `Segmented`
+   with counts + `PageToolbar` + `SavedViewsControls`, filters synced to the
+   URL. Rows open in the peek.
 6. Tool panels (files, users, templates, automation, reports, integrations):
-   same chrome, **no** urgency metrics. Files/Users stay `DataTable`.
-7. Details copy Job: `DetailHeader` without a heading, stacked `SectionCard`s,
-   related records in the subtitle — not a second column.
-8. Full new/edit forms: AppShell + one card of `Field` / `FormActions`. Inline
-   create stays on the list for leads, jobs, and tasks.
+   same chrome, **no** urgency metrics. Owner/admin areas wrap their content
+   in `AdminOnly`.
+7. Records copy the job, estimate and invoice pages: the record head with
+   its next step, `Tabs` for the body, an optional details rail, and
+   `RecordUnavailable` when the record cannot be shown.
+8. Creating: one full form per type at `/<type>/new` (prefill with query
+   params such as `?job_id=` or `?lead_id=`), reached from Create or the
+   list's New button. Lists do not carry their own inline create.
 9. If the route should be unreachable while signed out, add it to `proxy.js`
    `protectedRoutes` **and** `config.matcher`.
 
-## Current redesign status
+## Current design status
 
-Classic vs “new” layouts are historical. The folders `dashboard/classic` and
-`leads/classic` listed in older tree docs are gone. The hybrid in
-`design-language.md` is the spec.
+The product runs on the Workbench layout (`experiment/CC_ui_reimagination`):
+one workspace the person shapes, records that open beside the list, and the
+next step always in view, drawn in the "Field Ledger" visual language
+(`src/app/workbench.css`). `experiment/CC_revise` made the money and document
+path run through it end to end. Decision logs: `crm_backend/docs/EXPERIMENT.md`
+(lifecycle and money), `EXPERIMENT_UI_UX.md` (Workbench) and
+`EXPERIMENT_REVISE.md` (this pass). Older layout docs in `docs/` describe the
+pre-Workbench pages and are kept for history.
 
-Visual-overhaul phases 1–9 (tokens, primitives, theme controller, chrome,
-product surfaces, charts, public pages, PDFs/email, PWA) are done. User-selectable
-palettes shipped (Rooftop default plus Azure, Slate, Emerald, Violet, Rose, Sand,
-Graphite). Optional leftovers: persist palette on `users.theme_palette`, and
-Phase 11 polish (reduced motion, high-contrast, focus audit, …).
-
-Command-palette expansion (recents, actions, aliases, create-from-query,
-filters, contextual results) is done. Job is the detail template; Measurements
-and Activity still collapse, as does Invoice Timeline.
+Palettes: Rooftop (default) plus Azure, Slate, Emerald, Violet, Rose, Sand and
+Graphite, chosen per person or as the company default.
 
 ## PWA
 
