@@ -41,7 +41,7 @@ const NEEDS_FILTERS = [
   { id: "overdue", label: "Late" },
   { id: "money", label: "Money" },
   { id: "waiting", label: "Waiting" },
-  { id: "pipeline", label: "Pipeline" },
+  { id: "pipeline", label: "Jobs & leads" },
 ];
 
 function toneFor(item) {
@@ -364,7 +364,7 @@ export function PipelineWidget({ byStatus = [], loading }) {
   return (
     <Widget
       id="pipeline"
-      title="Pipeline"
+      title="Jobs by phase"
       right={
         <Link href="/jobs" className="link text-xs">
           All jobs

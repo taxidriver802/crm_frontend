@@ -57,8 +57,8 @@ export const HOME_WIDGETS = [
   },
   {
     id: "pipeline",
-    label: "Pipeline",
-    description: "Jobs by phase, from selling to closed.",
+    label: "Jobs by phase",
+    description: "How many jobs sit in each phase, from selling to closed.",
     defaultColumn: "side",
   },
   {

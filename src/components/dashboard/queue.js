@@ -12,7 +12,7 @@ export const QUEUE_FILTERS = [
   { id: "today", label: "Today", short: "Today" },
   { id: "waiting", label: "Waiting", short: "Wait" },
   { id: "money", label: "Money", short: "Money" },
-  { id: "pipeline", label: "Pipeline", short: "Pipe" },
+  { id: "pipeline", label: "Jobs & leads", short: "Jobs" },
 ];
 
 export function actionKey(item) {

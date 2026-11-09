@@ -88,7 +88,10 @@ export function NavList({ collapsed = false, unread = 0, onNavigate }) {
         <div className="rail-group">
           {collapsed ? <div className="rail-rule" /> : <div className="rail-label">Pinned</div>}
           {pins.map((pin) => {
-            const active = pathname === pin.href.split("?")[0];
+            // A pinned record is active on its own page. A pinned view shares its
+            // list's path with every other filter, so the list's nav item shows
+            // where you are and the view pin stays quiet.
+            const active = !pin.href.includes("?") && pathname === pin.href;
             return (
               <div key={pin.id} className="rail-pin group">
                 <Link

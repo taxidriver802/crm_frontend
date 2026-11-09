@@ -116,6 +116,9 @@ export default function ReportsPage() {
     };
   }, [trends]);
 
+  const openJobs = jobPipeline
+    .filter((row) => !["Closed", "Lost"].includes(row.status))
+    .reduce((sum, row) => sum + Number(row.count || 0), 0);
   const collectedThisMonth = Number(
     collections.monthly[collections.monthly.length - 1]?.collected || 0,
   );
@@ -212,19 +215,14 @@ export default function ReportsPage() {
             <StatCard
               size="metric"
               label="Approved revenue"
-              value={`$${Number(estimateOutcomes.approvedRevenue || 0).toLocaleString(
-                undefined,
-                {
-                  minimumFractionDigits: 2,
-                  maximumFractionDigits: 2,
-                },
-              )}`}
+              value={formatMoney(estimateOutcomes.approvedRevenue)}
             />
             <StatCard
               size="metric"
-              label="Job stages"
-              value={jobPipeline.length}
-              sub="Distinct statuses"
+              label="Open jobs"
+              value={openJobs}
+              sub="Not closed or lost"
+              href="/jobs"
             />
           </div>
         )}
@@ -267,7 +265,7 @@ export default function ReportsPage() {
             )}
           </SectionCard>
 
-          <SectionCard title="Job pipeline">
+          <SectionCard title="Jobs by stage">
             {loading ? (
               <Skeleton className="h-28 w-full" />
             ) : (
@@ -276,8 +274,8 @@ export default function ReportsPage() {
                 emptyTitle="No job data yet"
                 emptyDescription={
                   <>
-                    <QuietLink href="/jobs/new">Add a job</QuietLink> to see the
-                    pipeline.
+                    <QuietLink href="/jobs/new">Add a job</QuietLink> to see where
+                    work stands.
                   </>
                 }
               />

@@ -7,6 +7,7 @@ import { cx } from "@/lib/cx";
 import { announceChange, touchesJob, useRecordChanges } from "@/lib/record-events";
 import { isOpenInvoice } from "@/lib/documents";
 import { formatMoney } from "@/lib/job-lifecycle";
+import { formatDue } from "@/lib/helper";
 import { usePeek } from "@/components/peek/peek-provider";
 import { useToast } from "@/components/toast/toast-provider";
 import { Alert } from "@/components/ui/alert";
@@ -92,6 +93,11 @@ export function JobNextStep({ job, estimates, invoices, onSchedule, compact = fa
   if (!step || step.action === "none") return null;
 
   const docs = pickJobDocuments(estimates, invoices);
+  // The server words the visit date in UTC; say it in the viewer's own time.
+  const detail =
+    step.action === "start_work" && job.next_appointment_at
+      ? `Scheduled ${formatDue(job.next_appointment_at)}.`
+      : step.detail;
 
   async function moveTo(status) {
     setBusy(true);
@@ -223,7 +229,7 @@ export function JobNextStep({ job, estimates, invoices, onSchedule, compact = fa
       <div className="min-w-0">
         <Eyebrow>Next step</Eyebrow>
         <div className="font-medium">{step.label}</div>
-        {step.detail ? <div className="text-sm text-muted">{step.detail}</div> : null}
+        {detail ? <div className="text-sm text-muted">{detail}</div> : null}
       </div>
       {control ? <div className="flex shrink-0 flex-wrap gap-2">{control}</div> : null}
       {error ? (
