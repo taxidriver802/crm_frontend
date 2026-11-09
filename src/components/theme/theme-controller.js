@@ -6,7 +6,7 @@ import {
   useContext,
   useEffect,
   useMemo,
-  useState,
+  useSyncExternalStore,
 } from "react";
 import { usePathname } from "next/navigation";
 import { useTheme } from "next-themes";
@@ -30,12 +30,53 @@ function applyPaletteAttribute(paletteId) {
   document.documentElement.setAttribute("data-palette", paletteId);
 }
 
+/*
+ * The palette choices live in localStorage (the inline boot script in
+ * registry.js reads the same keys before paint). They are read through
+ * useSyncExternalStore so the server render and hydration agree (null), the
+ * stored value arrives right after, and another tab's change follows along.
+ * A write that storage refuses (private mode, quota) is kept in memory for
+ * this tab.
+ */
+const paletteListeners = new Set();
+const paletteMemory = new Map();
+
+function notifyPalette() {
+  for (const listener of paletteListeners) listener();
+}
+
+function subscribePalette(listener) {
+  paletteListeners.add(listener);
+  const onStorage = () => {
+    paletteMemory.clear();
+    listener();
+  };
+  window.addEventListener("storage", onStorage);
+  return () => {
+    paletteListeners.delete(listener);
+    window.removeEventListener("storage", onStorage);
+  };
+}
+
+function rememberPalette(key, id) {
+  paletteMemory.set(key, id);
+  notifyPalette();
+}
+
+const readPersonalPalette = () =>
+  paletteMemory.has("personal") ? paletteMemory.get("personal") : readStoredPaletteId();
+const readCompanyPalette = () =>
+  paletteMemory.has("company") ? paletteMemory.get("company") : readStoredCompanyPaletteId();
+const readNothingOnServer = () => null;
+const subscribeNever = () => () => {};
+
 export function ThemeController({ children }) {
   const pathname = usePathname();
   const { resolvedTheme } = useTheme();
-  const [personalPaletteId, setPersonalPaletteId] = useState(null);
-  const [companyPaletteId, setCompanyPaletteIdState] = useState(null);
-  const [ready, setReady] = useState(false);
+  const personalPaletteId = useSyncExternalStore(subscribePalette, readPersonalPalette, readNothingOnServer);
+  const companyPaletteId = useSyncExternalStore(subscribePalette, readCompanyPalette, readNothingOnServer);
+  // False for the server render and hydration, true once the browser owns the page.
+  const ready = useSyncExternalStore(subscribeNever, () => true, () => false);
   const brandedSurface =
     isPublicCustomerPath(pathname) || isAuthEntryPath(pathname);
 
@@ -43,14 +84,6 @@ export function ThemeController({ children }) {
     ? companyPaletteId || DEFAULT_PALETTE_ID
     : personalPaletteId || companyPaletteId || DEFAULT_PALETTE_ID;
   const usingCompanyDefault = !personalPaletteId;
-
-  useEffect(() => {
-    const personal = readStoredPaletteId();
-    const company = readStoredCompanyPaletteId();
-    setPersonalPaletteId(personal);
-    setCompanyPaletteIdState(company);
-    setReady(true);
-  }, []);
 
   useEffect(() => {
     if (!ready) return;
@@ -63,27 +96,27 @@ export function ThemeController({ children }) {
 
   const setPaletteId = useCallback((nextId) => {
     const id = isPaletteId(nextId) ? nextId : DEFAULT_PALETTE_ID;
-    setPersonalPaletteId(id);
     try {
       window.localStorage.setItem(PALETTE_STORAGE_KEY, id);
     } catch {
       /* ignore quota / private mode */
     }
+    rememberPalette("personal", id);
   }, []);
 
   const clearPersonalPalette = useCallback(() => {
-    setPersonalPaletteId(null);
     try {
       window.localStorage.removeItem(PALETTE_STORAGE_KEY);
     } catch {
       /* ignore */
     }
+    rememberPalette("personal", null);
   }, []);
 
   const setCompanyPaletteId = useCallback((nextId) => {
     const id = isPaletteId(nextId) ? nextId : null;
-    setCompanyPaletteIdState(id);
     writeStoredCompanyPaletteId(id);
+    rememberPalette("company", id);
   }, []);
 
   const scheme = resolvedTheme === "dark" ? "dark" : "light";
