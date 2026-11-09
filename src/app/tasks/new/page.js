@@ -18,6 +18,8 @@ function NewTaskPageInner() {
   const prefillJobId = params.get("job_id") || "";
   const prefillTitle = params.get("title") || params.get("q") || "";
   const prefillKind = params.get("kind") === "appointment" ? "appointment" : "task";
+  // A day picked on the tasks calendar (YYYY-MM-DDTHH:mm).
+  const prefillDue = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(params.get("due") || "") ? params.get("due") : "";
 
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
@@ -35,6 +37,7 @@ function NewTaskPageInner() {
       job_id: prefillJobId,
       title: prefillTitle,
       kind: prefillKind,
+      ...(prefillDue ? { due_date: prefillDue } : {}),
     }),
   );
 

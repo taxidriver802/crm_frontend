@@ -410,7 +410,7 @@ export default function LeadDetailPage() {
                               description="Workspaces tied to this lead"
                               right={
                                 <Link
-                                  href={`/jobs?lead_id=${id}&open=create`}
+                                  href={`/jobs/new?lead_id=${id}`}
                                   className="btn btn-primary btn-sm"
                                 >
                                   New job
@@ -479,7 +479,7 @@ export default function LeadDetailPage() {
                   description="Workspaces tied to this lead"
                   right={
                     <Link
-                      href={`/jobs?lead_id=${id}&open=create`}
+                      href={`/jobs/new?lead_id=${id}`}
                       className="btn btn-primary btn-sm"
                     >
                       New job

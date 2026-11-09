@@ -1,11 +1,11 @@
 "use client";
 
+import { readParam, useUrlFilterSync } from "@/lib/url-filters";
 import { Alert } from "@/components/ui/alert";
 import { Suspense, useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { AppShell } from "@/components/app-shell";
-import { LeadForm, createEmptyLeadForm } from "@/components/forms/lead-form";
 import { api } from "@/lib/api";
 import { Skeleton } from "@/components/loading/loadingSkeletons";
 import { KanbanBoard } from "@/components/kanban/kanban-board";
@@ -24,7 +24,7 @@ const LEAD_PIPELINE_COLUMNS = ["New", "Contacted", "Qualified", "Closed", "Inact
 function LeadsPageInner() {
   const { showToast } = useToast();
   const searchParams = useSearchParams();
-  const [q, setQ] = useState("");
+  const [q, setQ] = useState(() => searchParams.get("q") || "");
   const [status, setStatus] = useState(() => searchParams.get("status") || "");
 
   const [summary, setSummary] = useState(null);
@@ -32,18 +32,13 @@ function LeadsPageInner() {
 
   const [loadingSummary, setLoadingSummary] = useState(true);
   const [loadingLeads, setLoadingLeads] = useState(true);
-  const [savingLead, setSavingLead] = useState(false);
   const [error, setError] = useState("");
-  const [createError, setCreateError] = useState("");
-
-  const [isCreateOpen, setIsCreateOpen] = useState(false);
-  const [leadForm, setLeadForm] = useState(createEmptyLeadForm());
   const [viewMode, setViewMode] = useState("list");
   const [viewFocusToken, setViewFocusToken] = useState(0);
   const viewContentRef = useScrollIntoViewOnChange(viewFocusToken);
   const [currentUser, setCurrentUser] = useState(null);
   const [teamUsers, setTeamUsers] = useState([]);
-  const [viewScope, setViewScope] = useState("mine");
+  const [viewScope, setViewScope] = useState(() => readParam(searchParams, "scope", "mine", ["mine", "all"]));
   const [assignedFilter, setAssignedFilter] = useState(
     () => searchParams.get("assignedTo") || "",
   );
@@ -98,6 +93,10 @@ function LeadsPageInner() {
   const currentFiltersForSave = useMemo(
     () => ({ q, status, assignedFilter, viewScope, viewMode }),
     [q, status, assignedFilter, viewScope, viewMode],
+  );
+  useUrlFilterSync(
+    { q, status, assignedTo: assignedFilter, scope: viewScope },
+    { q: "", status: "", assignedTo: "", scope: "mine" },
   );
 
   const queryString = useMemo(() => {
@@ -183,77 +182,6 @@ function LeadsPageInner() {
     loadSummary();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [summaryPath]);
-
-  async function handleCreateLead(e) {
-    e.preventDefault();
-    setCreateError("");
-
-    if (!leadForm.first_name.trim() || !leadForm.last_name.trim()) {
-      setCreateError("First name and last name are required.");
-      return;
-    }
-
-    const payload = {
-      ...leadForm,
-      first_name: leadForm.first_name.trim(),
-      last_name: leadForm.last_name.trim(),
-      email: leadForm.email.trim() || null,
-      phone: leadForm.phone.trim() || null,
-      source: leadForm.source.trim() || null,
-      service_type: leadForm.service_type?.trim() || null,
-      preferred_contact_method: leadForm.preferred_contact_method?.trim() || null,
-      urgency: leadForm.urgency?.trim() || null,
-      notes: leadForm.notes.trim() || null,
-      budget_min: leadForm.budget_min ? Number(leadForm.budget_min) : null,
-      budget_max: leadForm.budget_max ? Number(leadForm.budget_max) : null,
-    };
-
-    try {
-      setSavingLead(true);
-
-      const res = await api("/leads", {
-        method: "POST",
-        body: JSON.stringify(payload),
-      });
-
-      const newLead = res?.lead ?? null;
-
-      setLeadForm(createEmptyLeadForm());
-      setIsCreateOpen(false);
-
-      if (newLead) {
-        setLeads((prev) => [newLead, ...prev]);
-
-        setSummary((prev) => {
-          if (!prev) return prev;
-
-          const nextTotal = (prev.total ?? 0) + 1;
-          const nextStatus = payload.status || "New";
-          const prevByStatus = Array.isArray(prev.byStatus) ? prev.byStatus : [];
-
-          const exists = prevByStatus.some((item) => item.status === nextStatus);
-
-          const byStatus = exists
-            ? prevByStatus.map((item) =>
-                item.status === nextStatus ? { ...item, count: item.count + 1 } : item,
-              )
-            : [...prevByStatus, { status: nextStatus, count: 1 }];
-
-          return {
-            ...prev,
-            total: nextTotal,
-            byStatus,
-          };
-        });
-      } else {
-        await refreshAll();
-      }
-    } catch (e) {
-      setCreateError(e?.message || "Failed to create lead");
-    } finally {
-      setSavingLead(false);
-    }
-  }
 
   async function handleMoveLeadStatus(leadId, nextStatus) {
     const previous = leads;
@@ -349,46 +277,6 @@ function LeadsPageInner() {
       <div className="space-y-6">
         {error ? <Alert variant="inline">{error}</Alert> : null}
 
-        {isCreateOpen ? (
-          <section className="card p-4">
-            <div className="mb-4 flex min-w-0 flex-wrap items-start justify-between gap-3">
-              <div className="min-w-0">
-                <div className="text-sm font-medium">New lead</div>
-                <p className="mt-0.5 text-xs text-muted">
-                  Add to the pipeline without leaving this page.
-                </p>
-              </div>
-              <div className="flex shrink-0 flex-wrap gap-2">
-                <Link href="/leads/new" className="btn btn-sm">
-                  Full form
-                </Link>
-                <button
-                  type="button"
-                  className="btn btn-sm"
-                  onClick={() => setIsCreateOpen(false)}
-                  disabled={savingLead}
-                >
-                  Hide
-                </button>
-              </div>
-            </div>
-            <LeadForm
-              form={leadForm}
-              onChange={setLeadForm}
-              onSubmit={handleCreateLead}
-              saving={savingLead}
-              error={createError}
-              submitLabel="Create lead"
-              cancelLabel="Clear"
-              onCancel={() => {
-                setLeadForm(createEmptyLeadForm());
-                setCreateError("");
-              }}
-              layout="compact"
-            />
-          </section>
-        ) : null}
-
         <Segmented
           className="w-full min-w-0"
           aria-label="Lead status"
@@ -419,31 +307,29 @@ function LeadsPageInner() {
             </button>
           }
           create={
-            isCreateOpen ? null : (
-              <button
-                type="button"
-                className="btn btn-primary"
-                onClick={() => setIsCreateOpen(true)}
-                disabled={savingLead}
-              >
-                New lead
-              </button>
-            )
+            <Link href="/leads/new" className="btn btn-primary">
+              New lead
+            </Link>
           }
           savedViews={
             <SavedViewsControls
               entityType="leads"
+              listPath="/leads"
               currentFilters={currentFiltersForSave}
               onApplyFilters={(filters) => {
-                setQ(String(filters?.q || ""));
-                setStatus(String(filters?.status || ""));
-                setAssignedFilter(String(filters?.assignedFilter || ""));
-                setViewScope(String(filters?.viewScope || "mine"));
-                setViewMode(
-                  filters?.viewMode === "board" || filters?.viewMode === "list"
-                    ? filters.viewMode
-                    : "list",
-                );
+                const next = {
+                  q: String(filters?.q || ""),
+                  status: String(filters?.status || ""),
+                  assignedFilter: String(filters?.assignedFilter || ""),
+                  viewScope: filters?.viewScope === "all" && canViewAll ? "all" : "mine",
+                  viewMode: filters?.viewMode === "board" ? "board" : "list",
+                };
+                setQ(next.q);
+                setStatus(next.status);
+                setAssignedFilter(next.assignedFilter);
+                setViewScope(next.viewScope);
+                setViewMode(next.viewMode);
+                return next;
               }}
             />
           }

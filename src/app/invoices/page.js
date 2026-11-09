@@ -1,5 +1,6 @@
 "use client";
 
+import { useUrlFilterSync } from "@/lib/url-filters";
 import { Alert } from "@/components/ui/alert";
 import { Suspense, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
@@ -38,13 +39,15 @@ function InvoicesPageInner() {
   const [invoices, setInvoices] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
-  const [q, setQ] = useState("");
+  const [q, setQ] = useState(() => searchParams.get("q") || "");
   const [status, setStatus] = useState(() =>
     INVOICE_STATUSES.includes(statusParam) ? statusParam : "",
   );
   const [dueFilter, setDueFilter] = useState(() =>
     dueParam === "this_week" || dueParam === "overdue" ? dueParam : "",
   );
+
+  useUrlFilterSync({ q, status, due: dueFilter }, { q: "", status: "", due: "" });
 
   useEffect(() => {
     setStatus(INVOICE_STATUSES.includes(statusParam) ? statusParam : "");

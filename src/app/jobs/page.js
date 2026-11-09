@@ -5,7 +5,6 @@ import { Suspense, useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { AppShell } from "@/components/app-shell";
-import { JobForm, createEmptyJobForm } from "@/components/forms/job-form";
 import { api } from "@/lib/api";
 import { SavedViewsControls } from "@/components/saved-views-controls";
 import { Segmented } from "@/components/ui/segmented";
@@ -14,14 +13,15 @@ import { RecordTable, runBulk } from "@/components/ui/record-table";
 import { JOB_COLUMNS } from "@/components/lists/columns";
 import { useToast } from "@/components/toast/toast-provider";
 import { PageToolbar } from "@/components/page-toolbar";
-import { JOB_PHASES, JOB_STATUSES, phaseOf } from "@/lib/job-lifecycle";
+import { JOB_PHASES, JOB_STATUSES } from "@/lib/job-lifecycle";
+import { readParam, useUrlFilterSync } from "@/lib/url-filters";
 
 const PHASE_IDS = JOB_PHASES.map((phase) => phase.id);
 
 function JobsPageInner() {
   const { showToast } = useToast();
   const searchParams = useSearchParams();
-  const [q, setQ] = useState("");
+  const [q, setQ] = useState(() => searchParams.get("q") || "");
   // Exact status (deep links from the dashboard) or a lifecycle phase.
   const [status, setStatus] = useState(() => searchParams.get("status") || "");
   const [phase, setPhase] = useState(() => {
@@ -31,51 +31,28 @@ function JobsPageInner() {
 
   const [summary, setSummary] = useState(null);
   const [jobs, setJobs] = useState([]);
-  const [leads, setLeads] = useState([]);
 
   const [loadingSummary, setLoadingSummary] = useState(true);
   const [loadingJobs, setLoadingJobs] = useState(true);
-  const [loadingLeads, setLoadingLeads] = useState(false);
-  const [creating, setCreating] = useState(false);
   const [error, setError] = useState("");
-  const [createError, setCreateError] = useState("");
 
-  const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [currentUser, setCurrentUser] = useState(null);
   const [teamUsers, setTeamUsers] = useState([]);
-  const [viewScope, setViewScope] = useState("mine");
+  const [viewScope, setViewScope] = useState(() => readParam(searchParams, "scope", "mine", ["mine", "all"]));
   const [assignedFilter, setAssignedFilter] = useState(
     () => searchParams.get("assignedTo") || "",
   );
 
   const prefillLeadId = searchParams.get("lead_id") || "";
-  const shouldOpenCreate = searchParams.get("open") === "create";
   const statusParam = searchParams.get("status") || "";
   const phaseParam = searchParams.get("phase") || "";
   const assignedParam = searchParams.get("assignedTo") || "";
-
-  const [form, setForm] = useState(createEmptyJobForm({ lead_id: prefillLeadId }));
 
   useEffect(() => {
     setStatus(JOB_STATUSES.includes(statusParam) ? statusParam : "");
     setPhase(PHASE_IDS.includes(phaseParam) ? phaseParam : "");
     setAssignedFilter(assignedParam);
   }, [statusParam, phaseParam, assignedParam]);
-
-  useEffect(() => {
-    if (prefillLeadId) {
-      setForm((prev) => ({
-        ...prev,
-        lead_id: prefillLeadId,
-      }));
-    }
-  }, [prefillLeadId]);
-
-  useEffect(() => {
-    if (shouldOpenCreate) {
-      setIsCreateOpen(true);
-    }
-  }, [shouldOpenCreate]);
 
   useEffect(() => {
     let alive = true;
@@ -107,6 +84,10 @@ function JobsPageInner() {
   const currentFiltersForSave = useMemo(
     () => ({ q, status, phase, assignedFilter, viewScope }),
     [q, status, phase, assignedFilter, viewScope],
+  );
+  useUrlFilterSync(
+    { q, status, phase, assignedTo: assignedFilter, scope: viewScope },
+    { q: "", status: "", phase: "", assignedTo: "", scope: "mine" },
   );
   const newJobHref = prefillLeadId ? `/jobs/new?lead_id=${prefillLeadId}` : "/jobs/new";
   const summaryPath =
@@ -196,25 +177,9 @@ function JobsPageInner() {
     }
   }
 
-  async function loadLeads() {
-    setLoadingLeads(true);
-    try {
-      const data = await api("/leads?limit=200&offset=0");
-      setLeads(data.leads || []);
-    } catch (e) {
-      setError(e.message || "Failed to load leads");
-    } finally {
-      setLoadingLeads(false);
-    }
-  }
-
   async function refreshAll() {
     setError("");
-    await Promise.all([
-      loadSummary(),
-      loadJobs(),
-      isCreateOpen ? loadLeads() : Promise.resolve(),
-    ]);
+    await Promise.all([loadSummary(), loadJobs()]);
   }
 
   useEffect(() => {
@@ -226,68 +191,6 @@ function JobsPageInner() {
     loadJobs();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [queryString]);
-
-  useEffect(() => {
-    if (!isCreateOpen) return;
-    loadLeads();
-  }, [isCreateOpen]);
-
-  async function handleCreateJob(e) {
-    e.preventDefault();
-    setCreating(true);
-    setCreateError("");
-
-    try {
-      if (!form.lead_id.trim()) {
-        throw new Error("Please choose a lead.");
-      }
-
-      if (!form.title.trim()) {
-        throw new Error("Title is required.");
-      }
-
-      const payload = {
-        lead_id: Number(form.lead_id),
-        title: form.title.trim(),
-        description: form.description.trim() || null,
-        status: form.status || "New",
-        address: form.address.trim() || null,
-      };
-
-      const data = await api("/jobs", {
-        method: "POST",
-        body: JSON.stringify(payload),
-      });
-
-      const newJob = data?.job ?? null;
-
-      setForm(createEmptyJobForm({ lead_id: prefillLeadId || "" }));
-      setIsCreateOpen(false);
-      setCreateError("");
-
-      if (newJob) {
-        setJobs((prev) => [newJob, ...prev]);
-        setSummary((prev) => {
-          if (!prev) return prev;
-          const nextPhase = phaseOf(newJob.status || payload.status || "New");
-          const prevByPhase = Array.isArray(prev.byPhase) ? prev.byPhase : [];
-          return {
-            ...prev,
-            total: (prev.total ?? 0) + 1,
-            byPhase: prevByPhase.map((item) =>
-              item.phase === nextPhase ? { ...item, count: item.count + 1 } : item,
-            ),
-          };
-        });
-      } else {
-        await refreshAll();
-      }
-    } catch (e) {
-      setCreateError(e.message || "Failed to create job");
-    } finally {
-      setCreating(false);
-    }
-  }
 
   const byPhase = Array.isArray(summary?.byPhase) ? summary.byPhase : [];
   const phaseOptions = [
@@ -329,48 +232,6 @@ function JobsPageInner() {
     >
       <div className="space-y-4">
         {error ? <Alert variant="inline">{error}</Alert> : null}
-
-        {isCreateOpen ? (
-          <section className="card p-4">
-            <div className="mb-4 flex min-w-0 flex-wrap items-start justify-between gap-3">
-              <div className="min-w-0">
-                <div className="text-sm font-medium">New job</div>
-                <p className="mt-0.5 text-xs text-muted">
-                  Start a workspace tied to an existing lead.
-                </p>
-              </div>
-              <div className="flex shrink-0 flex-wrap gap-2">
-                <Link href={newJobHref} className="btn btn-sm">
-                  Full form
-                </Link>
-                <button
-                  type="button"
-                  className="btn btn-sm"
-                  onClick={() => setIsCreateOpen(false)}
-                  disabled={creating}
-                >
-                  Hide
-                </button>
-              </div>
-            </div>
-            <JobForm
-              form={form}
-              onChange={setForm}
-              onSubmit={handleCreateJob}
-              saving={creating}
-              error={createError}
-              submitLabel="Create job"
-              cancelLabel="Clear"
-              onCancel={() => {
-                setForm(createEmptyJobForm({ lead_id: prefillLeadId || "" }));
-                setCreateError("");
-              }}
-              leads={leads}
-              loadingLeads={loadingLeads}
-              layout="compact"
-            />
-          </section>
-        ) : null}
 
         <Segmented
           className="w-full min-w-0"
@@ -418,29 +279,31 @@ function JobsPageInner() {
             </button>
           }
           create={
-            isCreateOpen ? null : (
-              <button
-                type="button"
-                className="btn btn-primary"
-                onClick={() => setIsCreateOpen(true)}
-                disabled={creating}
-              >
-                New job
-              </button>
-            )
+            <Link href={newJobHref} className="btn btn-primary">
+              New job
+            </Link>
           }
           savedViews={
             <SavedViewsControls
               entityType="jobs"
+              listPath="/jobs"
               currentFilters={currentFiltersForSave}
               onApplyFilters={(filters) => {
-                setQ(String(filters?.q || ""));
                 const savedStatus = String(filters?.status || "");
-                setStatus(JOB_STATUSES.includes(savedStatus) ? savedStatus : "");
                 const savedPhase = String(filters?.phase || "");
-                setPhase(PHASE_IDS.includes(savedPhase) ? savedPhase : "");
-                setAssignedFilter(String(filters?.assignedFilter || ""));
-                setViewScope(String(filters?.viewScope || "mine"));
+                const next = {
+                  q: String(filters?.q || ""),
+                  status: JOB_STATUSES.includes(savedStatus) ? savedStatus : "",
+                  phase: PHASE_IDS.includes(savedPhase) ? savedPhase : "",
+                  assignedFilter: String(filters?.assignedFilter || ""),
+                  viewScope: filters?.viewScope === "all" && canViewAll ? "all" : "mine",
+                };
+                setQ(next.q);
+                setStatus(next.status);
+                setPhase(next.phase);
+                setAssignedFilter(next.assignedFilter);
+                setViewScope(next.viewScope);
+                return next;
               }}
             />
           }

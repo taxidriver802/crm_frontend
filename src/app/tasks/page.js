@@ -1,5 +1,6 @@
 "use client";
 
+import { readParam, useUrlFilterSync } from "@/lib/url-filters";
 import { Alert } from "@/components/ui/alert";
 import {
   Suspense,
@@ -11,11 +12,6 @@ import {
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { AppShell } from "@/components/app-shell";
-import {
-  TaskForm,
-  createEmptyTaskForm,
-  buildTaskApiPayload,
-} from "@/components/forms/task-form";
 import { api } from "@/lib/api";
 import { TaskCalendar } from "@/components/calendar/task-calendar";
 import { SavedViewsControls } from "@/components/saved-views-controls";
@@ -49,7 +45,6 @@ function TasksPageInner() {
 
   const prefillLeadId = searchParams.get("lead_id") || "";
   const prefillJobId = searchParams.get("job_id") || "";
-  const shouldOpenCreate = searchParams.get("open") === "create";
   const assignedParam = searchParams.get("assignedTo") || "";
   const statusParam = searchParams.get("status") || "";
 
@@ -59,37 +54,22 @@ function TasksPageInner() {
   const [loadingTasks, setLoadingTasks] = useState(true);
   const [error, setError] = useState("");
 
-  const [title, setTitle] = useState("");
+  const [title, setTitle] = useState(() => searchParams.get("q") || "");
   const [status, setStatus] = useState(() => statusParam);
-  const [linkedFilter, setLinkedFilter] = useState("");
+  const [linkedFilter, setLinkedFilter] = useState(() => readParam(searchParams, "linked", "", ["job", "lead"]));
   const [leadId, setLeadId] = useState("");
   const [jobId, setJobId] = useState("");
 
-  const [leads, setLeads] = useState([]);
-  const [jobs, setJobs] = useState([]);
-  const [loadingLeads, setLoadingLeads] = useState(false);
-  const [loadingJobs, setLoadingJobs] = useState(false);
-
-  const [isCreateOpen, setIsCreateOpen] = useState(false);
-  const [creatingTask, setCreatingTask] = useState(false);
-  const [createError, setCreateError] = useState("");
   const [currentUser, setCurrentUser] = useState(null);
   const [teamUsers, setTeamUsers] = useState([]);
-  const [viewScope, setViewScope] = useState("mine");
+  const [viewScope, setViewScope] = useState(() => readParam(searchParams, "scope", "mine", ["mine", "all"]));
   const [assignedFilter, setAssignedFilter] = useState(() => assignedParam);
 
-  const [contextType, setContextType] = useState(prefillJobId ? "job" : "lead");
   const [viewMode, setViewMode] = useState("list");
   const [calendarRange, setCalendarRange] = useState({ dateFrom: "", dateTo: "" });
   const [viewFocusToken, setViewFocusToken] = useState(0);
   const viewContentRef = useScrollIntoViewOnChange(viewFocusToken);
   const [unscheduledCount, setUnscheduledCount] = useState(0);
-  const [taskForm, setTaskForm] = useState(
-    createEmptyTaskForm({
-      lead_id: prefillLeadId,
-      job_id: prefillJobId,
-    }),
-  );
 
   const canViewAll = currentUser?.role === "owner" || currentUser?.role === "admin";
   const duePreset = useMemo(() => parseDuePresetFromSearch(searchParams), [searchParams]);
@@ -124,6 +104,11 @@ function TasksPageInner() {
       viewMode,
       duePreset,
     ],
+  );
+
+  useUrlFilterSync(
+    { q: title, status, linked: linkedFilter, assignedTo: assignedFilter, scope: viewScope },
+    { q: "", status: "", linked: "", assignedTo: "", scope: "mine" },
   );
 
   useEffect(() => {
@@ -194,35 +179,6 @@ function TasksPageInner() {
 
   function handleMetricFocus(id) {
     replaceDuePresetInUrl(id === "all" ? "" : id);
-  }
-
-  useEffect(() => {
-    if (shouldOpenCreate) {
-      setIsCreateOpen(true);
-    }
-  }, [shouldOpenCreate]);
-
-  useEffect(() => {
-    if (prefillLeadId) {
-      setTaskForm((prev) => ({ ...prev, lead_id: prefillLeadId }));
-      setContextType("lead");
-    }
-  }, [prefillLeadId]);
-
-  useEffect(() => {
-    if (prefillJobId) {
-      setTaskForm((prev) => ({ ...prev, job_id: prefillJobId }));
-      setContextType("job");
-    }
-  }, [prefillJobId]);
-
-  function handleContextChange(type) {
-    setContextType(type);
-    setTaskForm((prev) => ({
-      ...prev,
-      lead_id: type === "lead" ? prev.lead_id : "",
-      job_id: type === "job" ? prev.job_id : "",
-    }));
   }
 
   const queryString = useMemo(() => {
@@ -327,37 +283,9 @@ function TasksPageInner() {
     }
   }
 
-  async function loadLeads() {
-    setLoadingLeads(true);
-    try {
-      const data = await api("/leads?limit=200&offset=0");
-      setLeads(data.leads || []);
-    } catch (e) {
-      setError(e.message || "Failed to load leads");
-    } finally {
-      setLoadingLeads(false);
-    }
-  }
-
-  async function loadJobs() {
-    setLoadingJobs(true);
-    try {
-      const data = await api("/jobs?limit=200&offset=0");
-      setJobs(data.jobs || []);
-    } catch (e) {
-      setError(e.message || "Failed to load jobs");
-    } finally {
-      setLoadingJobs(false);
-    }
-  }
-
   async function refreshAll() {
     setError("");
-    await Promise.all([
-      loadSummary(),
-      loadTasks(),
-      isCreateOpen ? Promise.all([loadLeads(), loadJobs()]) : Promise.resolve(),
-    ]);
+    await Promise.all([loadSummary(), loadTasks()]);
   }
 
   useEffect(() => {
@@ -369,12 +297,6 @@ function TasksPageInner() {
     loadTasks();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [queryString]);
-
-  useEffect(() => {
-    if (!isCreateOpen) return;
-    loadLeads();
-    loadJobs();
-  }, [isCreateOpen]);
 
   async function setTaskStatus(taskId, nextStatus, { undoable = true } = {}) {
     const before = tasks.find((t) => t.id === taskId);
@@ -409,62 +331,6 @@ function TasksPageInner() {
         : `${result.ok} task${result.ok === 1 ? "" : "s"} ${label}`,
       { tone: result.failed ? "danger" : "success" },
     );
-  }
-
-  async function handleCreateTask(e) {
-    e.preventDefault();
-    setCreateError("");
-
-    if (contextType === "lead" && !taskForm.lead_id.trim()) {
-      setCreateError("Please choose a lead.");
-      return;
-    }
-
-    if (contextType === "job" && !taskForm.job_id.trim()) {
-      setCreateError("Please choose a job.");
-      return;
-    }
-
-    if (!taskForm.title.trim()) {
-      setCreateError("Title is required.");
-      return;
-    }
-
-    if (taskForm.kind === "appointment" && !taskForm.due_date) {
-      setCreateError("Appointments require a start time.");
-      return;
-    }
-
-    const payload = buildTaskApiPayload(taskForm, { contextType });
-
-    try {
-      setCreatingTask(true);
-
-      const data = await api("/tasks", {
-        method: "POST",
-        body: JSON.stringify(payload),
-      });
-
-      const createdTask = data?.task ?? null;
-
-      setTaskForm(
-        createEmptyTaskForm({
-          lead_id: contextType === "lead" ? taskForm.lead_id : "",
-          job_id: contextType === "job" ? taskForm.job_id : "",
-        }),
-      );
-      setIsCreateOpen(false);
-
-      if (createdTask) {
-        setTasks((prev) => [createdTask, ...prev]);
-      }
-
-      await loadSummary();
-    } catch (e) {
-      setCreateError(e?.message || "Failed to create task");
-    } finally {
-      setCreatingTask(false);
-    }
   }
 
   const overdueCount = summary?.counts?.overdue ?? 0;
@@ -538,59 +404,6 @@ function TasksPageInner() {
       <div className="space-y-6">
         {error ? <Alert variant="inline">{error}</Alert> : null}
 
-        {isCreateOpen ? (
-          <section className="card p-4">
-            <div className="mb-4 flex min-w-0 flex-wrap items-start justify-between gap-3">
-              <div className="min-w-0">
-                <div className="text-sm font-medium">New task</div>
-                <p className="mt-0.5 text-xs text-muted">
-                  Add a follow-up tied to a lead or job.
-                </p>
-              </div>
-              <div className="flex shrink-0 flex-wrap gap-2">
-                <Link href={newTaskHref} className="btn btn-sm">
-                  Full form
-                </Link>
-                <button
-                  type="button"
-                  className="btn btn-sm"
-                  onClick={() => setIsCreateOpen(false)}
-                  disabled={creatingTask}
-                >
-                  Hide
-                </button>
-              </div>
-            </div>
-            <TaskForm
-              form={taskForm}
-              onChange={setTaskForm}
-              onSubmit={handleCreateTask}
-              saving={creatingTask}
-              error={createError}
-              submitLabel="Create task"
-              cancelLabel="Clear"
-              onCancel={() => {
-                setTaskForm(
-                  createEmptyTaskForm({
-                    lead_id: prefillLeadId || "",
-                    job_id: prefillJobId || "",
-                  }),
-                );
-                setContextType(prefillJobId ? "job" : "lead");
-                setCreateError("");
-              }}
-              contextType={contextType}
-              onContextChange={handleContextChange}
-              leads={leads}
-              jobs={jobs}
-              loadingLeads={loadingLeads}
-              loadingJobs={loadingJobs}
-              isContextLocked={false}
-              layout="compact"
-            />
-          </section>
-        ) : null}
-
         <AttentionStrip
           metrics={metrics}
           focus={duePreset || "all"}
@@ -628,35 +441,37 @@ function TasksPageInner() {
             </button>
           }
           create={
-            isCreateOpen ? null : (
-              <button
-                type="button"
-                className="btn btn-primary"
-                onClick={() => setIsCreateOpen(true)}
-                disabled={creatingTask}
-              >
-                New task
-              </button>
-            )
+            <Link href={newTaskHref} className="btn btn-primary">
+              New task
+            </Link>
           }
           savedViews={
             <SavedViewsControls
               entityType="tasks"
+              listPath="/tasks"
               currentFilters={currentFiltersForSave}
               onApplyFilters={(filters) => {
-                setTitle(String(filters?.title || ""));
-                setStatus(String(filters?.status || ""));
-                setLinkedFilter(String(filters?.linkedFilter || ""));
-                setLeadId(String(filters?.leadId || ""));
-                setJobId(String(filters?.jobId || ""));
-                setAssignedFilter(String(filters?.assignedFilter || ""));
-                setViewScope(String(filters?.viewScope || "mine"));
-                setViewMode(
-                  filters?.viewMode === "calendar" || filters?.viewMode === "list"
-                    ? filters.viewMode
-                    : "list",
-                );
-                replaceDuePresetInUrl(String(filters?.duePreset || ""));
+                const next = {
+                  title: String(filters?.title || ""),
+                  status: String(filters?.status || ""),
+                  linkedFilter: String(filters?.linkedFilter || ""),
+                  leadId: String(filters?.leadId || ""),
+                  jobId: String(filters?.jobId || ""),
+                  assignedFilter: String(filters?.assignedFilter || ""),
+                  viewScope: filters?.viewScope === "all" && canViewAll ? "all" : "mine",
+                  viewMode: filters?.viewMode === "calendar" ? "calendar" : "list",
+                  duePreset: String(filters?.duePreset || ""),
+                };
+                setTitle(next.title);
+                setStatus(next.status);
+                setLinkedFilter(next.linkedFilter);
+                setLeadId(next.leadId);
+                setJobId(next.jobId);
+                setAssignedFilter(next.assignedFilter);
+                setViewScope(next.viewScope);
+                setViewMode(next.viewMode);
+                replaceDuePresetInUrl(next.duePreset);
+                return next;
               }}
             />
           }
@@ -708,11 +523,7 @@ function TasksPageInner() {
                   const yyyy = day.getFullYear();
                   const mm = String(day.getMonth() + 1).padStart(2, "0");
                   const dd = String(day.getDate()).padStart(2, "0");
-                  setTaskForm((prev) => ({
-                    ...prev,
-                    due_date: `${yyyy}-${mm}-${dd}T09:00`,
-                  }));
-                  setIsCreateOpen(true);
+                  router.push(`${newTaskHref}${newTaskHref.includes("?") ? "&" : "?"}due=${yyyy}-${mm}-${dd}T09:00`);
                 }}
               />
             </div>
