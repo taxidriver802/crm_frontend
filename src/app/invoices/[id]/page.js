@@ -129,6 +129,20 @@ export default function InvoiceRecordPage() {
     load();
   }, [load]);
 
+  // Offer QuickBooks sync only when this person has QuickBooks connected.
+  const [qbConnected, setQbConnected] = useState(false);
+  useEffect(() => {
+    let alive = true;
+    api("/integrations/quickbooks/status")
+      .then((res) => {
+        if (alive) setQbConnected(Boolean(res?.integration?.connected));
+      })
+      .catch(() => {});
+    return () => {
+      alive = false;
+    };
+  }, []);
+
   // A payment recorded in a peek, or a void from the job, shows up here too.
   useRecordChanges((detail) => {
     if (detail.kind === "invoice" && String(detail.id) === String(id) && !detail.deleted) load();
@@ -349,15 +363,17 @@ export default function InvoiceRecordPage() {
                         </MenuItem>
                       </>
                     ) : null}
-                    <MenuItem
-                      icon={<Icon name="plug" className="h-4 w-4 text-muted" />}
-                      onSelect={() => {
-                        close();
-                        actions.syncQuickBooks();
-                      }}
-                    >
-                      Sync to QuickBooks
-                    </MenuItem>
+                    {qbConnected ? (
+                      <MenuItem
+                        icon={<Icon name="plug" className="h-4 w-4 text-muted" />}
+                        onSelect={() => {
+                          close();
+                          actions.syncQuickBooks();
+                        }}
+                      >
+                        Sync to QuickBooks
+                      </MenuItem>
+                    ) : null}
                     {canVoid || canDelete ? <MenuDivider /> : null}
                     {canVoid ? (
                       <MenuItem

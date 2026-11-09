@@ -1,5 +1,6 @@
 "use client";
 
+import { AdminOnly } from "@/components/workspace/admin-only";
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { AppShell } from "@/components/app-shell";
@@ -31,6 +32,14 @@ function templateSubtotal(template) {
 }
 
 export default function EstimateTemplatesPage() {
+  return (
+    <AdminOnly title="Templates" area="Estimate templates">
+      <EstimateTemplatesPageContent />
+    </AdminOnly>
+  );
+}
+
+function EstimateTemplatesPageContent() {
   const router = useRouter();
   const { askConfirm, confirmModal } = useConfirmModal();
 

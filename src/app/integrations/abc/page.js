@@ -1,5 +1,6 @@
 "use client";
 
+import { AdminOnly } from "@/components/workspace/admin-only";
 import { Alert } from "@/components/ui/alert";
 import { useEffect, useMemo, useState } from "react";
 import { AppShell } from "@/components/app-shell";
@@ -69,6 +70,14 @@ function getIntegrationHealth(data) {
 }
 
 export default function AbcIntegrationPage() {
+  return (
+    <AdminOnly title="ABC Supply" area="Integrations">
+      <AbcIntegrationPageContent />
+    </AdminOnly>
+  );
+}
+
+function AbcIntegrationPageContent() {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");

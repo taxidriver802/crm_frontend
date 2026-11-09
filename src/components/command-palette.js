@@ -43,20 +43,22 @@ const QUICK_NAV_ITEMS = [
     keywords: "alerts inbox bell unread",
   },
   { href: "/reports", label: "Reports", icon: "chart", keywords: "analytics rpt" },
-  { href: "/automation", label: "Automation", icon: "spark", keywords: "workflows auto" },
+  { href: "/automation", label: "Automation", icon: "spark", keywords: "workflows auto", admin: true },
   {
     href: "/estimates/templates",
     label: "Templates",
     icon: "invoice",
     keywords: "quotes estimate packages est tmpl",
+    admin: true,
   },
   {
     href: "/integrations",
     label: "Integrations",
     icon: "plug",
     keywords: "connections integ",
+    admin: true,
   },
-  { href: "/users", label: "Users", icon: "users", keywords: "team usr" },
+  { href: "/users", label: "Team", icon: "users", keywords: "team users usr", admin: true },
 ];
 
 const EMPTY_RESULTS = {
@@ -386,6 +388,7 @@ function flattenResults(
   const normalizedQuery = query.trim().toLowerCase();
   if (navigationMode === "pages") {
     for (const page of QUICK_NAV_ITEMS) {
+      if (page.admin && !isAdminUser) continue;
       const haystack = `${page.label} ${page.keywords}`.toLowerCase();
       if (!normalizedQuery || haystack.includes(normalizedQuery)) {
         output.push({

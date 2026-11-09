@@ -23,7 +23,7 @@ export const NAV_ITEMS = [
   { id: "reports", label: "Reports", href: "/reports", icon: "chart", group: "tools", shortcut: "g r" },
   { id: "templates", label: "Templates", href: "/estimates/templates", icon: "invoice", group: "tools", admin: true },
   { id: "automation", label: "Automation", href: "/automation", icon: "spark", group: "tools", admin: true },
-  { id: "integrations", label: "Integrations", href: "/integrations", icon: "plug", group: "tools" },
+  { id: "integrations", label: "Integrations", href: "/integrations", icon: "plug", group: "tools", admin: true },
   { id: "team", label: "Team", href: "/users", icon: "users", group: "tools", admin: true },
 ];
 

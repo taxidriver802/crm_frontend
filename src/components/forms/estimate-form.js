@@ -4,12 +4,9 @@ import { Alert } from "@/components/ui/alert";
 import { Skeleton } from "@/components/loading/loadingSkeletons";
 import { Field, FormActions } from "@/components/ui/field";
 
-const ESTIMATE_STATUS_OPTIONS = ["Draft", "Sent", "Approved", "Rejected"];
-
 const EMPTY_ESTIMATE_FORM = {
   job_id: "",
   title: "",
-  status: "Draft",
   notes: "",
 };
 
@@ -100,28 +97,14 @@ export function EstimateForm({
               />
             </Field>
 
-            <Field label="Status">
-              <select
-                className="input"
-                value={form.status}
-                onChange={(e) => setField("status", e.target.value)}
-                disabled={saving}
-              >
-                {ESTIMATE_STATUS_OPTIONS.map((status) => (
-                  <option key={status} value={status}>
-                    {status}
-                  </option>
-                ))}
-              </select>
-            </Field>
-
             <Field
-              label="Notes"
+              label="Notes for the client"
+              help="Shown on the estimate the client opens and on its PDF — terms, what is included, how long the price holds."
               className={isCompact ? "md:col-span-2" : "sm:col-span-2"}
             >
               <textarea
                 className="input min-h-[120px]"
-                placeholder="Add internal notes or estimate context..."
+                placeholder="Example: Price holds for 30 days. Includes one layer of tear-off."
                 value={form.notes}
                 onChange={(e) => setField("notes", e.target.value)}
                 disabled={saving}
@@ -172,12 +155,6 @@ export function EstimateFormSkeleton({ layout = "default", onCancel }) {
         {/* Title */}
         <div className={isCompact ? "md:col-span-2" : "sm:col-span-2"}>
           <Skeleton className="mb-2 h-3 w-20" />
-          <Skeleton className="h-10 w-full" />
-        </div>
-
-        {/* Status */}
-        <div>
-          <Skeleton className="mb-2 h-3 w-16" />
           <Skeleton className="h-10 w-full" />
         </div>
 

@@ -1,5 +1,6 @@
 "use client";
 
+import { AdminOnly } from "@/components/workspace/admin-only";
 import { useEffect, useLayoutEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -37,6 +38,14 @@ function getTableDropdownMenuPosition(triggerEl) {
 }
 
 export default function UsersPage() {
+  return (
+    <AdminOnly title="Team" area="The team">
+      <UsersPageContent />
+    </AdminOnly>
+  );
+}
+
+function UsersPageContent() {
   const router = useRouter();
   const { askConfirm, confirmModal } = useConfirmModal();
 

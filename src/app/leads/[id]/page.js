@@ -25,7 +25,7 @@ import { StatusBadge } from "@/components/ui/status-badge";
 import { SectionCard } from "@/components/ui/section-card";
 import { formatWholeDollarDisplay } from "@/lib/input-format";
 import { PeekLink } from "@/components/peek/peek-provider";
-import { ContactLinks, DetailList, HealthDot, StatusPill } from "@/components/records/record-bits";
+import { ContactLinks, DetailList, HealthDot, RecordUnavailable, StatusPill } from "@/components/records/record-bits";
 import {
   RailPanel,
   SectionArranger,
@@ -78,6 +78,7 @@ export default function LeadDetailPage() {
   const [busyFileId, setBusyFileId] = useState(null);
 
   const [error, setError] = useState("");
+  const [loadError, setLoadError] = useState(null);
   const [tasksError, setTasksError] = useState("");
   const [filesError, setFilesError] = useState("");
   const [success, setSuccess] = useState("");
@@ -111,9 +112,10 @@ export default function LeadDetailPage() {
         const res = await api(`/leads/${id}`);
         if (!alive) return;
         setLead(res.lead ?? res);
+        setLoadError(null);
       } catch (e) {
         if (!alive) return;
-        setError(e?.message || "Failed to load lead");
+        setLoadError(e);
       } finally {
         if (!alive) return;
         setLoading(false);
@@ -275,7 +277,7 @@ export default function LeadDetailPage() {
 
   const leadName = lead
     ? `${lead.first_name || ""} ${lead.last_name || ""}`.trim() || `Lead #${id}`
-    : `Lead #${id}`;
+    : "Lead";
 
   return (
     <AppShell title={leadName} description={lead?.service_type || undefined}>
@@ -293,9 +295,13 @@ export default function LeadDetailPage() {
             <div className="skeleton h-4 w-64" />
           </section>
         ) : !lead ? (
-          <section className="panel p-4">
-            <p className="text-sm text-muted">Lead not found.</p>
-          </section>
+          <RecordUnavailable
+            noun="lead"
+            error={loadError}
+            listHref="/leads"
+            listLabel="Leads"
+            onRetry={() => window.location.reload()}
+          />
         ) : (
           <>
             <section className="record-head" data-testid="lead-head">

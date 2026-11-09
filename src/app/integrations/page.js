@@ -1,5 +1,6 @@
 "use client";
 
+import { AdminOnly } from "@/components/workspace/admin-only";
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { AppShell } from "@/components/app-shell";
@@ -75,6 +76,14 @@ function writeStoredIntakeUrl(url) {
 }
 
 export default function IntegrationsPage() {
+  return (
+    <AdminOnly title="Integrations" area="Integrations">
+      <IntegrationsPageContent />
+    </AdminOnly>
+  );
+}
+
+function IntegrationsPageContent() {
   const { askConfirm, confirmModal } = useConfirmModal();
   const [abc, setAbc] = useState(null);
   const [qb, setQb] = useState(null);

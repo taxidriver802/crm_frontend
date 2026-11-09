@@ -28,7 +28,6 @@ export default function EditEstimatePage() {
   const [form, setForm] = useState(() =>
     createEmptyEstimateForm({
       job_id: "",
-      status: "Draft",
     }),
   );
 
@@ -77,7 +76,6 @@ export default function EditEstimatePage() {
           createEmptyEstimateForm({
             job_id: est.job_id ? String(est.job_id) : "",
             title: est.title || "",
-            status: est.status || "Draft",
             notes: est.notes || "",
           }),
         );
@@ -115,7 +113,6 @@ export default function EditEstimatePage() {
     const payload = {
       job_id: Number(form.job_id),
       title: form.title.trim(),
-      status: form.status || "Draft",
       notes: form.notes.trim() || null,
     };
 

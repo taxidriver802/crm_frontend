@@ -1,5 +1,6 @@
 "use client";
 
+import { AdminOnly } from "@/components/workspace/admin-only";
 import { useEffect, useState } from "react";
 import { AppShell } from "@/components/app-shell";
 import { useConfirmModal } from "@/components/modals/confirm-modal";
@@ -12,6 +13,14 @@ import { PageToolbar } from "@/components/page-toolbar";
 import { Icon } from "@/components/icons";
 
 export default function QuickBooksPage() {
+  return (
+    <AdminOnly title="QuickBooks" area="Integrations">
+      <QuickBooksPageContent />
+    </AdminOnly>
+  );
+}
+
+function QuickBooksPageContent() {
   const { askConfirm, confirmModal } = useConfirmModal();
   const [status, setStatus] = useState(null);
   const [loading, setLoading] = useState(true);

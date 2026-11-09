@@ -133,13 +133,13 @@ function NewInvoicePageInner() {
               />
             </Field>
 
-            <Field label="Notes (optional)">
+            <Field label="Notes for the client" help="Shown on the invoice the client opens and on its PDF.">
               <textarea
                 className="input"
                 rows={3}
                 value={form.notes}
                 onChange={(e) => setForm((f) => ({ ...f, notes: e.target.value }))}
-                placeholder="Any notes for this invoice…"
+                placeholder="Example: Thank you — payment due on receipt."
               />
             </Field>
 

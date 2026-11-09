@@ -1,5 +1,6 @@
 "use client";
 
+import { RecordUnavailable } from "@/components/records/record-bits";
 import { Alert } from "@/components/ui/alert";
 import { useEffect, useState } from "react";
 import Link from "next/link";
@@ -74,6 +75,7 @@ export default function TaskDetailPage() {
   const [busy, setBusy] = useState(false);
 
   const [error, setError] = useState("");
+  const [loadError, setLoadError] = useState(null);
   const [filesError, setFilesError] = useState("");
   const [success, setSuccess] = useState("");
 
@@ -126,10 +128,10 @@ export default function TaskDetailPage() {
 
         const nextTask = res?.task ?? res;
         setTask(nextTask || null);
+        setLoadError(null);
       } catch (e) {
         if (cancelled) return;
-        console.error("Failed to load task", e);
-        setError(e?.message || "Failed to load task");
+        setLoadError(e);
         setTask(null);
       } finally {
         if (!cancelled) setLoadingTask(false);
@@ -291,8 +293,8 @@ export default function TaskDetailPage() {
 
   return (
     <AppShell
-      title={task?.title || `Task #${id}`}
-      description={linked?.label || undefined}
+      title={task?.title || "Task"}
+      description={task ? linked?.label || undefined : undefined}
     >
       <div className="space-y-6">
         {error ? <Alert variant="inline">{error}</Alert> : null}
@@ -315,9 +317,13 @@ export default function TaskDetailPage() {
             </div>
           </section>
         ) : !task ? (
-          <section className="card p-4">
-            <p className="text-sm text-muted">Task not found.</p>
-          </section>
+          <RecordUnavailable
+            noun="task"
+            error={loadError}
+            listHref="/tasks"
+            listLabel="Tasks"
+            onRetry={() => window.location.reload()}
+          />
         ) : (
           <DetailHeader
             subtitle={

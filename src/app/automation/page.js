@@ -1,5 +1,6 @@
 "use client";
 
+import { AdminOnly } from "@/components/workspace/admin-only";
 import { useEffect, useState } from "react";
 import { AppShell } from "@/components/app-shell";
 import { useConfirmModal } from "@/components/modals/confirm-modal";
@@ -98,6 +99,14 @@ function TemplateCard({ template, onActivate, busy }) {
 }
 
 export default function AutomationPage() {
+  return (
+    <AdminOnly title="Automation" area="Automation">
+      <AutomationPageContent />
+    </AdminOnly>
+  );
+}
+
+function AutomationPageContent() {
   const { askConfirm, confirmModal } = useConfirmModal();
   const [rules, setRules] = useState([]);
   const [templates, setTemplates] = useState([]);

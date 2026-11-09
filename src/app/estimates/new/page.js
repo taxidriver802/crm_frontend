@@ -28,7 +28,6 @@ function NewEstimatePageInner() {
   const [form, setForm] = useState(() =>
     createEmptyEstimateForm({
       job_id: prefillJobId,
-      status: "Draft",
     }),
   );
 
@@ -87,7 +86,6 @@ function NewEstimatePageInner() {
     const payload = {
       job_id: Number(form.job_id),
       title: form.title.trim(),
-      status: form.status || "Draft",
       notes: form.notes.trim() || null,
     };
 
