@@ -4,6 +4,7 @@ import { useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { ModalFrame } from "@/components/ui/overlay";
 import { NAV_ITEMS } from "@/lib/preferences";
+import { useModKey } from "@/lib/mod-key";
 
 const GO_KEYS = {
   h: "/dashboard",
@@ -16,37 +17,42 @@ const GO_KEYS = {
   s: "/settings",
 };
 
+/**
+ * `keys` are real keys, each drawn as its own keycap. "mod" is ⌘ or Ctrl.
+ * `gesture` is a phrase (not a chord) and stays one piece of text, so
+ * "Click a row" is not three boxes that can wrap apart.
+ */
 export const SHORTCUT_GROUPS = [
   {
     title: "Anywhere",
     items: [
-      ["⌘ K", "Search and run commands"],
-      ["/", "Search"],
-      ["C", "Create something"],
-      ["[", "Collapse or expand the sidebar"],
-      ["?", "This list"],
-      ["Esc", "Close a preview, menu or dialog"],
+      { keys: ["mod", "K"], label: "Search and run commands" },
+      { keys: ["/"], label: "Search" },
+      { keys: ["C"], label: "Create something" },
+      { keys: ["["], label: "Collapse or expand the sidebar" },
+      { keys: ["?"], label: "This list" },
+      { keys: ["Esc"], label: "Close a preview, menu or dialog" },
     ],
   },
   {
     title: "Go to",
     items: [
-      ["G H", "Today"],
-      ["G J", "Jobs"],
-      ["G L", "Leads"],
-      ["G T", "Tasks"],
-      ["G I", "Invoices"],
-      ["G N", "Inbox"],
-      ["G R", "Reports"],
-      ["G S", "Preferences"],
+      { keys: ["G", "H"], label: "Today" },
+      { keys: ["G", "J"], label: "Jobs" },
+      { keys: ["G", "L"], label: "Leads" },
+      { keys: ["G", "T"], label: "Tasks" },
+      { keys: ["G", "I"], label: "Invoices" },
+      { keys: ["G", "N"], label: "Inbox" },
+      { keys: ["G", "R"], label: "Reports" },
+      { keys: ["G", "S"], label: "Preferences" },
     ],
   },
   {
     title: "In lists",
     items: [
-      ["Click a row", "Preview it beside the list"],
-      ["⌘ Click", "Open the full page in a new tab"],
-      ["Shift Click a box", "Select a range"],
+      { gesture: "Click a row", label: "Preview it beside the list" },
+      { keys: ["mod", "Click"], label: "Open the full page in a new tab" },
+      { keys: ["Shift", "Click"], label: "Select a range" },
     ],
   },
 ];
@@ -115,6 +121,40 @@ export function useGlobalShortcuts({ onSearch, onCreate, onToggleRail, onHelp })
   }, [router, onSearch, onCreate, onToggleRail, onHelp]);
 }
 
+function ShortcutGroup({ group }) {
+  return (
+    <div>
+      <div className="eyebrow mb-2">{group.title}</div>
+      <dl className="space-y-1.5 text-sm">
+        {group.items.map((item) => (
+          <div key={item.label} className="flex items-baseline justify-between gap-3">
+            <dt className="min-w-0 text-muted">{item.label}</dt>
+            <dd className="shrink-0">
+              <ShortcutKeys item={item} />
+            </dd>
+          </div>
+        ))}
+      </dl>
+    </div>
+  );
+}
+
+function ShortcutKeys({ item }) {
+  const mod = useModKey();
+  if (item.gesture) {
+    return <span className="text-xs text-main">{item.gesture}</span>;
+  }
+  return (
+    <span className="inline-flex flex-nowrap items-center gap-1">
+      {item.keys.map((key) => (
+        <kbd key={key} className="kbd">
+          {key === "mod" ? mod : key}
+        </kbd>
+      ))}
+    </span>
+  );
+}
+
 export function ShortcutsDialog({ open, onClose, onOpenHelp }) {
   if (!open) return null;
   return (
@@ -133,27 +173,16 @@ export function ShortcutsDialog({ open, onClose, onOpenHelp }) {
           Close
         </button>
       </div>
-      <div className="grid gap-6 sm:grid-cols-3">
-        {SHORTCUT_GROUPS.map((group) => (
-          <div key={group.title}>
-            <div className="eyebrow mb-2">{group.title}</div>
-            <dl className="space-y-1.5 text-sm">
-              {group.items.map(([keys, label]) => (
-                <div key={keys} className="flex items-center justify-between gap-3">
-                  <dt className="text-muted">{label}</dt>
-                  <dd>
-                    {keys.split(" ").map((k) => (
-                      <kbd key={k} className="kbd ml-1">
-                        {k}
-                      </kbd>
-                    ))}
-                  </dd>
-                </div>
-              ))}
-            </dl>
-          </div>
+      <div className="grid gap-6 sm:grid-cols-2">
+        {SHORTCUT_GROUPS.filter((group) => group.title !== "In lists").map((group) => (
+          <ShortcutGroup key={group.title} group={group} />
         ))}
       </div>
+      {SHORTCUT_GROUPS.filter((group) => group.title === "In lists").map((group) => (
+        <div key={group.title} className="mt-6">
+          <ShortcutGroup group={group} />
+        </div>
+      ))}
       <p className="mt-5 text-xs text-muted">
         Navigation items you hide in Preferences keep their shortcuts.{" "}
         {NAV_ITEMS.length} destinations in all.

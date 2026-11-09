@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Icon } from "@/components/icons";
+import { useModChord } from "@/lib/mod-key";
 import { CompanyMark } from "@/components/brand/company-mark";
 import { useWorkspace } from "@/components/workspace/workspace-provider";
 import { clearReturnStack } from "@/lib/return-to";
@@ -148,6 +149,7 @@ export function NavRail({
   onLogout,
 }) {
   const { company } = useWorkspace();
+  const searchChord = useModChord("K");
 
   return (
     <aside
@@ -185,13 +187,13 @@ export function NavRail({
           className={cx("rail-search", collapsed && "rail-search-collapsed")}
           onClick={onSearch}
           aria-label="Open search"
-          title="Search (⌘K)"
+          title={`Search (${searchChord})`}
         >
           <Icon name="search" className="h-4 w-4" />
           {collapsed ? null : (
             <>
               <span>Search</span>
-              <kbd className="kbd ml-auto">⌘K</kbd>
+              <kbd className="kbd ml-auto">{searchChord}</kbd>
             </>
           )}
         </button>

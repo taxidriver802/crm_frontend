@@ -31,6 +31,7 @@ import { WorkspaceProvider, useWorkspace } from "@/components/workspace/workspac
 import { PeekProvider } from "@/components/peek/peek-provider";
 import { PeekPanel } from "@/components/peek/peek-panel";
 import { HelpProvider, useHelp } from "@/components/help/help-provider";
+import { useModChord } from "@/lib/mod-key";
 import { HelpPanel } from "@/components/help/help-panel";
 import { NavList, NavRail, isActivePath, useNavItems } from "@/components/shell/nav-rail";
 import { NotificationsMenu } from "@/components/shell/notifications-menu";
@@ -263,6 +264,7 @@ function AppShellFrame({ children }) {
   const router = useRouter();
   const { user, company, isAdmin, prefs, loaded, updatePrefs } = useWorkspace();
   const help = useHelp();
+  const searchChord = useModChord("K");
 
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
@@ -372,7 +374,7 @@ function AppShellFrame({ children }) {
                 type="button"
                 onClick={openSearch}
                 aria-label="Open search"
-                title="Search (⌘K)"
+                title={`Search (${searchChord})`}
                 className="icon-btn icon-btn-quiet lg:hidden"
               >
                 <Icon name="search" className="h-4 w-4" />

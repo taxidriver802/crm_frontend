@@ -56,6 +56,7 @@ export default function RootLayout({ children }) {
       <head>
         <style
           id="crm-palette-vars"
+          suppressHydrationWarning
           dangerouslySetInnerHTML={{ __html: buildAllPalettesCss() }}
         />
         <script dangerouslySetInnerHTML={{ __html: getPaletteBootstrapScript() }} />
