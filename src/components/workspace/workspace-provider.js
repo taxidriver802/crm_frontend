@@ -9,6 +9,7 @@ import {
   useRef,
   useState,
 } from "react";
+import { useRouter } from "next/navigation";
 import { useTheme } from "next-themes";
 import { api } from "@/lib/api";
 import { applyPatch, pinKey, withDefaults } from "@/lib/preferences";
@@ -119,6 +120,24 @@ export function WorkspaceProvider({ children }) {
     loadIdentity();
     loadPrefs();
   }, [loadIdentity, loadPrefs]);
+
+  // A cookie that no longer names a live session (signed out elsewhere, the
+  // account removed, the database reset) still gets past proxy.js, which only
+  // checks that the cookie exists. Once /auth/me says 401, clear the cookie so
+  // proxy.js stops sending /login back here, then go to sign in.
+  const router = useRouter();
+  useEffect(() => {
+    if (!signedOut) return;
+    let cancelled = false;
+    api("/auth/logout", { method: "POST" })
+      .catch(() => {})
+      .finally(() => {
+        if (!cancelled) router.replace("/login");
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [signedOut, router]);
 
   // Appearance: density and motion on <html>; theme and accent through the
   // existing theme controller, only when the person (or the company) chose.
