@@ -1584,24 +1584,24 @@ export default function JobDetailPage() {
                       What the client sees: progress, what was sent, what they owe. Drafts never show.
                     </p>
                     {isAdmin ? (
-                    <div className="flex flex-wrap gap-2">
-                      <button
-                        type="button"
-                        className="btn btn-sm"
-                        disabled={portalBusy}
-                        onClick={handleGeneratePortalLink}
-                      >
-                        {portalBusy ? "Link…" : "Copy portal link"}
-                      </button>
-                      <button
-                        type="button"
-                        className="btn btn-sm"
-                        disabled={portalMessageBusy}
-                        onClick={handleCopyPortalMessage}
-                      >
-                        {portalMessageBusy ? "Message…" : "Copy message"}
-                      </button>
-                    </div>
+                      <div className="flex flex-wrap gap-2">
+                        <button
+                          type="button"
+                          className="btn btn-sm"
+                          disabled={portalBusy}
+                          onClick={handleGeneratePortalLink}
+                        >
+                          {portalBusy ? "Link…" : "Copy portal link"}
+                        </button>
+                        <button
+                          type="button"
+                          className="btn btn-sm"
+                          disabled={portalMessageBusy}
+                          onClick={handleCopyPortalMessage}
+                        >
+                          {portalMessageBusy ? "Message…" : "Copy message"}
+                        </button>
+                      </div>
                     ) : (
                       <p className="text-xs text-muted">An owner or admin shares the portal link.</p>
                     )}
