@@ -1,6 +1,8 @@
 "use client";
 
+import { useEffect } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { AppShell } from "@/components/app-shell";
 import { useWorkspace } from "@/components/workspace/workspace-provider";
 
@@ -10,7 +12,12 @@ import { useWorkspace } from "@/components/workspace/workspace-provider";
  * gets one clear answer instead of a page of controls that fail.
  */
 export function AdminOnly({ title, area, children }) {
-  const { user, isAdmin } = useWorkspace();
+  const router = useRouter();
+  const { user, isAdmin, signedOut } = useWorkspace();
+
+  useEffect(() => {
+    if (signedOut) router.replace("/login");
+  }, [signedOut, router]);
 
   if (!user) {
     return (

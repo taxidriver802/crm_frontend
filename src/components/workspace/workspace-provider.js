@@ -72,6 +72,9 @@ export function WorkspaceProvider({ children }) {
   const { setPaletteId, clearPersonalPalette, setCompanyPaletteId } = useThemeController();
 
   const [user, setUser] = useState(null);
+  // True once /auth/me answered 401: pages that wait on the user can send
+  // the visitor to sign in instead of waiting forever.
+  const [signedOut, setSignedOut] = useState(false);
   const [company, setCompany] = useState(null);
   const [mine, setMine] = useState({});
   const [defaults, setDefaults] = useState({});
@@ -89,11 +92,13 @@ export function WorkspaceProvider({ children }) {
     try {
       const data = await api("/auth/me");
       setUser(data.user || null);
+      setSignedOut(false);
       setCompany(data.company || null);
       if (data.company?.slug) writeStoredCompanySlug(data.company.slug);
       if (data.company?.palette_id) setCompanyPaletteId(data.company.palette_id);
       return data;
-    } catch {
+    } catch (e) {
+      if (e?.status === 401) setSignedOut(true);
       return null;
     }
   }, [setCompanyPaletteId]);
@@ -229,6 +234,7 @@ export function WorkspaceProvider({ children }) {
   const value = useMemo(
     () => ({
       user,
+      signedOut,
       company,
       setCompany,
       reloadIdentity: loadIdentity,
@@ -247,6 +253,7 @@ export function WorkspaceProvider({ children }) {
     }),
     [
       user,
+      signedOut,
       company,
       loadIdentity,
       prefs,
