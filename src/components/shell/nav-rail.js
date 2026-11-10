@@ -4,7 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Icon } from "@/components/icons";
 import { useModChord } from "@/lib/mod-key";
-import { CompanyMark } from "@/components/brand/company-mark";
+import { CompanyMark, companyMarkProps } from "@/components/brand/company-mark";
 import { useWorkspace } from "@/components/workspace/workspace-provider";
 import { clearReturnStack } from "@/lib/return-to";
 import { resolveNav } from "@/lib/preferences";
@@ -159,7 +159,7 @@ export function NavRail({
     >
       <div className="rail-head">
         <Link href="/dashboard" className="rail-brand" onClick={() => clearReturnStack()} title={company?.name}>
-          <CompanyMark markId={company?.mark_id} logoUrl={company?.logo_url} className="h-7 w-7" alt="" />
+          <CompanyMark {...companyMarkProps(company)} className="h-7 w-7" alt="" />
           {collapsed ? null : <span className="truncate">{company?.name || "Workspace"}</span>}
         </Link>
         <button

@@ -115,7 +115,7 @@ export default function RegisterPage() {
           </button>
           {showMark ? (
             <div className="mt-3">
-              <MarkPicker value={markId} onChange={setMarkId} />
+              <MarkPicker value={markId} onChange={setMarkId} name={companyName} />
               <p className="field-help mt-2">
                 Optional. You can change this later in Settings → Company look.
               </p>

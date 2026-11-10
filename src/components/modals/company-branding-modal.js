@@ -105,7 +105,7 @@ export function CompanyBrandingModal({ open, company, onClose, onSaved }) {
           </Field>
 
           <Field label="Company mark" help="Used when no custom logo is uploaded.">
-            <MarkPicker value={markId} onChange={setMarkId} />
+            <MarkPicker value={markId} onChange={setMarkId} name={name} paletteId={paletteId} />
           </Field>
 
           <Field

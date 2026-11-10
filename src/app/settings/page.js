@@ -9,7 +9,8 @@ import { useToast } from "@/components/toast/toast-provider";
 import { useThemeController } from "@/components/theme/theme-controller";
 import { useConfirmModal } from "@/components/modals/confirm-modal";
 import { CompanyBrandingModal } from "@/components/modals/company-branding-modal";
-import { CompanyMark } from "@/components/brand/company-mark";
+import { CompanyMark, companyMarkProps } from "@/components/brand/company-mark";
+import { getPalette } from "@/theme/registry";
 import { CustomizeHome } from "@/components/today/customize-home";
 import { useUrlTab } from "@/components/records/record-layout";
 import { writeStoredCompanySlug } from "@/lib/company-slug";
@@ -423,10 +424,10 @@ function WorkspaceSettings({ askConfirm }) {
         }
       >
         <div className="flex items-center gap-3">
-          <CompanyMark markId={company?.mark_id} logoUrl={company?.logo_url} className="h-10 w-10" />
+          <CompanyMark {...companyMarkProps(company)} className="h-10 w-10" />
           <div>
             <div className="font-medium">{company?.name || "Your company"}</div>
-            <div className="text-xs text-muted">Palette: {company?.palette_id || "rooftop"}</div>
+            <div className="text-xs text-muted">Palette: {getPalette(company?.palette_id).label}</div>
           </div>
         </div>
       </SettingsPanel>

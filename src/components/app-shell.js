@@ -26,7 +26,7 @@ import { Alert } from "@/components/ui/alert";
 import { api } from "@/lib/api";
 import { cx } from "@/lib/cx";
 import { NAV_ITEMS } from "@/lib/preferences";
-import { CompanyMark } from "@/components/brand/company-mark";
+import { CompanyMark, companyMarkProps } from "@/components/brand/company-mark";
 import { WorkspaceProvider, useWorkspace } from "@/components/workspace/workspace-provider";
 import { PeekProvider } from "@/components/peek/peek-provider";
 import { PeekPanel } from "@/components/peek/peek-panel";
@@ -384,7 +384,7 @@ function AppShellFrame({ children }) {
           <header className="topbar" role="banner">
             <div className="topbar-left">
               <Link href="/dashboard" className="topbar-brand lg:hidden" aria-label={company?.name || "Today"}>
-                <CompanyMark markId={company?.mark_id} logoUrl={company?.logo_url} className="h-7 w-7" alt="" />
+                <CompanyMark {...companyMarkProps(company)} className="h-7 w-7" alt="" />
               </Link>
               <ReturnBackButton back={back} />
               <div className={cx("topbar-title", !description && !crumb && "justify-center")}>
