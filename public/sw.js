@@ -1,4 +1,5 @@
-const CACHE_NAME = "crm-v5";
+// Bumped when offline.html changes, so installs re-cache it.
+const CACHE_NAME = "crm-v6";
 const OFFLINE_URL = "/offline.html";
 
 function isRscRequest(request, url) {

@@ -6,6 +6,7 @@ import { ToastProvider } from "@/components/toast/toast-provider";
 import { ErrorBoundary } from "@/components/error-boundary";
 import { ServiceWorkerRegistrar } from "@/components/service-worker-registrar";
 import { ShellGate } from "@/components/app-shell";
+import { PRODUCT_DESCRIPTION, PRODUCT_NAME } from "@/lib/brand";
 import {
   DEFAULT_PALETTE_ID,
   buildAllPalettesCss,
@@ -25,20 +26,18 @@ const geistMono = Geist_Mono({
 
 const pwa = resolvePwaTheme(DEFAULT_PALETTE_ID);
 
+// Signed out, the tab and the installed app say Joist. Signed in, the shell
+// replaces the title with "<company> CRM" (components/app-shell.js).
+// The tab icon comes from app/icon.svg and app/favicon.ico, both generated
+// from src/assets/brand/joist-mark.svg by `npm run icons:pwa`.
 export const metadata = {
-  title: "Rooftop Realty CRM",
-  description: "Roofing, Gutters, Siding, Windows, Buy & Sell",
+  title: PRODUCT_NAME,
+  description: PRODUCT_DESCRIPTION,
+  applicationName: PRODUCT_NAME,
   appleWebApp: {
     capable: true,
     statusBarStyle: "black-translucent",
-    title: "CRM",
-  },
-  icons: {
-    apple: "/icons/apple-touch-icon.png",
-    icon: [
-      { url: "/icons/icon-192.png", sizes: "192x192", type: "image/png" },
-      { url: "/icons/icon-512.png", sizes: "512x512", type: "image/png" },
-    ],
+    title: PRODUCT_NAME,
   },
 };
 

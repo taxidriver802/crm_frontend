@@ -6,7 +6,7 @@
       name="viewport"
       content="width=device-width, initial-scale=1, viewport-fit=cover"
     />
-    <title>Can't reach the CRM</title>
+    <title>Can't reach the CRM · Joist</title>
     <style>
       :root {
         --bg: #f4f5f7;
@@ -40,6 +40,19 @@
         border-radius: 10px;
         padding: 1.5rem;
       }
+      .brand {
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+        margin: 0 0 1.25rem;
+        font-size: 1.5rem;
+        font-weight: 600;
+        letter-spacing: -0.025em;
+      }
+      .mark {
+        display: block;
+        flex: none;
+      }
       h1 {
         margin: 0 0 0.5rem;
         font-size: 1.25rem;
@@ -64,6 +77,16 @@
   </head>
   <body>
     <main>
+      <div class="brand">
+        <!-- joist-mark:start -->
+        <svg class="mark" aria-hidden="true" focusable="false" width="40" height="40" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32">
+          <rect class="joist-tile" width="32" height="32" rx="7" fill="#363a43"/>
+          <rect class="joist-flange" x="10" y="6" width="16" height="6" fill="#f97316"/>
+          <path class="joist-web" d="M16 12h4v14H6v-6h10z" fill="#f4f4f5"/>
+        </svg>
+        <!-- joist-mark:end -->
+        <span>Joist</span>
+      </div>
       <h1>Can't reach the CRM</h1>
       <p>
         The app is installed, but this device cannot reach the server. Records stay

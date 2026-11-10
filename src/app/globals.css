@@ -365,6 +365,20 @@
 /* COMPONENT PRIMITIVES */
 /* ------------------- */
 @layer components {
+  /* Joist mark, quiet tone: the same drawing as a low-contrast glyph with
+     no tile, for loading placeholders. See src/components/brand/joist.js. */
+  .joist-mark-quiet {
+    opacity: 0.14;
+  }
+  /* SVGR prefixes the drawing's class names, so match on the suffix. */
+  .joist-mark-quiet [class$="joist-tile"] {
+    fill: transparent;
+  }
+  .joist-mark-quiet [class$="joist-flange"],
+  .joist-mark-quiet [class$="joist-web"] {
+    fill: currentColor;
+  }
+
   .btn {
     @apply inline-flex items-center justify-center gap-2 text-sm font-medium transition;
     border-radius: var(--radius-md);

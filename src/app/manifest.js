@@ -1,13 +1,14 @@
 import { DEFAULT_PALETTE_ID, resolvePwaTheme } from "@/theme/registry";
+import { PRODUCT_DESCRIPTION, PRODUCT_NAME } from "@/lib/brand";
 
 export default function manifest() {
   const pwa = resolvePwaTheme(DEFAULT_PALETTE_ID);
 
   return {
     id: "/",
-    name: "Rooftop Realty CRM",
-    short_name: "CRM",
-    description: "Roofing, Gutters, Siding, Windows — Lead to Revenue",
+    name: PRODUCT_NAME,
+    short_name: PRODUCT_NAME,
+    description: PRODUCT_DESCRIPTION,
     lang: "en",
     start_url: "/dashboard",
     scope: "/",
