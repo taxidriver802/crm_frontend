@@ -122,7 +122,7 @@ Install chrome is Joist’s, not a company’s. Company palette and logo do not 
 
 `npm run icons:pwa` writes every icon from the one drawing: `src/app/icon.svg`, `src/app/favicon.ico` (16/32/48), `src/app/apple-icon.png` (180, full bleed), `public/icons/icon-192|512.svg|png`, `public/icons/icon-512-maskable.png` (full bleed, mark at 80%), and the inline mark in `public/offline.html`. `npm run icons:pwa -- --check` fails on drift. Details in [`brand.md`](brand.md).
 
-Runtime `theme-color` follows computed `--bg` (light or dark) of the active palette via `syncThemeColorMeta()`. Signed in, the active palette is the person’s own or else the company’s, so the browser chrome follows the company. The installed icon does not.
+Runtime `theme-color` follows computed `--bg` (light or dark) of the active palette via `watchThemeColorMeta()`, which also re-applies it when Next rewrites the head after a client navigation (Next resets it to the layout's viewport `themeColor`). Signed in, the active palette is the person’s own or else the company’s, so the browser chrome follows the company. The installed icon does not.
 
 ## Public customer surfaces (Phase 7)
 

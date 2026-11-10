@@ -21,7 +21,7 @@ import {
   resolveTokens,
 } from "@/theme/registry";
 import { isAuthEntryPath, isPublicCustomerPath } from "@/theme/public-path";
-import { syncThemeColorMeta } from "@/theme/sync-theme-color";
+import { watchThemeColorMeta } from "@/theme/sync-theme-color";
 
 const ThemeControllerContext = createContext(null);
 
@@ -95,9 +95,9 @@ export function ThemeController({ children }) {
     applyPaletteAttribute(activePaletteId);
   }, [activePaletteId, ready]);
 
-  useEffect(() => {
-    syncThemeColorMeta();
-  }, [activePaletteId, resolvedTheme]);
+  // Browser chrome follows the active palette (signed in: the person's own,
+  // else the company's), and keeps following it when Next rewrites the head.
+  useEffect(() => watchThemeColorMeta(), [activePaletteId, resolvedTheme]);
 
   const setPaletteId = useCallback((nextId) => {
     const id = isPaletteId(nextId) ? nextId : DEFAULT_PALETTE_ID;
