@@ -257,6 +257,10 @@ export default function EstimateDetailPage() {
       return;
     }
 
+    const unitPrice = Number(lineItemForm.unit_price);
+    const signedPrice =
+      lineItemForm.credit && Number.isFinite(unitPrice) ? -Math.abs(unitPrice) : unitPrice;
+
     try {
       const path = editingLineItem
         ? `/estimates/${id}/line-items/${editingLineItem.id}`
@@ -266,7 +270,10 @@ export default function EstimateDetailPage() {
 
       const res = await api(path, {
         method,
-        body: JSON.stringify(lineItemForm),
+        body: JSON.stringify({
+          ...lineItemForm,
+          unit_price: signedPrice,
+        }),
       });
 
       setEstimate(res.estimate);
@@ -310,6 +317,7 @@ export default function EstimateDetailPage() {
   }
 
   function handleEditLineItem(item) {
+    if (estimate?.status === "Approved") return;
     if (isCreateOpen && editingLineItem?.id === item.id) {
       setIsCreateOpen(false);
       setEditingLineItem(null);
@@ -318,11 +326,13 @@ export default function EstimateDetailPage() {
       return;
     }
 
+    const price = Number(item.unit_price);
     setLineItemForm({
       name: item.name,
       description: item.description ?? "",
       quantity: item.quantity,
-      unit_price: item.unit_price,
+      unit_price: Number.isFinite(price) ? Math.abs(price) : item.unit_price,
+      credit: Number.isFinite(price) && price < 0,
     });
     setEditingLineItem(item);
     setIsCreateOpen(true);
@@ -407,7 +417,15 @@ export default function EstimateDetailPage() {
                 "No job linked"
               )
             }
-            badges={<StatusBadge kind="estimate" status={estimate.status} />}
+            badges={
+              <>
+                {estimate.kind === "change_order" ? (
+                  <StatusBadge>Change order</StatusBadge>
+                ) : null}
+                {estimate.is_contract ? <StatusBadge>Contract</StatusBadge> : null}
+                <StatusBadge kind="estimate" status={estimate.status} />
+              </>
+            }
             actions={
               <>
                 {estimate.status === "Approved" ? (
@@ -587,8 +605,15 @@ export default function EstimateDetailPage() {
         <SectionCard
           size="lg"
           title="Line items"
-          description="Breakdown of materials and labor"
+          description={
+            estimate?.status === "Approved"
+              ? "Approved prices stay put. Add a change order from the job to revise the contract."
+              : estimate?.kind === "change_order"
+                ? "Lines here change the contract once the client accepts. Use a credit to reduce it."
+                : "Breakdown of materials and labor"
+          }
           right={
+            estimate?.status === "Approved" ? null : (
             <button
               type="button"
               className="btn btn-primary btn-sm"
@@ -604,15 +629,17 @@ export default function EstimateDetailPage() {
             >
               {isCreateOpen && !editingLineItem ? "Hide" : "New item"}
             </button>
+            )
           }
         >
           <div className="space-y-4">
-            {isCreateOpen ? (
+            {isCreateOpen && estimate?.status !== "Approved" ? (
               <EstimateLineItemForm
                 form={lineItemForm}
                 onChange={setLineItemForm}
                 onSubmit={handleSubmitLineItem}
                 saving={savingItem}
+                allowCredit={estimate?.kind === "change_order"}
                 onCancel={() => {
                   setLineItemForm(createEmptyLineItem());
                   setEditingLineItem(null);

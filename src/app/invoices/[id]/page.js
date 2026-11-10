@@ -27,7 +27,17 @@ import {
   logOutboundEmailOnJob,
 } from "@/lib/message-templates";
 
-const INVOICE_STATUSES = ["Draft", "Sent", "Paid", "Overdue"];
+const INVOICE_STATUSES = ["Draft", "Sent", "Partial", "Paid", "Overdue"];
+
+function formatMoney(value) {
+  const amount = Number(value);
+  if (!Number.isFinite(amount)) return "$0.00";
+  const text = Math.abs(amount).toLocaleString("en-US", {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  });
+  return amount < 0 ? `-$${text}` : `$${text}`;
+}
 
 function InvoiceLineItemForm({
   form,
@@ -133,6 +143,10 @@ export default function InvoiceDetailPage() {
   const [lineItemForm, setLineItemForm] = useState(createEmptyLineItem());
   const [savingItem, setSavingItem] = useState(false);
   const [editingLineItem, setEditingLineItem] = useState(null);
+  const [paymentAmount, setPaymentAmount] = useState("");
+  const [paymentMethod, setPaymentMethod] = useState("check");
+  const [paymentNote, setPaymentNote] = useState("");
+  const [paymentBusy, setPaymentBusy] = useState(false);
 
   const lineItems = invoice?.line_items || [];
 
@@ -251,6 +265,36 @@ export default function InvoiceDetailPage() {
       setQbHint(e?.message || "Sync failed — is QuickBooks connected?");
     } finally {
       setQbBusy(false);
+    }
+  }
+
+  async function recordInvoicePayment(event) {
+    event.preventDefault();
+    if (!invoice?.job_id) return;
+    const amount = Number(paymentAmount);
+    if (!Number.isFinite(amount) || amount <= 0) {
+      setError("Enter a payment amount.");
+      return;
+    }
+    setPaymentBusy(true);
+    setError("");
+    try {
+      await api(`/jobs/${invoice.job_id}/payments`, {
+        method: "POST",
+        body: JSON.stringify({
+          amount,
+          method: paymentMethod,
+          note: paymentNote || null,
+          invoice_id: invoice.id,
+        }),
+      });
+      setPaymentAmount("");
+      setPaymentNote("");
+      await loadInvoice();
+    } catch (e) {
+      setError(e?.message || "Failed to record payment");
+    } finally {
+      setPaymentBusy(false);
     }
   }
 
@@ -474,14 +518,18 @@ export default function InvoiceDetailPage() {
           <SectionCard
             size="lg"
             title="Status"
-            description="Track where this invoice is in the workflow"
+            description="Paid applies job deposits first, then records whatever balance is left."
           >
             <div className="flex flex-wrap gap-2">
               {INVOICE_STATUSES.map((s) => (
                 <button
                   key={s}
                   type="button"
-                  disabled={statusBusy || s === invoice.status}
+                  disabled={
+                    statusBusy ||
+                    s === invoice.status ||
+                    (s === "Partial" && invoice.status !== "Partial")
+                  }
                   onClick={() => handleStatusChange(s)}
                   className={`choice-chip ${s === invoice.status ? "choice-chip-active" : ""}`}
                 >
@@ -489,6 +537,82 @@ export default function InvoiceDetailPage() {
                 </button>
               ))}
             </div>
+            {invoice.status === "Draft" ? (
+              <p className="mt-3 text-sm text-muted">
+                Send this invoice before recording a payment against it. A deposit
+                can be recorded on the job in the meantime.
+              </p>
+            ) : null}
+          </SectionCard>
+        ) : null}
+
+        {invoice && invoice.status !== "Draft" ? (
+          <SectionCard
+            size="lg"
+            title="Payments"
+            description="Money recorded against this invoice."
+          >
+            <div className="mb-4 grid gap-3 sm:grid-cols-3">
+              <MetaItem label="Invoice total">{formatMoney(invoice.grand_total)}</MetaItem>
+              <MetaItem label="Collected">{formatMoney(invoice.amount_paid)}</MetaItem>
+              <MetaItem label="Balance">{formatMoney(invoice.balance_due)}</MetaItem>
+            </div>
+            {(invoice.payments || []).length > 0 ? (
+              <div className="mb-4 space-y-2">
+                {invoice.payments.map((payment) => (
+                  <div
+                    key={payment.id}
+                    className="flex items-center justify-between gap-3 text-sm"
+                  >
+                    <span>
+                      {payment.method} · {formatDate(payment.received_at)}
+                      {payment.note ? ` · ${payment.note}` : ""}
+                    </span>
+                    <span className="font-semibold">{formatMoney(payment.amount)}</span>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p className="mb-4 text-sm text-muted">No payments on this invoice yet.</p>
+            )}
+            {Number(invoice.balance_due) > 0 ? (
+              <form onSubmit={recordInvoicePayment} className="grid gap-3 sm:grid-cols-2">
+                <Field label="Amount">
+                  <CurrencyInput
+                    cents
+                    value={paymentAmount}
+                    onChange={setPaymentAmount}
+                    placeholder={formatMoney(invoice.balance_due)}
+                  />
+                </Field>
+                <Field label="Method">
+                  <select
+                    className="input"
+                    value={paymentMethod}
+                    onChange={(event) => setPaymentMethod(event.target.value)}
+                  >
+                    <option value="check">Check</option>
+                    <option value="card">Card</option>
+                    <option value="ach">ACH</option>
+                    <option value="cash">Cash</option>
+                    <option value="other">Other</option>
+                  </select>
+                </Field>
+                <Field label="Note" className="sm:col-span-2">
+                  <input
+                    className="input"
+                    value={paymentNote}
+                    onChange={(event) => setPaymentNote(event.target.value)}
+                    placeholder="Optional"
+                  />
+                </Field>
+                <FormActions className="sm:col-span-2">
+                  <button type="submit" className="btn btn-primary btn-sm" disabled={paymentBusy}>
+                    {paymentBusy ? "Saving…" : "Record payment"}
+                  </button>
+                </FormActions>
+              </form>
+            ) : null}
           </SectionCard>
         ) : null}
 

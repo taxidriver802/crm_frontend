@@ -28,6 +28,7 @@ import { CollapsibleSection } from "@/components/forms/collapsible-section";
 import { DetailMoreMenu, DetailMoreMenuItem } from "@/components/detail-more-menu";
 import { ActivityList } from "@/components/activity-list";
 import { NotesSection } from "@/components/notes-section";
+import { JobMoney } from "@/components/job-money";
 import {
   buildPortalLinkMessage,
   copyText,
@@ -876,6 +877,14 @@ export default function JobDetailPage() {
                 })}
               </div>
             </SectionCard>
+            <JobMoney
+              jobId={id}
+              onChanged={() => {
+                loadEstimates();
+                loadInvoices();
+              }}
+            />
+
             <SectionCard
               size="lg"
               title="Estimates"
@@ -931,6 +940,10 @@ export default function JobDetailPage() {
                       </div>
 
                       <div className="flex flex-wrap items-center gap-2 sm:shrink-0 sm:flex-col sm:items-end">
+                        {estimate.is_contract ? <StatusBadge>Contract</StatusBadge> : null}
+                        {estimate.kind === "change_order" ? (
+                          <StatusBadge>Change order</StatusBadge>
+                        ) : null}
                         <StatusBadge kind="estimate" status={estimate.status} />
                         <div className="text-sm font-semibold">
                           ${formatCurrency(Number(estimate.grand_total || 0).toFixed(2))}
@@ -994,6 +1007,12 @@ export default function JobDetailPage() {
                           <div className="text-sm font-semibold">
                             ${formatCurrency(Number(inv.grand_total || 0).toFixed(2))}
                           </div>
+                          {Number(inv.amount_paid) > 0 ? (
+                            <div className="text-xs text-muted">
+                              Balance $
+                              {formatCurrency(Number(inv.balance_due || 0).toFixed(2))}
+                            </div>
+                          ) : null}
                         </div>
                       </ReturnLink>
                     ))}

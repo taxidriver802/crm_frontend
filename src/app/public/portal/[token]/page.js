@@ -112,6 +112,24 @@ export default function CustomerPortalPage() {
         ) : null}
       </SectionCard>
 
+      {data.money?.has_contract ? (
+        <SectionCard title="What you owe">
+          <MetaList>
+            <MetaItem label="Agreed price">{`$${formatCurrency(data.money.contract_total)}`}</MetaItem>
+            <MetaItem label="Paid">{`$${formatCurrency(data.money.collected)}`}</MetaItem>
+            <MetaItem label={data.money.still_owed < 0 ? "Credit" : "Still owed"}>
+              {`$${formatCurrency(Math.abs(data.money.still_owed || 0))}`}
+            </MetaItem>
+          </MetaList>
+          {(data.money.change_orders || []).filter((order) => order.status === "Approved").length >
+          0 ? (
+            <p className="mt-3 text-sm text-muted">
+              Includes accepted change orders.
+            </p>
+          ) : null}
+        </SectionCard>
+      ) : null}
+
       <SectionCard title="Progress">
         {timeline.length === 0 ? (
           <EmptyState
@@ -136,7 +154,10 @@ export default function CustomerPortalPage() {
             {estimates.map((est) => (
               <ListRow key={est.id} className="flex items-center justify-between gap-3">
                 <div className="min-w-0">
-                  <div className="font-medium">{est.title}</div>
+                  <div className="font-medium">
+                    {est.kind === "change_order" ? "Change order · " : ""}
+                    {est.title}
+                  </div>
                   <div className="mt-1 text-xs text-muted">
                     {formatDate(est.created_at)}
                   </div>
@@ -167,7 +188,10 @@ export default function CustomerPortalPage() {
                 </div>
                 <div className="flex shrink-0 items-center gap-3">
                   <span className="text-sm font-semibold">
-                    ${formatCurrency(inv.grand_total)}
+                    $
+                    {formatCurrency(
+                      Number(inv.amount_paid) > 0 ? inv.balance_due : inv.grand_total,
+                    )}
                   </span>
                   <StatusBadge kind="invoice" status={inv.status} />
                 </div>

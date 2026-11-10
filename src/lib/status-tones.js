@@ -2,6 +2,7 @@ const STATUS_TONE = {
   invoice: {
     Draft: "neutral",
     Sent: "info",
+    Partial: "warning",
     Paid: "success",
     Overdue: "danger",
   },

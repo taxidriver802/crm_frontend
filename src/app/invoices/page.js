@@ -12,7 +12,7 @@ import { Segmented } from "@/components/ui/segmented";
 import { Icon } from "@/components/icons";
 import { InvoicesList } from "@/components/lists/invoices-list";
 
-const INVOICE_STATUSES = ["Draft", "Sent", "Paid", "Overdue"];
+const INVOICE_STATUSES = ["Draft", "Sent", "Partial", "Paid", "Overdue"];
 
 const DUE_OPTIONS = [
   { value: "", label: "Any due date" },
@@ -75,7 +75,7 @@ function InvoicesPageInner() {
   }, [queryString]);
 
   const byStatus = useMemo(() => {
-    const counts = { Draft: 0, Sent: 0, Paid: 0, Overdue: 0 };
+    const counts = { Draft: 0, Sent: 0, Partial: 0, Paid: 0, Overdue: 0 };
     for (const invoice of invoices) {
       if (counts[invoice.status] != null) counts[invoice.status] += 1;
     }
@@ -105,6 +105,7 @@ function InvoicesPageInner() {
     ...INVOICE_STATUSES.map((column) => ({
       value: column,
       label: column,
+      short: column === "Partial" ? "Part" : undefined,
       count: loading ? undefined : (byStatus[column] ?? 0),
       countTone:
         column === "Overdue" && !loading && overdueCount > 0 ? "danger" : undefined,

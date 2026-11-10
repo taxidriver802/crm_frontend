@@ -30,11 +30,14 @@ async function publicFetchJson(path, options = {}) {
   return data;
 }
 
-function formatCurrency(num) {
-  return Number(num || 0).toLocaleString("en-US", {
+function formatMoney(num) {
+  const amount = Number(num);
+  if (!Number.isFinite(amount)) return "$0.00";
+  const text = Math.abs(amount).toLocaleString("en-US", {
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
   });
+  return amount < 0 ? `-$${text}` : `$${text}`;
 }
 
 export default function PublicEstimatePage() {
@@ -112,7 +115,7 @@ export default function PublicEstimatePage() {
   return (
     <PublicFrame
       width="narrow"
-      eyebrow="Shared estimate"
+      eyebrow={estimate?.kind === "change_order" ? "Change order" : "Shared estimate"}
       title={estimate?.title || "Estimate"}
       description={estimate?.job?.address || undefined}
       {...publicBrandProps(company)}
@@ -178,12 +181,11 @@ export default function PublicEstimatePage() {
                       <div className="mt-1 text-sm text-muted">{item.description}</div>
                     ) : null}
                     <div className="mt-1 text-xs text-muted">
-                      {Number(item.quantity).toLocaleString()} × $
-                      {formatCurrency(item.unit_price)}
+                      {Number(item.quantity).toLocaleString()} × {formatMoney(item.unit_price)}
                     </div>
                   </div>
                   <div className="shrink-0 font-semibold">
-                    ${formatCurrency(item.line_total)}
+                    {formatMoney(item.line_total)}
                   </div>
                 </ListRow>
               ))}
@@ -191,7 +193,7 @@ export default function PublicEstimatePage() {
 
             <div className="mt-4 flex justify-between border-t border-base pt-4 text-lg font-semibold">
               <span>Total</span>
-              <span>${formatCurrency(estimate.grand_total)}</span>
+              <span>{formatMoney(estimate.grand_total)}</span>
             </div>
           </SectionCard>
 
@@ -213,8 +215,16 @@ export default function PublicEstimatePage() {
             </SectionCard>
           ) : (
             <SectionCard
-              title="Respond to this estimate"
-              description="Accept, decline, or ask for a revision. Optional note for your contractor."
+              title={
+                estimate.kind === "change_order"
+                  ? "Respond to this change order"
+                  : "Respond to this estimate"
+              }
+              description={
+                estimate.kind === "change_order"
+                  ? "Accepting adds this change to the price you already agreed to."
+                  : "Accept, decline, or ask for a revision. Optional note for your contractor."
+              }
             >
               <Field htmlFor="estimate-note" label="Optional note">
                 <textarea

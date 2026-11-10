@@ -9,6 +9,7 @@ export function createEmptyLineItem() {
     description: "",
     quantity: "",
     unit_price: "",
+    credit: false,
   };
 }
 
@@ -21,6 +22,7 @@ export function EstimateLineItemForm({
   submitLabel,
   deleteButton = false,
   onDelete,
+  allowCredit = false,
 }) {
   function setField(key, value) {
     onChange((prev) => ({ ...prev, [key]: value }));
@@ -75,6 +77,16 @@ export function EstimateLineItemForm({
           />
         </Field>
       </div>
+      {allowCredit ? (
+        <label className="flex items-center gap-2 text-sm">
+          <input
+            type="checkbox"
+            checked={Boolean(form.credit)}
+            onChange={(event) => setField("credit", event.target.checked)}
+          />
+          Credit — this line reduces the contract
+        </label>
+      ) : null}
       <div className="flex w-full flex-row items-center justify-between">
         <FormActions>
           <button className="btn btn-primary" disabled={saving}>

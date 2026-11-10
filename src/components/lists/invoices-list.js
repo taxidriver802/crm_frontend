@@ -42,8 +42,15 @@ function InvoiceRow({ invoice, onOpen, variant = "card" }) {
           </ReturnLink>
         </EntityListMeta>
 
-        <EntityListMeta label="Total">
-          <span className="font-semibold">${formatCurrency(invoice.grand_total)}</span>
+        <EntityListMeta label={Number(invoice.amount_paid) > 0 ? "Balance" : "Total"}>
+          <span className="font-semibold">
+            $
+            {formatCurrency(
+              Number(invoice.amount_paid) > 0
+                ? invoice.balance_due
+                : invoice.grand_total,
+            )}
+          </span>
         </EntityListMeta>
 
         <EntityListMeta label="Due">
