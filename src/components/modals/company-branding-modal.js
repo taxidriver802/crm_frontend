@@ -111,12 +111,12 @@ export function CompanyBrandingModal({ open, company, onClose, onSaved }) {
           <Field
             label="Custom logo"
             htmlFor="company-logo"
-            help="Optional. PNG, JPG, WEBP, GIF, or SVG."
+            help="Optional. PNG, JPG, or WEBP."
           >
             <input
               id="company-logo"
               type="file"
-              accept="image/png,image/jpeg,image/webp,image/gif,image/svg+xml"
+              accept="image/png,image/jpeg,image/webp"
               className="input"
               onChange={(e) => {
                 setLogoFile(e.target.files?.[0] || null);

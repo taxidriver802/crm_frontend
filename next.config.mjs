@@ -43,6 +43,23 @@ const nextConfig = {
         source: "/sw.js",
         headers: [{ key: "Cache-Control", value: "no-cache" }],
       },
+      {
+        // Every page, but not /api/*: API responses keep the backend's own
+        // helmet headers, which allow same-origin framing for file previews.
+        // Scripts are not restricted here: Next and the theme bootstrap use
+        // inline scripts, and a nonce-based policy is its own change.
+        source: "/:path((?!api/).*)",
+        headers: [
+          {
+            key: "Content-Security-Policy",
+            value:
+              "frame-ancestors 'none'; base-uri 'self'; object-src 'none'; form-action 'self'",
+          },
+          { key: "X-Frame-Options", value: "DENY" },
+          { key: "X-Content-Type-Options", value: "nosniff" },
+          { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
+        ],
+      },
     ];
   },
 };

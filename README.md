@@ -44,9 +44,17 @@ Open [http://localhost:3000](http://localhost:3000). Next’s default port is
 **3000**; the API is **4000**. The QA harness uses 3100 / 4100 on purpose so
 it never collides with this pair.
 
-There is no register screen. The first owner account is created against the
-API (`POST /auth/register`); after that, sign in at `/login`. Later users
-come in through invite → `/accept-invite`.
+A company and its first owner are created at `/register`; after that, sign
+in at `/login` (company slug, email, password). Later users come in through
+invite → `/accept-invite`.
+
+**Production:** copy `.env.production.example` to `.env.production.local`
+before `npm run build` (both values are read at build time), then
+`npm start -- -H 127.0.0.1 -p 3000` behind a TLS proxy. The runbook is
+`crm_backend/docs/guide/hosting.md`. Every page is sent with
+`frame-ancestors 'none'`, `X-Frame-Options: DENY`, `nosniff` and a
+`strict-origin-when-cross-origin` referrer policy (`next.config.mjs`);
+`/api/*` keeps the backend's own headers.
 
 ## Environment variables
 

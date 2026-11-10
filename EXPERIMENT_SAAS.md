@@ -4,8 +4,20 @@ Branch cut from `experiment/CC_final` at `5b6b52918192`. The plan, ranking
 the work that makes Joist hostable, is
 `crm_backend/docs/EXPERIMENT_SAAS.md`.
 
-**This repository's product code did not change.** This file is the only
-change on the branch.
+On `experiment/CC_saas_plan` this file is the only change. Progress is
+ticked in the plan's **5. Sequence** checklist.
+
+## Step 1 (`experiment/CC_public_host`)
+
+- `next.config.mjs`: every page except `/api/*` sends
+  `frame-ancestors 'none'`, `base-uri 'self'`, `object-src 'none'`,
+  `form-action 'self'`, `X-Frame-Options: DENY`, `nosniff` and
+  `strict-origin-when-cross-origin`. Scripts aren't restricted yet (Next's
+  inline scripts need a nonce-based policy, its own change).
+- `components/modals/company-branding-modal.js`: logos are PNG, JPG or
+  WebP. The backend checks the bytes.
+- `.env.production.example` (read at build time) and a Production section
+  in `README.md`. The runbook is `crm_backend/docs/guide/hosting.md`.
 
 ## Where the plan reaches this repo
 
