@@ -80,9 +80,14 @@ export function ThemeController({ children }) {
   const brandedSurface =
     isPublicCustomerPath(pathname) || isAuthEntryPath(pathname);
 
-  const activePaletteId = brandedSurface
-    ? companyPaletteId || DEFAULT_PALETTE_ID
-    : personalPaletteId || companyPaletteId || DEFAULT_PALETTE_ID;
+  // Register makes a new company, so no remembered company's palette
+  // belongs there: it wears Joist's default (Ember) like the rest of its brand.
+  const activePaletteId =
+    pathname === "/register"
+      ? DEFAULT_PALETTE_ID
+      : brandedSurface
+        ? companyPaletteId || DEFAULT_PALETTE_ID
+        : personalPaletteId || companyPaletteId || DEFAULT_PALETTE_ID;
   const usingCompanyDefault = !personalPaletteId;
 
   useEffect(() => {

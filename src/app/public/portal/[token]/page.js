@@ -95,7 +95,7 @@ export default function CustomerPortalPage() {
 
   if (loading) {
     return (
-      <PublicFrame eyebrow="Customer portal" title="Your project">
+      <PublicFrame eyebrow="Customer portal" title="Your project" pending>
         <SectionCard title="Project status">
           <div className="space-y-3">
             <Skeleton className="h-4 w-2/3" />

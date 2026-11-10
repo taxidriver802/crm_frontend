@@ -80,6 +80,7 @@ export default function PublicInvoicePage() {
       title={invoice ? invoice.invoice_number : "Invoice"}
       description={invoice?.job?.title || undefined}
       {...publicBrandProps(company)}
+      pending={loading}
       footer={
         <Link href="/" className="underline-offset-4 hover:text-main hover:underline">
           Contractor sign in

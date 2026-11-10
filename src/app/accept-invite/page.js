@@ -38,9 +38,9 @@ function AcceptInvitePageInner() {
         const data = await res.json();
         if (cancelled) return;
         if (data?.ok) {
-          setCompanyName(data.company_name || "");
-          setInviteStatus("valid");
           writeStoredCompanySlug(data.company_slug);
+          // Name and brand land together, so the frame goes from a quiet
+          // tile straight to the company's own mark.
           if (data.company_slug) {
             const brandRes = await fetch(
               `/api/public/companies/${encodeURIComponent(data.company_slug)}`,
@@ -54,6 +54,9 @@ function AcceptInvitePageInner() {
               }
             }
           }
+          if (cancelled) return;
+          setCompanyName(data.company_name || "");
+          setInviteStatus("valid");
         } else {
           setInviteStatus(data?.status || "invalid");
         }
@@ -66,7 +69,7 @@ function AcceptInvitePageInner() {
     return () => {
       cancelled = true;
     };
-  }, [token]);
+  }, [token, setCompanyPaletteId]);
 
   async function handleSubmit(e) {
     e.preventDefault();
@@ -126,9 +129,8 @@ function AcceptInvitePageInner() {
   return (
     <AuthFrame
       title="Accept invite"
-      companyName={companyBrand?.name || companyName}
-      markId={companyBrand?.mark_id}
-      logoUrl={companyBrand?.logo_url}
+      company={companyBrand || (companyName ? { name: companyName } : null)}
+      pending={Boolean(token) && !inviteStatus}
       description={
         companyName
           ? `Join ${companyName}. Set your password to activate your account.`
@@ -193,7 +195,7 @@ export default function AcceptInvitePage() {
   return (
     <Suspense
       fallback={
-        <AuthFrame title="Accept invite" description="Loading…">
+        <AuthFrame title="Accept invite" description="Loading…" pending>
           <div className="text-sm text-muted">Loading…</div>
         </AuthFrame>
       }

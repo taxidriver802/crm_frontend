@@ -116,6 +116,7 @@ export default function PublicEstimatePage() {
       title={estimate?.title || "Estimate"}
       description={estimate?.job?.address || undefined}
       {...publicBrandProps(company)}
+      pending={loading}
       footer={
         <Link href="/" className="underline-offset-4 hover:text-main hover:underline">
           Contractor sign in

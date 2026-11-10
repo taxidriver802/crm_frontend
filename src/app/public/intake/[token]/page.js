@@ -36,6 +36,7 @@ export default function PublicIntakePage() {
   const [form, setForm] = useState(EMPTY_FORM);
   const [fieldErrors, setFieldErrors] = useState({});
   const [company, setCompany] = useState(null);
+  const [brandLoaded, setBrandLoaded] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   const [done, setDone] = useState(false);
@@ -132,6 +133,8 @@ export default function PublicIntakePage() {
         if (!cancelled && res.ok) setCompany(body.company || null);
       } catch {
         if (!cancelled) setCompany(null);
+      } finally {
+        if (!cancelled) setBrandLoaded(true);
       }
     }
     loadBrand();
@@ -164,6 +167,7 @@ export default function PublicIntakePage() {
         title="Thanks — we got it"
         description="Someone from our team will follow up soon."
         width="narrow"
+        pending={!brandLoaded}
         {...publicBrandProps(company)}
       >
         <SectionCard title="Submission received">
@@ -182,6 +186,7 @@ export default function PublicIntakePage() {
       description="Share a few details and we will get back to you."
       width="narrow"
       footer="Your information is sent securely to our team."
+      pending={!brandLoaded}
       {...publicBrandProps(company)}
     >
       <SectionCard title="Contact details">

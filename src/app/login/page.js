@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { api } from "@/lib/api";
@@ -27,24 +27,45 @@ export default function LoginPage() {
   const [password, setPassword] = useState("");
   const [slug, setSlug] = useState("");
   const [resolvedCompany, setResolvedCompany] = useState(null);
+  // The slug whose lookup has finished, found or not.
+  const [checkedSlug, setCheckedSlug] = useState(null);
+  // Null until the browser has read the remembered slug ("" when none).
+  const [rememberedSlug, setRememberedSlug] = useState(null);
+  const slugEdited = useRef(false);
   const [unknownSlug, setUnknownSlug] = useState("");
   const [error, setError] = useState("");
   const [emailFieldError, setEmailFieldError] = useState("");
   const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
-    setSlug(readStoredCompanySlug());
+    const remembered = readStoredCompanySlug();
+    setRememberedSlug(normalizeCompanySlug(remembered));
+    setSlug(remembered);
   }, []);
 
   const normalizedSlug = useMemo(() => normalizeCompanySlug(slug), [slug]);
   const slugIsUnknown =
     Boolean(normalizedSlug) && unknownSlug === normalizedSlug;
+  // Only the company the slug names right now. A company found for an
+  // earlier slug never stays on screen while the next one is looked up.
+  const company =
+    resolvedCompany && resolvedCompany.slug === normalizedSlug ? resolvedCompany : null;
+  // Before the remembered slug is read, and while it is looked up, hold a
+  // quiet tile instead of flashing Joist and then the company.
+  const brandPending =
+    rememberedSlug === null ||
+    (Boolean(rememberedSlug) &&
+      normalizedSlug === rememberedSlug &&
+      checkedSlug !== normalizedSlug &&
+      COMPANY_SLUG_RE.test(normalizedSlug));
   const canSubmit =
     !submitting && COMPANY_SLUG_RE.test(normalizedSlug) && !slugIsUnknown;
 
   useEffect(() => {
     if (!normalizedSlug || !COMPANY_SLUG_RE.test(normalizedSlug)) {
       setResolvedCompany(null);
+      // Clearing the slug by hand also lets go of that company's palette.
+      if (slugEdited.current) setCompanyPaletteId(null);
       return;
     }
 
@@ -58,6 +79,7 @@ export default function LoginPage() {
         if (controller.signal.aborted) return;
         if (res.status === 404) {
           setResolvedCompany(null);
+          setCheckedSlug(normalizedSlug);
           setUnknownSlug(normalizedSlug);
           setCompanyPaletteId(null);
           if (readStoredCompanySlug() === normalizedSlug) {
@@ -67,11 +89,13 @@ export default function LoginPage() {
         }
         if (!res.ok) {
           setResolvedCompany(null);
+          setCheckedSlug(normalizedSlug);
           return;
         }
         const data = await res.json();
         if (controller.signal.aborted) return;
         setResolvedCompany(data.company || null);
+        setCheckedSlug(normalizedSlug);
         setUnknownSlug((current) =>
           current === normalizedSlug ? "" : current
         );
@@ -81,6 +105,7 @@ export default function LoginPage() {
       } catch (err) {
         if (err?.name === "AbortError") return;
         setResolvedCompany(null);
+        setCheckedSlug(normalizedSlug);
       }
     }, 250);
 
@@ -88,7 +113,7 @@ export default function LoginPage() {
       controller.abort();
       window.clearTimeout(timer);
     };
-  }, [normalizedSlug]);
+  }, [normalizedSlug, setCompanyPaletteId]);
 
   async function handleSubmit(e) {
     e.preventDefault();
@@ -126,12 +151,11 @@ export default function LoginPage() {
   return (
     <AuthFrame
       title="Sign in"
-      companyName={resolvedCompany?.name}
-      markId={resolvedCompany?.mark_id}
-      logoUrl={resolvedCompany?.logo_url}
+      company={company}
+      pending={brandPending}
       description={
-        resolvedCompany?.name
-          ? `Sign in to ${resolvedCompany.name}.`
+        company?.name
+          ? `Sign in to ${company.name}.`
           : "Access your CRM workspace."
       }
     >
@@ -144,7 +168,7 @@ export default function LoginPage() {
           help={
             slugIsUnknown
               ? undefined
-              : resolvedCompany?.name ||
+              : company?.name ||
                 "Letters, numbers, and hyphens. This picks which company to sign into."
           }
         >
@@ -154,7 +178,10 @@ export default function LoginPage() {
             placeholder="northside-roofing"
             className="input"
             value={slug}
-            onChange={(e) => setSlug(e.target.value)}
+            onChange={(e) => {
+              slugEdited.current = true;
+              setSlug(e.target.value);
+            }}
             required
             autoComplete="off"
             spellCheck={false}
@@ -221,7 +248,7 @@ function IosInstallHint() {
   return (
     <div className="mt-4">
       <Alert tone="info">
-        <p>Install CRM from Safari: tap Share, then Add to Home Screen.</p>
+        <p>Install Joist from Safari: tap Share, then Add to Home Screen.</p>
         <button type="button" className="btn mt-2 px-3 py-1.5 text-xs" onClick={dismiss}>
           Dismiss
         </button>

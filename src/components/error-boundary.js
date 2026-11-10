@@ -1,6 +1,7 @@
 "use client";
 
 import { Component } from "react";
+import { StatusPage } from "@/components/brand/status-page";
 
 export class ErrorBoundary extends Component {
   constructor(props) {
@@ -18,20 +19,22 @@ export class ErrorBoundary extends Component {
 
   render() {
     if (this.state.hasError) {
+      // This boundary sits around the whole shell, so when it catches, no
+      // company is on screen any more: the page falls back to Joist.
       return (
-        <div className="card mx-auto my-12 max-w-lg p-6 text-center">
-          <div className="text-lg font-semibold">Something went wrong</div>
-          <div className="mt-2 text-sm text-muted">
-            {this.state.error?.message || "An unexpected error occurred."}
-          </div>
+        <StatusPage
+          inShell={false}
+          title="Something went wrong"
+          description={this.state.error?.message || "An unexpected error occurred."}
+        >
           <button
             type="button"
-            className="btn mt-4 px-4 py-2 text-sm"
+            className="btn px-4 py-2 text-sm"
             onClick={() => this.setState({ hasError: false, error: null })}
           >
             Try again
           </button>
-        </div>
+        </StatusPage>
       );
     }
     return this.props.children;
