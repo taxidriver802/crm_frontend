@@ -33,6 +33,7 @@ import { CompanyMark } from "@/components/brand/company-mark";
 import { CompanyBrandingModal } from "@/components/modals/company-branding-modal";
 import { useThemeController } from "@/components/theme/theme-controller";
 import { api } from "@/lib/api";
+import { normalizePreferences } from "@/lib/workspace";
 import { writeStoredCompanySlug } from "@/lib/company-slug";
 import {
   NOTIFICATION_PANEL_LIMIT,
@@ -44,11 +45,11 @@ import {
 } from "@/lib/notifications";
 
 const WORKFLOW_NAV = [
-  { href: "/dashboard", label: "Dashboard", icon: "home", priority: "primary" },
+  { href: "/dashboard", label: "Today", icon: "home", priority: "primary" },
   { href: "/leads", label: "Leads", icon: "users", priority: "primary" },
   { href: "/jobs", label: "Jobs", icon: "briefcase", priority: "primary" },
-  { href: "/tasks", label: "Tasks", icon: "checklist", priority: "primary" },
-  { href: "/invoices", label: "Invoices", icon: "invoice", priority: "primary" },
+  { href: "/tasks", label: "Schedule", icon: "checklist", priority: "primary" },
+  { href: "/invoices", label: "Money", icon: "invoice", priority: "primary" },
 ];
 
 const SYSTEM_NAV = [
@@ -98,6 +99,14 @@ const EMPTY_CHROME = {
 
 const ChromeDispatchContext = createContext(() => {});
 const ChromeValueContext = createContext(EMPTY_CHROME);
+const WorkspaceContext = createContext({
+  preferences: normalizePreferences(null),
+  savePreferences: async () => {},
+});
+
+export function useWorkspace() {
+  return useContext(WorkspaceContext);
+}
 
 function sameChrome(a, b) {
   return (
@@ -133,6 +142,8 @@ function AccountSettings({
   onInvite,
   onCompanyLook,
   onLogout,
+  preferences,
+  onPreferences,
 }) {
   const [open, setOpen] = useState(false);
   const panelId = useId();
@@ -190,6 +201,32 @@ function AccountSettings({
           ) : null}
 
           <ThemeToggle tone={tone} />
+
+          <label className="block px-2 py-1 text-xs">
+            <span className={chrome ? "text-chrome-muted" : "text-muted"}>Density</span>
+            <select
+              className="input mt-1"
+              aria-label="Density"
+              value={preferences?.density || "comfortable"}
+              onChange={(event) => onPreferences?.({ density: event.target.value })}
+            >
+              <option value="comfortable">Comfortable</option>
+              <option value="compact">Compact</option>
+            </select>
+          </label>
+
+          <label className="block px-2 py-1 text-xs">
+            <span className={chrome ? "text-chrome-muted" : "text-muted"}>Desk</span>
+            <select
+              className="input mt-1"
+              aria-label="Desk"
+              value={preferences?.desk || "queue"}
+              onChange={(event) => onPreferences?.({ desk: event.target.value })}
+            >
+              <option value="queue">Open on the queue</option>
+              <option value="money">Open on money</option>
+            </select>
+          </label>
 
           {canInstall ? (
             <button
@@ -272,6 +309,7 @@ function AppShellFrame({ children }) {
   const [sidebarMotion, setSidebarMotion] = useState(false);
 
   const [user, setUser] = useState(null);
+  const [preferences, setPreferences] = useState(() => normalizePreferences(null));
   const [company, setCompany] = useState(null);
   const [notificationsOpen, setNotificationsOpen] = useState(false);
   const [notifications, setNotifications] = useState([]);
@@ -518,6 +556,7 @@ function AppShellFrame({ children }) {
       if (!res.ok) return;
       const data = await res.json();
       setUser(data.user);
+      setPreferences(normalizePreferences(data.user?.ui_preferences));
       setCompany(data.company || null);
       if (data.company?.slug) writeStoredCompanySlug(data.company.slug);
       if (data.company?.palette_id) setCompanyPaletteId(data.company.palette_id);
@@ -525,6 +564,28 @@ function AppShellFrame({ children }) {
       console.error("Failed to load user", err);
     }
   }
+
+  useEffect(() => {
+    document.documentElement.dataset.density = preferences.density;
+  }, [preferences.density]);
+
+  const savePreferences = useCallback(async (patch) => {
+    setPreferences((current) => ({ ...current, ...patch }));
+    try {
+      const res = await api("/auth/preferences", {
+        method: "PATCH",
+        body: JSON.stringify(patch),
+      });
+      if (res?.ui_preferences) setPreferences(normalizePreferences(res.ui_preferences));
+    } catch (err) {
+      console.error("Failed to save workspace", err);
+    }
+  }, []);
+
+  const workspace = useMemo(
+    () => ({ preferences, savePreferences }),
+    [preferences, savePreferences],
+  );
 
   async function loadUnreadCount() {
     try {
@@ -892,6 +953,7 @@ function AppShellFrame({ children }) {
   }
 
   return (
+    <WorkspaceContext.Provider value={workspace}>
     <ReturnToProvider title={title}>
       <div className="app-shell flex overflow-hidden bg-app text-main">
         {/* SIDEBAR — large screens; toggled from the topbar */}
@@ -928,12 +990,13 @@ function AppShellFrame({ children }) {
 
             <nav className="flex-1 space-y-5 overflow-y-auto px-3 pb-2">
               <div className="space-y-0.5">
+                <div className="nav-section-label">Desk</div>
                 {primaryNavItems.map((item) => renderNavLink(item))}
               </div>
 
               {secondaryNavItems.length > 0 && (
                 <div className="space-y-0.5">
-                  <div className="nav-section-label">Tools</div>
+                  <div className="nav-section-label">Office</div>
                   {secondaryNavItems.map((item) => renderNavLink(item))}
                 </div>
               )}
@@ -943,6 +1006,8 @@ function AppShellFrame({ children }) {
               <AccountSettings
                 tone="chrome"
                 isAdminUser={isAdminUser}
+                preferences={preferences}
+                onPreferences={savePreferences}
                 onInvite={() => setInviteModalOpen(true)}
                 onCompanyLook={() => setBrandingOpen(true)}
                 onLogout={() => setLogoutConfirmOpen(true)}
@@ -1117,7 +1182,7 @@ function AppShellFrame({ children }) {
                 <div className="scrollbar-theme min-h-0 flex-1 space-y-4 overflow-y-auto p-3">
                   <div className="space-y-0.5">
                     <div className="px-2.5 pt-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-muted">
-                      Workflow
+                      Desk
                     </div>
                     {primaryNavItems.map((item) =>
                       renderNavLink(item, {
@@ -1132,7 +1197,7 @@ function AppShellFrame({ children }) {
                       <div className="border-t border-base pt-2" />
                       <div className="space-y-0.5">
                         <div className="px-2.5 pt-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-muted">
-                          Tools
+                          Office
                         </div>
                         {secondaryNavItems.map((item) =>
                           renderNavLink(item, {
@@ -1147,6 +1212,8 @@ function AppShellFrame({ children }) {
                   <div className="border-t border-base pt-3">
                     <AccountSettings
                       isAdminUser={isAdminUser}
+                      preferences={preferences}
+                      onPreferences={savePreferences}
                       onInvite={() => {
                         setMobileMenuOpen(false);
                         setInviteModalOpen(true);
@@ -1182,11 +1249,11 @@ function AppShellFrame({ children }) {
             style={{ paddingBottom: "max(0.375rem, env(safe-area-inset-bottom, 0px))" }}
           >
             {[
-              { href: "/dashboard", label: "Home", icon: "home" },
+              { href: "/dashboard", label: "Today", icon: "home" },
               { href: "/leads", label: "Leads", icon: "users" },
               { href: "/jobs", label: "Jobs", icon: "briefcase" },
-              { href: "/tasks", label: "Tasks", icon: "checklist" },
-              { href: "/reports", label: "Reports", icon: "chart" },
+              { href: "/tasks", label: "Schedule", icon: "checklist" },
+              { href: "/invoices", label: "Money", icon: "invoice" },
             ].map((item) => {
               const active = isActivePath(pathname, item.href);
               return (
@@ -1246,6 +1313,7 @@ function AppShellFrame({ children }) {
         />
       </div>
     </ReturnToProvider>
+    </WorkspaceContext.Provider>
   );
 }
 

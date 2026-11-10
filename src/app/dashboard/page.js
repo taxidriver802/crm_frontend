@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState, useSyncExternalStore } from "react";
+import { useWorkspace } from "@/components/app-shell";
 import { AppShell } from "@/components/app-shell";
 import { api } from "@/lib/api";
 import { PageError } from "@/components/error-boundary";
@@ -60,6 +61,8 @@ export default function DashboardPage() {
   const [err, setErr] = useState("");
   const [viewScope, setViewScope] = useState("mine");
   const [filter, setFilter] = useState("all");
+  const { preferences } = useWorkspace();
+  const [deskApplied, setDeskApplied] = useState(false);
   const [completingId, setCompletingId] = useState(null);
 
   const isInitialLoading = loading && !data;
@@ -215,7 +218,11 @@ export default function DashboardPage() {
   // Time-of-day copy must wait for the client so SSR text matches hydration
   // (and so QA's pinned clock is what the user actually sees).
   const shellTitle = isClient ? greeting : "Dashboard";
-  const shellDescription = isClient ? todayLabel() : "";
+  const shellDescription = isClient
+    ? preferences.desk === "money"
+      ? `${todayLabel()} · desk opens on money`
+      : todayLabel()
+    : "";
 
   async function refreshDashboardSections({
     initial = false,
@@ -301,6 +308,12 @@ export default function DashboardPage() {
       setCompletingId(null);
     }
   }
+
+  useEffect(() => {
+    if (deskApplied || !preferences?.desk) return;
+    setDeskApplied(true);
+    if (preferences.desk === "money") setFilter("money");
+  }, [preferences.desk, deskApplied]);
 
   useEffect(() => {
     let alive = true;

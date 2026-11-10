@@ -41,6 +41,9 @@ import {
   Skeleton,
 } from "@/components/loading/loadingSkeletons";
 import { SectionCard } from "@/components/ui/section-card";
+import { Segmented } from "@/components/ui/segmented";
+import { useWorkspace } from "@/components/app-shell";
+import { JOB_PANES } from "@/lib/workspace";
 import { DetailHeader } from "@/components/ui/detail-header";
 import { PageError } from "@/components/error-boundary";
 import { StatusBadge } from "@/components/ui/status-badge";
@@ -102,6 +105,14 @@ export default function JobDetailPage() {
   const [invoices, setInvoices] = useState([]);
   const [loadingInvoices, setLoadingInvoices] = useState(true);
   const [invoicesError, setInvoicesError] = useState("");
+  const { preferences, savePreferences } = useWorkspace();
+  const [paneOverride, setPaneOverride] = useState(null);
+  const pane = paneOverride || preferences.job_pane || "work";
+
+  function choosePane(next) {
+    setPaneOverride(next);
+    savePreferences({ job_pane: next });
+  }
 
   const [measurements, setMeasurements] = useState([]);
   const [loadingMeasurements, setLoadingMeasurements] = useState(true);
@@ -818,6 +829,14 @@ export default function JobDetailPage() {
               ) : null}
             </DetailHeader>
 
+            <Segmented
+              aria-label="Job workspace"
+              value={pane}
+              onChange={choosePane}
+              options={JOB_PANES.map((item) => ({ value: item.id, label: item.label }))}
+            />
+
+            <div className={pane === "work" ? "space-y-6" : "hidden"}>
             <SectionCard
               size="lg"
               title="Communication"
@@ -877,6 +896,9 @@ export default function JobDetailPage() {
                 })}
               </div>
             </SectionCard>
+            </div>
+
+            <div className={pane === "money" ? "space-y-6" : "hidden"}>
             <JobMoney
               jobId={id}
               onChanged={() => {
@@ -1019,7 +1041,9 @@ export default function JobDetailPage() {
                 </div>
               )}
             </SectionCard>
+            </div>
 
+            <div className={pane === "site" ? "space-y-6" : "hidden"}>
             <CollapsibleSection
               title="Measurements"
               description="Manual job dimensions for pricing context (optional)"
@@ -1152,7 +1176,9 @@ export default function JobDetailPage() {
                 </div>
               ) : null}
             </CollapsibleSection>
+            </div>
 
+            <div className={pane === "work" ? "space-y-6" : "hidden"}>
             <SectionCard
               size="lg"
               title="Tasks"
@@ -1324,7 +1350,9 @@ export default function JobDetailPage() {
                 )}
               </div>
             </SectionCard>
+            </div>
 
+            <div className={pane === "site" ? "space-y-6" : "hidden"}>
             <SectionCard
               id="section-files"
               size="lg"
@@ -1493,6 +1521,9 @@ export default function JobDetailPage() {
                 />
               </div>
             </SectionCard>
+            </div>
+
+            <div className={pane === "record" ? "space-y-6" : "hidden"}>
             <CollapsibleSection
               id="section-activity"
               title="Activity"
@@ -1534,6 +1565,7 @@ export default function JobDetailPage() {
                 </>
               )}
             </CollapsibleSection>
+            </div>
           </div>
         ) : null}
       </div>
