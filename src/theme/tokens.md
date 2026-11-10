@@ -9,7 +9,9 @@ Runtime CSS is emitted into `#crm-palette-vars` as:
 
 `next-themes` still owns **color scheme** (`class="dark"` on `<html>`). The controller owns **palette** (`data-palette`). Pages must use CSS variables / token utilities only — never palette ids.
 
-Named palettes: **Rooftop** (default, brand orange `#f97316` / `rgb(249, 115, 22)`, dark `--on-accent`), **Azure** (previous blue `#2563eb`), and **Slate** (teal `#0f766e`). The picker writes `localStorage` key `crm-palette`. Public `/public/*` routes force Rooftop so a salesperson’s choice does not leak onto customer links. PDFs/email stay on the backend Rooftop print map.
+Named palettes: **Ember** (id `rooftop`; default and Joist’s own, orange `#f97316` / `rgb(249, 115, 22)`, dark `--on-accent`), **Azure** (previous blue `#2563eb`), and **Slate** (teal `#0f766e`), plus Emerald, Violet, Rose, Sand and Graphite. Ember was called Rooftop; the id stays `rooftop` because companies and preferences store ids, so saved choices keep resolving. The picker writes `localStorage` key `crm-palette`. Public `/public/*` routes use the company’s palette so a salesperson’s choice does not leak onto customer links. PDFs/email stay on the backend Ember print map.
+
+Brand (Joist’s mark, company monograms, which brand owns which surface): [`brand.md`](brand.md).
 
 Tailwind mappings: [`tailwind.config.js`](../../tailwind.config.js).
 
@@ -19,7 +21,7 @@ PDFs and invite email consume **print hex** from each palette’s `print` map (l
 
 | Token                | Light                  | Dark                | Notes                                                      |
 | -------------------- | ---------------------- | ------------------- | ---------------------------------------------------------- |
-| `--bg`               | `#f4f5f7`              | `#0a0a0a`           | App canvas (Rooftop dark; Azure/Slate use cooler charcoal) |
+| `--bg`               | `#f4f5f7`              | `#0a0a0a`           | App canvas (Ember dark; Azure/Slate use cooler charcoal)   |
 | `--surface`          | `#eceef2`              | `#141414`           | Inputs, recessed panels                                    |
 | `--surface-elevated` | `#ffffff`              | `#1a1a1a`           | Cards, topbar, dropdowns                                   |
 | `--overlay`          | `rgb(17 19 24 / 0.45)` | `rgb(0 0 0 / 0.55)` | Modal/command-palette scrim                                |
@@ -33,7 +35,7 @@ PDFs and invite email consume **print hex** from each palette’s `print` map (l
 
 Used by the desktop sidebar and mobile bottom nav. Light scheme uses a mid charcoal grey rail (still darker than the page, softer than pure black). Dark scheme stays near-black. Each palette keeps a slight hue tint on chrome.
 
-| Token               | Light (Rooftop) | Dark (Rooftop) |
+| Token               | Light (Ember)   | Dark (Ember)   |
 | ------------------- | --------------- | -------------- |
 | `--chrome`          | `#363a43`       | `#000000`      |
 | `--chrome-elevated` | `#40454f`       | `#111111`      |
@@ -49,19 +51,19 @@ Used by the desktop sidebar and mobile bottom nav. Light scheme uses a mid charc
 | `--text`       | `#111318`                                      | `#f4f4f5` |
 | `--text-muted` | `#5c6370`                                      | `#a1a1aa` |
 | `--text-soft`  | `#8b919c`                                      | `#71717a` |
-| `--on-accent`  | `#111318` (Rooftop) / `#ffffff` (Azure, Slate) | same      |
+| `--on-accent`  | `#111318` (Ember) / `#ffffff` (Azure, Slate)   | same      |
 
 ## Accent and semantic
 
-`--accent` is **#f97316** on Rooftop, **#2563eb** on Azure, and **#0f766e** on Slate, same in light and dark. Hover is `color-mix` with black — do not add a second hue inside a palette. Rooftop `--warning` is shifted to gold so it does not collide with the orange accent.
+`--accent` is **#f97316** on Ember, **#2563eb** on Azure, and **#0f766e** on Slate, same in light and dark. Hover is `color-mix` with black — do not add a second hue inside a palette. Ember `--warning` is shifted to gold so it does not collide with the orange accent.
 
 | Token            | Light                                                       | Dark                                           |
 | ---------------- | ----------------------------------------------------------- | ---------------------------------------------- |
-| `--accent`       | `#f97316` (Rooftop) / `#2563eb` (Azure) / `#0f766e` (Slate) | same                                           |
+| `--accent`       | `#f97316` (Ember) / `#2563eb` (Azure) / `#0f766e` (Slate)   | same                                           |
 | `--accent-hover` | mix 78% toward black                                        | mix 78% toward black                           |
 | `--accent-soft`  | 12% mix                                                     | 18% mix                                        |
 | `--success`      | `#16a34a`                                                   | `#4ade80`                                      |
-| `--warning`      | `#ca8a04` (Rooftop) / `#f59e0b` (Azure, Slate)              | `#eab308` (Rooftop) / `#fbbf24` (Azure, Slate) |
+| `--warning`      | `#ca8a04` (Ember) / `#f59e0b` (Azure, Slate)                | `#eab308` (Ember) / `#fbbf24` (Azure, Slate)   |
 | `--danger`       | `#dc2626`                                                   | `#f87171`                                      |
 | `--*-soft`       | 12% mix                                                     | 18% mix                                        |
 
@@ -108,19 +110,19 @@ Estimate and invoice PDFs share `PRINT_PDF` + `pdf-layout.ts`. Invite HTML inter
 
 ## PWA
 
-Install chrome stays on the product identity. Company palette and logo do not change the home-screen icon or manifest colors.
+Install chrome is Joist’s, not a company’s. Company palette and logo do not change the home-screen icon or manifest colors.
 
-`resolvePwaTheme()` reads the Rooftop light `--bg` / `--accent` / `--on-accent`.
+`resolvePwaTheme()` reads the Ember light `--bg` / `--accent` / `--on-accent` for the manifest.
 
-| Use                                                            | Token                      | Hex                   |
-| -------------------------------------------------------------- | -------------------------- | --------------------- |
-| Manifest `theme_color` / `background_color`, viewport fallback | `--bg`                     | `#f4f5f7`             |
-| App icons (SVG source and generated PNG)                       | `--accent` / `--on-accent` | `#f97316` / `#111318` |
-| Offline shell (`public/offline.html`)                          | same light tokens          | hardcoded, no CSS vars |
+| Use                                                            | Source                                  | Hex                               |
+| -------------------------------------------------------------- | --------------------------------------- | --------------------------------- |
+| Manifest `theme_color` / `background_color`, viewport fallback | `--bg` (Ember light)                    | from the palette                  |
+| App icons, favicon, offline page mark                          | `src/assets/brand/joist-mark.svg`       | tile `#363a43`, glyph `#f4f4f5`, flange `#f97316` |
+| Offline shell (`public/offline.html`)                          | Ember light tokens, hardcoded           | no CSS vars                       |
 
-PNG sizes: 180 (`apple-touch-icon.png`), 192, 512, and a maskable 512 with extra safe-zone padding. Regenerate with `npm run icons:pwa` (`sharp`, devDependency). SVGs stay in `public/icons/` as the source.
+`npm run icons:pwa` writes every icon from the one drawing: `src/app/icon.svg`, `src/app/favicon.ico` (16/32/48), `src/app/apple-icon.png` (180, full bleed), `public/icons/icon-192|512.svg|png`, `public/icons/icon-512-maskable.png` (full bleed, mark at 80%), and the inline mark in `public/offline.html`. `npm run icons:pwa -- --check` fails on drift. Details in [`brand.md`](brand.md).
 
-Runtime `theme-color` still follows computed `--bg` (light or dark) via `syncThemeColorMeta()`. That meta tag is the browser chrome while the site is open. The installed icon does not follow it.
+Runtime `theme-color` follows computed `--bg` (light or dark) of the active palette via `syncThemeColorMeta()`. Signed in, the active palette is the person’s own or else the company’s, so the browser chrome follows the company. The installed icon does not.
 
 ## Public customer surfaces (Phase 7)
 

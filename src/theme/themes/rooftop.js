@@ -1,7 +1,11 @@
-/** Rooftop Realty brand. Accent is rgb(249, 115, 22); buttons use dark ink on orange. */
+/**
+ * Ember: the default palette and Joist's own. Accent is rgb(249, 115, 22);
+ * buttons use dark ink on orange. The id stays `rooftop` (its old name)
+ * because companies and preferences store ids; renaming it would orphan them.
+ */
 export const rooftop = {
   id: "rooftop",
-  label: "Rooftop",
+  label: "Ember",
   preview: {
     bg: "#f6f5f1",
     surface: "#efede7",
