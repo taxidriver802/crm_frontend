@@ -216,6 +216,11 @@ export default function LoginPage() {
             autoComplete="current-password"
           />
         </Field>
+        <p className="-mt-2 text-right text-sm">
+          <Link href="/forgot-password" className="font-medium text-accent">
+            Forgot password?
+          </Link>
+        </p>
 
         {error ? <Alert variant="inline">{error}</Alert> : null}
 

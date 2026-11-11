@@ -7,6 +7,8 @@ export function isAuthEntryPath(pathname) {
   return (
     pathname === "/login" ||
     pathname === "/register" ||
-    pathname === "/accept-invite"
+    pathname === "/accept-invite" ||
+    pathname === "/forgot-password" ||
+    pathname === "/reset-password"
   );
 }

@@ -8,6 +8,7 @@ import { useRouter } from "next/navigation";
 import { AppShell } from "@/components/app-shell";
 import { useConfirmModal } from "@/components/modals/confirm-modal";
 import { InviteUserModal } from "@/components/modals/invite-user-modal";
+import { AccountHistoryModal, LinkHandoffModal } from "@/components/modals/account-modals";
 import { api } from "@/lib/api";
 import { TableRowSkeleton } from "@/components/loading/loadingSkeletons";
 import { Alert } from "@/components/ui/alert";
@@ -65,6 +66,14 @@ function UsersPageContent() {
   const [statusFilter, setStatusFilter] = useState("all");
   const [searchQuery, setSearchQuery] = useState("");
   const [roleFilter, setRoleFilter] = useState("all");
+  /** A link just made for someone: emailed, or shown once to copy. */
+  const [handoff, setHandoff] = useState(null);
+  /** { id, name } whose account history is open. */
+  const [historyPerson, setHistoryPerson] = useState(null);
+
+  function personLabel(user) {
+    return [user?.first_name, user?.last_name].filter(Boolean).join(" ").trim() || user?.email || "them";
+  }
 
   async function loadCurrentUser() {
     const res = await fetch("/api/auth/me", {
@@ -275,14 +284,27 @@ function UsersPageContent() {
     setSuccessMessage("");
 
     try {
-      await api(`/users/invite/${id}/resend`, {
+      const data = await api(`/users/invite/${id}/resend`, {
         method: "POST",
       });
+      const who = personLabel(data.user);
+      setHandoff(
+        data.email_sent
+          ? {
+              title: "Invite sent again",
+              message: `We emailed ${who} a new invite. It lasts 7 days, and the old link no longer works.`,
+            }
+          : {
+              title: "New invite link",
+              message: `${data.email_error || "This invite wasn’t emailed"}. Copy the new link and send it to ${who} yourself. It lasts 7 days, and the old link no longer works.`,
+              url: data.invite_url,
+            },
+      );
 
       await loadUsers();
     } catch (err) {
       console.error(err);
-      setError("Failed to resend invite.");
+      setError(err.message || "Failed to resend invite.");
     } finally {
       setBusyId(null);
     }
@@ -296,6 +318,7 @@ function UsersPageContent() {
     try {
       const data = await api(`/users/invite/${id}/resend`, {
         method: "POST",
+        body: JSON.stringify({ send_email: false }),
       });
 
       const url = data?.invite_url;
@@ -314,6 +337,41 @@ function UsersPageContent() {
     } finally {
       setBusyId(null);
     }
+  }
+
+  function sendResetLink(user) {
+    const who = personLabel(user);
+    askConfirm({
+      title: `Send ${who} a password reset link?`,
+      description:
+        "They choose a new password with it. The link lasts an hour and works once. When they use it, they’re signed out on every device.",
+      confirmLabel: "Make the link",
+      onConfirm: async () => {
+        setBusyId(user.id);
+        setError("");
+        setSuccessMessage("");
+        try {
+          const data = await api(`/users/${user.id}/reset-link`, { method: "POST" });
+          setHandoff(
+            data.email_sent
+              ? {
+                  title: "Reset link emailed",
+                  message: `We emailed ${who} a link to set a new password. It lasts an hour.`,
+                }
+              : {
+                  title: "Password reset link",
+                  message: `${data.email_error || "This link wasn’t emailed"}. Copy it and send it to ${who} yourself. It lasts an hour and works once.`,
+                  url: data.reset_url,
+                },
+          );
+        } catch (err) {
+          console.error(err);
+          setError(err.message || "Couldn’t make a reset link.");
+        } finally {
+          setBusyId(null);
+        }
+      },
+    });
   }
 
   function revokeInvite(id) {
@@ -483,7 +541,7 @@ function UsersPageContent() {
                 <th>Status</th>
                 <th>Invited</th>
                 <th>Accepted</th>
-                <th>Last Login</th>
+                <th>Last sign-in</th>
                 <th>Actions</th>
               </tr>
             </thead>
@@ -506,7 +564,7 @@ function UsersPageContent() {
                 <th>Status</th>
                 <th>Invited</th>
                 <th>Accepted</th>
-                <th>Last Login</th>
+                <th>Last sign-in</th>
                 <th>Actions</th>
               </tr>
             </thead>
@@ -687,9 +745,12 @@ function UsersPageContent() {
                         : "—"}
                     </Td>
 
-                    <Td label="Last Login" className="align-top text-muted">
+                    <Td label="Last sign-in" className="align-top text-muted">
                       {user.last_login_at
-                        ? new Date(user.last_login_at).toLocaleDateString()
+                        ? new Date(user.last_login_at).toLocaleString(undefined, {
+                            dateStyle: "medium",
+                            timeStyle: "short",
+                          })
                         : user.status === "invited"
                           ? "Pending"
                           : "—"}
@@ -703,21 +764,15 @@ function UsersPageContent() {
                           user.status === "disabled" && !adminLockedOwnerRow;
                         const canDeleteUser =
                           canDelete && !isSelf && !adminLockedOwnerRow;
-                        const hasRowActions =
-                          canDisable ||
-                          canReenable ||
-                          canInviteActions ||
-                          canRevokeInvite ||
-                          canDeleteUser;
+                        // Owners reset anyone else; admins, agents and admins.
+                        // Every other row has at least its account history.
+                        const canSendReset =
+                          user.status === "active" && !isSelf && !adminLockedOwnerRow;
 
                         if (isSelf) {
                           return (
                             <span className="text-xs text-muted">Current account</span>
                           );
-                        }
-
-                        if (!hasRowActions) {
-                          return <span className="text-xs text-muted">—</span>;
                         }
 
                         const menuOpen = openActionsUserId === user.id;
@@ -748,6 +803,28 @@ function UsersPageContent() {
                             },
                           });
                         }
+                        if (canSendReset) {
+                          menuItems.push({
+                            key: "reset",
+                            label: "Send password reset link",
+                            itemClassName: "text-xs",
+                            disabled: busy,
+                            onClick: () => {
+                              setOpenActionsUserId(null);
+                              sendResetLink(user);
+                            },
+                          });
+                        }
+                        menuItems.push({
+                          key: "history",
+                          label: "Account history",
+                          itemClassName: "text-xs",
+                          disabled: false,
+                          onClick: () => {
+                            setOpenActionsUserId(null);
+                            setHistoryPerson({ id: user.id, name: personLabel(user) });
+                          },
+                        });
                         if (canInviteActions) {
                           menuItems.push({
                             key: "copy",
@@ -874,6 +951,8 @@ function UsersPageContent() {
             loadUsers();
           }}
         />
+        <LinkHandoffModal handoff={handoff} onClose={() => setHandoff(null)} />
+        <AccountHistoryModal person={historyPerson} onClose={() => setHistoryPerson(null)} />
         {confirmModal}
       </div>
     </AppShell>

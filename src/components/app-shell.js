@@ -95,6 +95,8 @@ function isBarePath(pathname) {
     pathname === "/login" ||
     pathname === "/register" ||
     pathname === "/accept-invite" ||
+    pathname === "/forgot-password" ||
+    pathname === "/reset-password" ||
     pathname === "/public" ||
     pathname.startsWith("/public/")
   );

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { api } from "@/lib/api";
 import Link from "next/link";
 import { AppShell } from "@/components/app-shell";
 import { Icon } from "@/components/icons";
@@ -22,6 +23,7 @@ const SECTIONS = [
   { id: "navigation", label: "Navigation", icon: "columns" },
   { id: "home", label: "Today", icon: "home" },
   { id: "layouts", label: "Lists & records", icon: "layout" },
+  { id: "account", label: "Sign-in & password", icon: "user" },
   { id: "workspace", label: "Workspace", icon: "users", admin: true },
 ];
 
@@ -502,6 +504,133 @@ function WorkspaceSettings({ askConfirm }) {
   );
 }
 
+/** Change password, and end the sessions on other devices. */
+function AccountSettings({ askConfirm }) {
+  const { showToast } = useToast();
+  const [current, setCurrent] = useState("");
+  const [next, setNext] = useState("");
+  const [confirm, setConfirm] = useState("");
+  const [error, setError] = useState("");
+  const [busy, setBusy] = useState(false);
+
+  async function changePassword(e) {
+    e.preventDefault();
+    setError("");
+    if (next.length < 8) {
+      setError("Use at least 8 characters for the new password.");
+      return;
+    }
+    if (next !== confirm) {
+      setError("The two new passwords don’t match.");
+      return;
+    }
+    setBusy(true);
+    try {
+      const data = await api("/auth/change-password", {
+        method: "POST",
+        body: JSON.stringify({ current_password: current, new_password: next }),
+      });
+      setCurrent("");
+      setNext("");
+      setConfirm("");
+      const others = data.other_sessions_ended || 0;
+      showToast(
+        others
+          ? `Password changed. ${others === 1 ? "1 other device was" : `${others} other devices were`} signed out.`
+          : "Password changed.",
+        { tone: "success" }
+      );
+    } catch (err) {
+      setError(typeof err?.message === "string" ? err.message : "Couldn’t change the password.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  function endOthers() {
+    askConfirm({
+      title: "Sign out everywhere else?",
+      description: "Every other browser and device signed in as you is signed out. This one stays signed in.",
+      confirmLabel: "Sign out others",
+      onConfirm: async () => {
+        try {
+          const data = await api("/auth/sessions/end-others", { method: "POST" });
+          const n = data.ended || 0;
+          showToast(
+            n ? `Signed out ${n === 1 ? "1 other session" : `${n} other sessions`}.` : "No other sessions were signed in.",
+            { tone: "success" }
+          );
+        } catch (err) {
+          showToast(err?.message || "Couldn’t sign out the other sessions", { tone: "danger" });
+        }
+      },
+    });
+  }
+
+  return (
+    <div className="space-y-4" data-testid="settings-account">
+      <SettingsPanel
+        title="Change password"
+        description="You stay signed in here. Every other device signs out."
+      >
+        <form onSubmit={changePassword} className="max-w-sm space-y-3">
+          <label className="block text-sm">
+            <span className="mb-1 block font-medium">Current password</span>
+            <input
+              type="password"
+              className="input"
+              value={current}
+              onChange={(e) => setCurrent(e.target.value)}
+              autoComplete="current-password"
+              required
+            />
+          </label>
+          <label className="block text-sm">
+            <span className="mb-1 block font-medium">New password</span>
+            <input
+              type="password"
+              className="input"
+              value={next}
+              onChange={(e) => setNext(e.target.value)}
+              autoComplete="new-password"
+              placeholder="At least 8 characters"
+              required
+            />
+          </label>
+          <label className="block text-sm">
+            <span className="mb-1 block font-medium">Confirm new password</span>
+            <input
+              type="password"
+              className="input"
+              value={confirm}
+              onChange={(e) => setConfirm(e.target.value)}
+              autoComplete="new-password"
+              required
+            />
+          </label>
+          {error ? (
+            <p className="text-sm text-danger" role="alert">
+              {error}
+            </p>
+          ) : null}
+          <button type="submit" className="btn btn-primary btn-sm" disabled={busy}>
+            {busy ? "Saving…" : "Change password"}
+          </button>
+        </form>
+      </SettingsPanel>
+      <SettingsPanel
+        title="Other devices"
+        description="Signed in on a shared tablet or a phone you no longer have? End those sessions from here."
+      >
+        <button type="button" className="btn btn-sm" onClick={endOthers}>
+          <Icon name="logOut" className="h-3.5 w-3.5" />
+          Sign out everywhere else
+        </button>
+      </SettingsPanel>
+    </div>
+  );
+}
+
 export default function SettingsPage() {
   const { isAdmin, loaded, resetPrefs, saving } = useWorkspace();
   const { askConfirm, confirmModal } = useConfirmModal();
@@ -564,6 +693,8 @@ export default function SettingsPage() {
             <CustomizeHome />
           ) : active === "layouts" ? (
             <LayoutSettings />
+          ) : active === "account" ? (
+            <AccountSettings askConfirm={askConfirm} />
           ) : active === "workspace" ? (
             <WorkspaceSettings askConfirm={askConfirm} />
           ) : null}

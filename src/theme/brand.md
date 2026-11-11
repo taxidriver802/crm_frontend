@@ -16,11 +16,11 @@ Once a company is known, Joist steps back to a footnote or disappears.
 | Browser tab icon, installed app icon and name | Joist | `src/app/icon.svg`, `favicon.ico`, `apple-icon.png`, `public/icons/`, `manifest.js` |
 | Signed-out tab title | Joist | `layout.js` metadata |
 | Signed-in tab title | Company: `<company> CRM` | `components/app-shell.js` |
-| Sign-in, before a company is known; register (always) | Joist lockup | `components/auth/auth-frame.js` |
-| Sign-in once a slug resolves (typed or remembered), accept-invite | Company mark and name | same |
+| Sign-in, before a company is known; register and Forgot password (always) | Joist lockup | `components/auth/auth-frame.js` |
+| Sign-in once a slug resolves (typed or remembered), accept-invite, reset password | Company mark and name | same |
 | Nav rail, phone top bar, Settings | Company | `nav-rail.js`, `app-shell.js`, `settings/page.js` |
 | Customer pages (intake, estimate, portal, invoice) | Company header, plus one muted **Powered by Joist** line | `components/public/public-frame.js` |
-| Invite email | Company card, plus one muted **Powered by Joist** line | `crm_backend/src/lib/invite-email.ts` |
+| Invite and password reset emails | Company card, plus one muted **Powered by Joist** line | `crm_backend/src/lib/invite-email.ts`, `reset-email.ts` |
 | Offline page | Joist (inline mark, the service worker caches this page) | `public/offline.html` |
 | 404 / error with no company on screen | Joist lockup | `components/brand/status-page.js` |
 | 404 / error inside the staff shell | None extra; the company rail is already there | same |
