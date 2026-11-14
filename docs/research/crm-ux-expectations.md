@@ -83,6 +83,8 @@ Research date: 2026-11-13. Built from eight research notes in `research_notes/CR
 
 ## 3. Visual spec targets
 
+> **Correction (2026-11-13 audit):** the "Ours today" column below missed `src/app/workbench.css`. Measured values (14 px body, 40/32 px rows with a density switch, 248 px sidebar collapsing to a 60 px rail, 1480 px page wrapper, 14 px panel radius) are in [crm-ux-audit.md](crm-ux-audit.md), section 2.
+
 "Ours today" was read from `src/theme/tokens.md`, `tailwind.config.js` and `src/app/globals.css` only. Values set inside components were not read, so "not defined" means not defined in those three files.
 
 | Spec | Vendor range | Recommended value | Tailwind 3.4 | Basis | Ours today | Status |
