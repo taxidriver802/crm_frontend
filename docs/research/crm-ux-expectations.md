@@ -166,6 +166,10 @@ The open questions were settled by the owner on 2026-11-13. These decisions outr
 | Map view and financing | **Add a Map view** (Board / List / Map); financing stays out | Overrides the research pick to defer |
 | Homeowner portal | **Full per-job portal**: estimates, invoices, photos (staff can hide each), schedule, messages | Widens today's estimates/invoices portal |
 | Other Split picks | **Accepted as written**: "+ New" top of sidebar; bell top-right, account menu bottom-left; numbered pagination; tabs only for secondary material; modal/drawer quick-create; full-page job/estimate create; skeletons; outline icons | |
+| Jobs board start (2026-11-14) | **From Sold**, with a collapsed Pre-sale column first for jobs still in a selling stage | Resolves the Leads/Jobs overlap found in the audit |
+| Contacts (2026-11-14) | **Keep "Leads"** in the nav; Contacts is planned separately in [contacts-plan.md](contacts-plan.md) | |
+| Sidebar and page widths (2026-11-14) | **The checklist takes the app's values**: 248px sidebar, 60px rail, 1480px page wrapper | |
+| Table cell text (2026-11-14) | **Code moves cells from 13.5px to 14px** | Done in the consistency pass |
 
 Some decisions add features rather than align visuals (Map view, the per-job portal, insurance fields, the Jobs board, gated drag). They are part of the standard pages are checked against, but they are new builds, not fixes to existing pages.
 

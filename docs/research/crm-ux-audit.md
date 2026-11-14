@@ -13,7 +13,7 @@ Status key: **Meets** · **Partial** · **Misses** · **New build** (an owner de
 
 ## 1. Summary
 
-**Score: 6 Meets, 21 Partial, 9 Misses, 3 New build** (of 39 lines).
+**Score: 10 Meets, 18 Partial, 8 Misses, 3 New build** (of 39 lines, after the 2026-11-14 checklist amendments; 6 / 21 / 9 / 3 before).
 
 The app is closer to the standard than the research report's "Ours today" column suggested. A design language (`workbench.css`) already sets 14 px body text, 40 px rows with a compact density switch, a 248 px sidebar that collapses to a 60 px icon rail, a right-hand record rail, skeleton loaders and Undo toasts. The gaps cluster in five places:
 
@@ -23,7 +23,7 @@ The app is closer to the standard than the research report's "Ours today" column
 4. **Record pages.** History sits behind an "Activity" tab. "Open tasks" sits below the communication log. The address is in the rail, not the header.
 5. **Homeowner portal.** Staff theme controls ("Light mode", "Color palettes") show in the customer's header and run past the right edge at 375 px. There is no rep name, schedule or messages section.
 
-Three findings need the owner's call before the consistency pass. They are listed in section 6.
+Three findings needed the owner's call; they were settled on 2026-11-14 (section 6).
 
 ## 2. Corrections to the research report
 
@@ -43,14 +43,14 @@ The report's "Ours today" column was built from `tokens.md`, `tailwind.config.js
 
 | # | Checklist line (short) | Status | What the app does | Fix |
 |---|---|---|---|---|
-| 1 | Left sidebar `w-60`, charcoal, no top-bar menu | Partial | Left sidebar, no top menu; **248 px** (not 240) | Change `--rail-w` to 240 or amend the line to 248 (see section 6) |
-| 2 | Collapse to `w-16` icon rail, tooltips, persists | Partial | Collapses to a **60 px** rail and persists (`data-sidebar`). Tooltips not verified | 60 → 64, or amend the line |
-| 3 | Nav order Home, Jobs, Contacts, Calendar, Tasks, Estimates, Invoices, Reports; account bottom-left; bell top-right | Partial | Today, Jobs, Leads, Tasks, Invoices, Inbox, then "Tools": Files, Reports, Templates, Automation, Integrations, Team. Account menu bottom-left ✓, bell top-right ✓. No Contacts, Calendar or Estimates entry | Owner call on naming and Contacts (section 6) |
+| 1 | Left sidebar 248 px, charcoal, no top-bar menu | Meets | Left sidebar, no top menu, 248 px | — (checklist amended to 248 px) |
+| 2 | Collapse to a 60 px icon rail, tooltips, persists | Meets | 60 px rail, persists (`data-sidebar`). Tooltips not verified | — (checklist amended to 60 px) |
+| 3 | Nav order Home, Jobs, Contacts, Calendar, Tasks, Estimates, Invoices, Reports; account bottom-left; bell top-right | Partial | Today, Jobs, Leads, Tasks, Invoices, Inbox, then "Tools": Files, Reports, Templates, Automation, Integrations, Team. Account menu bottom-left ✓, bell top-right ✓. No Contacts, Calendar or Estimates entry | "Leads" stays; Contacts planned separately ([contacts-plan.md](contacts-plan.md)); Calendar and Estimates entries still missing |
 | 4 | "+ New" top of sidebar | Meets | "Create" button at the top with Lead / Job / Task / Appointment; adds "for this job/lead" items in context. Estimate is only contextual | Optional: add Estimate to the global menu |
 | 5 | Search matches name, address, phone; ⌘K and "/"; recents | Partial | Sidebar search with ⌘K and recents (`lib/search-recents`). **Address matches; phone does not**: `/api/search?q=555-0147` and `q=6125550147` return nothing | Backend search: match normalised phone digits |
 | 6 | Phone: bottom tab bar, no hamburger | Partial | Bottom bar Today / Jobs / + / Leads / Tasks ✓, plus a header "Open menu" hamburger for everything else | Swap Tasks or Leads for "More", or accept the hamburger as "More" |
-| 7 | Tables full width | Partial | Inside `.page-wrap` max 1480 px: full width up to 1480, capped beyond | Let list pages run full width |
-| 8 | Rows 40 / 32 compact / 48 touch; 14 px text; sticky header | Partial | 40 px ✓, compact 32 px ✓, sticky `th` ✓. Cell text **13.5 px** (line says 14). 48 px touch rows not measured | Cells to 14 px (13 px compact) |
+| 7 | Tables fill `.page-wrap` (max 1480 px) | Meets | `.page-wrap` max 1480 px | — (checklist amended) |
+| 8 | Rows 40 / 32 compact / 48 touch; 14 px text; sticky header | Partial | 40 px ✓, compact 32 px ✓, sticky `th` ✓. Cell text **13.5 px** (line says 14). 48 px touch rows not measured | Cells to 14 px (13 px compact): owner decision, code changes in the consistency pass |
 | 9 | ≤ 6 default columns incl. rep avatar | Partial | Jobs: Job, Status, Next step, Health, Owner, Owed. Leads: Lead, Status, Phone, Source, Owner, In status. Owner shows as **text**, not an avatar | Initials avatar in the Owner column |
 | 10 | Checkbox column, bulk bar "N selected" | Meets | Checkbox column, `.bulk-bar` styles. The automation warning was not verified | — |
 | 11 | System views as tabs; filters without saving; empty states | Meets | Stage tabs (All / Selling / Production / Billing / Closed / Lost), "Saved views" + "Save view", search and owner filter apply at once; empty states give one line and an action | — |
@@ -60,9 +60,9 @@ The report's "Ours today" column was built from `tokens.md`, `tailwind.config.js
 | 15 | Key fields on the right, sticky; stacks on phone | Meets | `.record-rail` 328 px on the right, sticky from 1180 px (`workbench.css:1586-1615`) on Leads, Jobs, Estimates and Invoices | — |
 | 16 | "Up next" above newest-first history | Partial | Overview shows Lifecycle, then the communication log, then **Open tasks**; history is in a separate tab | Put Open tasks first, history under it |
 | 17 | Notes, timeline, key fields never behind a tab | **Misses** | Tabs: Overview / Work / Money / Files / **Activity**; full history is only under Activity | Show recent history on Overview; keep Activity only as a change log |
-| 18 | Record and settings pages capped at `max-w-6xl` | **Misses** | Record pages use the 1480 px wrapper (main 782 px + rail 328 px at 1440) | Cap record wrappers at 1152 px, or amend the line |
+| 18 | Record and settings pages in `.page-wrap` (max 1480 px) | Meets | 1480 px wrapper (main 782 px + rail 328 px at 1440) | — (checklist amended) |
 | 19 | Insurance field group on insurance jobs | New build | No insurance fields anywhere | Build per owner decision |
-| 20 | Two boards: Leads (sales) and Jobs (production → paid); closed hidden | New build | Leads board exists (New, Contacted, Qualified, Closed, Inactive), and **Closed and Inactive show on the active board**. Jobs has no board. Job lifecycle already starts at **Selling** (New → Proposal Sent), overlapping Leads | Owner call on the overlap (section 6); hide closed columns by default |
+| 20 | Two boards: Leads (sales) and Jobs (production → paid); closed hidden | New build | Leads board exists (New, Contacted, Qualified, Closed, Inactive), and **Closed and Inactive show on the active board**. Jobs has no board. Job lifecycle already starts at **Selling** (New → Proposal Sent), overlapping Leads | Build the Jobs board from Sold with a collapsed Pre-sale column (owner, 2026-11-14); hide closed columns on Leads by default |
 | 21 | Board / List / Map toggle on one route, with filters | Partial | Leads: List / Board toggle in the header plus filters ✓. No Map. Jobs: list only | Add Map; add Board to Jobs |
 | 22 | Gated drag (Sold needs signed estimate) | **Misses** | Free drag to any status (`kanban-board.js` `handleDragEnd`). Cards carry a visible "Drag" button | Add stage rules per owner decision |
 | 23 | Column header: count and plain $ sum | Partial | Count ✓; no $ sum (leads carry no value) | Sum on the Jobs board |
@@ -170,11 +170,11 @@ The report's "Ours today" column was built from `tokens.md`, `tailwind.config.js
 - Phone bottom bar with a centred Create button.
 - A per-job customer portal with progress, payments and documents already exists.
 
-## 6. Owner calls raised by the audit
+## 6. Owner calls raised by the audit (settled 2026-11-14)
 
-1. **Jobs vs Leads overlap.** Jobs already run Selling → Production → Billing → Closed, with selling steps (New, Contacted, Appointment Scheduled, Proposal Sent) that repeat the Leads stages. Does the new Jobs board start at Sold (selling stays on Leads), or show every job phase?
-2. **Contacts.** The app has no Contacts object: a lead is the customer record ("Client → Open lead"). Keep "Leads" in the nav, rename it (Customers / Contacts), or add Contacts? The checklist nav order assumes Contacts, Calendar and Estimates as top-level items.
-3. **Measured values vs checklist values.** The sidebar (248 / 60 px vs 240 / 64), cell text (13.5 vs 14 px) and record width (1480 vs 1152 px) differ only slightly. Should the checklist be amended to the current values, or the code changed? This decides how much the consistency pass touches.
+1. **Jobs vs Leads overlap → the Jobs board starts at Sold**, with a collapsed Pre-sale column first for jobs still in a selling stage. Selling work stays on the Leads board.
+2. **Contacts → keep "Leads"** in the nav. Contacts is planned separately in [contacts-plan.md](contacts-plan.md).
+3. **Measured values → the checklist takes 248 / 60 px and 1480 px; the code moves table cells from 13.5 px to 14 px.**
 
 ## 7. Suggested order of work
 
