@@ -88,30 +88,32 @@ src/
                  forms, kanban, calendar, ui primitives
   lib/           api client, lifecycle vocabulary, documents, record events,
                  url filters, preferences, helpers, status tones
-  theme/         Palette registry and token maps
-  assets/        Logo
+  theme/         Palette registry, token and brand docs
+  assets/        The Joist mark (brand/joist-mark.svg)
   proxy.js       Next.js 16 request proxy (auth redirects)
-docs/            Older design language and visual-overhaul notes (history)
+docs/            Design language and its history; research/ holds UX research and plans
 ```
 
 There is no `hooks/`, `store/`, or Pages Router `pages/` tree. Almost every
 `page.js` is a client component. `src/app/layout.js` and `src/app/page.js`
 (`/` → dashboard or login) are server components.
 
-`src/app/` **routes:** dashboard, leads, jobs, tasks, invoices, estimates
-(detail / new / edit / templates — no estimates index), files, users, reports,
-automation, integrations (ABC, QuickBooks), login, accept-invite, and public
-portal / intake / estimate pages.
+`src/app/` **routes:** dashboard (Today), leads, jobs, tasks, invoices,
+estimates (detail / new / edit / templates — no estimates index), files,
+users, reports (plus product and team), automation, integrations (ABC,
+QuickBooks), notifications, settings, login, register, accept-invite,
+forgot-password, reset-password, and public portal / intake / estimate /
+invoice pages.
 
 ## Routing and shells
 
 Three shells. Do not mix them.
 
-| Shell  | Use on                                                 | Component                       |
-| ------ | ------------------------------------------------------ | ------------------------------- |
-| App    | Signed-in workspace                                    | `AppShell` — the only page `h1` |
-| Auth   | `/login`, `/accept-invite`                             | `AuthFrame`                     |
-| Public | `/public/portal`, `/public/intake`, `/public/estimate` | `PublicFrame`                   |
+| Shell  | Use on                                                                    | Component                       |
+| ------ | ------------------------------------------------------------------------- | ------------------------------- |
+| App    | Signed-in workspace                                                       | `AppShell` — the only page `h1` |
+| Auth   | `/login`, `/register`, `/accept-invite`, `/forgot-password`, `/reset-password` | `AuthFrame`                |
+| Public | `/public/portal`, `/public/intake`, `/public/estimate`, `/public/invoice` | `PublicFrame`                   |
 
 `src/proxy.js` is Next 16’s proxy file (the old `middleware` convention). Its
 matcher covers `/dashboard`, `/leads`, `/tasks`, `/files`, `/jobs`,
@@ -165,15 +167,16 @@ they disagree, so change both sides together.
 
 Do not paste tokens or layout rules into new files — follow these:
 
+- [docs/design-language.md](docs/design-language.md) — the Workbench design
+  language: visual principles, shells, page types, interaction rules
+- [src/theme/tokens.md](src/theme/tokens.md) — CSS variables, palettes,
+  density, print/PWA
+- [src/theme/brand.md](src/theme/brand.md) — Joist's mark and company brands
 - `src/app/workbench.css` — the Workbench classes (shell, record head, next
-  step, peek, documents, lists) in the Field Ledger language
-- `crm_backend/docs/EXPERIMENT_UI_UX.md` — the Workbench thesis, layout and
-  preference model
-- [src/theme/tokens.md](src/theme/tokens.md) — CSS variables, palettes, print/PWA
-- [docs/design-language.md](docs/design-language.md),
-  [docs/VISUAL_OVERHAUL.md](docs/VISUAL_OVERHAUL.md),
-  [docs/crm-design-language.md](docs/crm-design-language.md) — pre-Workbench
-  page structure and visual work, kept for history
+  step, peek, documents, lists)
+- `crm_backend/docs/EXPERIMENT_UI_UX.md` — the decision log behind the
+  Workbench; [docs/design-history.md](docs/design-history.md) — what it
+  replaced
 
 Appearance goes through CSS variables from `src/theme` and Tailwind mappings in
 `tailwind.config.js`. No raw palette colors (`red-500`, `green-50`, …) for chrome
@@ -209,17 +212,16 @@ next step always in view, drawn in the "Field Ledger" visual language
 (`src/app/workbench.css`). `experiment/CC_revise` made the money and document
 path run through it end to end. Decision logs: `crm_backend/docs/EXPERIMENT.md`
 (lifecycle and money), `EXPERIMENT_UI_UX.md` (Workbench) and
-`EXPERIMENT_REVISE.md` (this pass). Older layout docs in `docs/` describe the
-pre-Workbench pages and are kept for history.
+`EXPERIMENT_REVISE.md` (this pass).
 
-Palettes: Rooftop (default) plus Azure, Slate, Emerald, Violet, Rose, Sand and
-Graphite, chosen per person or as the company default.
+Palettes: Ember (default, id `rooftop`) plus Azure, Slate, Emerald, Violet,
+Rose, Sand and Graphite, chosen per person or as the company default.
 
 ## PWA
 
-Staff install only. Customer portal, intake, and estimate pages stay normal web pages and do not register the service worker.
+Staff install only. Customer pages under `/public/*` stay normal web pages and do not register the service worker.
 
-Install icons and manifest colors are the product (Rooftop), not a company logo or palette. `npm run icons:pwa` regenerates the PNGs from `public/icons/icon-192.svg` and `icon-512.svg` (`apple-touch-icon.png`, `icon-192.png`, `icon-512.png`, `icon-512-maskable.png`).
+Install icons and manifest colors are Joist's (Ember), never a company logo or palette. `npm run icons:pwa` generates every icon from `src/assets/brand/joist-mark.svg`; `-- --check` fails on drift. The file list is in [src/theme/brand.md](src/theme/brand.md).
 
 `public/sw.js` precaches `public/offline.html` and caches same-origin scripts, styles, images, and fonts. It does not cache `/api`, `/uploads`, `/public/*`, or App Router RSC requests. `/sw.js` is served with `Cache-Control: no-cache`.
 

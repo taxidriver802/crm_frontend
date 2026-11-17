@@ -64,7 +64,7 @@ A company with an uploaded logo shows the logo. A company that chose an icon mar
 
 The tile is the **company's** accent (from its palette, not the viewer's personal one) with that palette's `--on-accent` ink, at the same radius as a logo (`rounded-theme-sm`). Rules: `src/lib/monogram.js`, mirrored in `crm_backend/src/lib/monogram.ts`; both are checked against `crm_backend/test/fixtures/monogram-cases.json`.
 
-Rooftop Realty's logo is Rooftop Realty's row's logo (`builtin/rooftop-realty.png` in `crm_backend/assets/company-logos/`). It is no one's default.
+Rooftop Realty's logo is Rooftop Realty's row's logo (storage key `builtin/rooftop-realty.png`, which resolves to `crm_backend/assets/company-logos/rooftop-realty.png`). It is no one's default.
 
 ## Files: one source, generated copies
 

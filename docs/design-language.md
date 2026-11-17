@@ -1,139 +1,134 @@
-# CRM design language
+# Design language (the Workbench)
 
-Single reference for page structure across the product. Tokens live in [`src/theme/tokens.md`](../src/theme/tokens.md). This file is the layout and behavior language; it does not introduce new colors.
+How Joist looks and how its pages are put together. Token values live in
+[`src/theme/tokens.md`](../src/theme/tokens.md); the brand in
+[`src/theme/brand.md`](../src/theme/brand.md); component APIs and the
+"Adding a page" steps in the [README](../README.md#shared-ui-the-workbench).
+The decision log behind this language is
+`crm_backend/docs/EXPERIMENT_UI_UX.md`. What it replaced:
+[`design-history.md`](design-history.md).
 
-Teardown that produced these decisions: [`crm-design-language.md`](crm-design-language.md) (archive, not the spec).
+## Thesis
 
-Dashboard, Leads, Jobs, Tasks, and Invoices are the reference list pages. Job is the detail template. Other records copy that template. Full new/edit forms use AppShell plus a Field card. Files and Users share that list chrome as **tool panels**, not work queues.
+One persistent workspace the person shapes. Records open beside the list
+(peek), nothing makes you lose your place, and the next step is always in
+view. It is a working tool for roofing and exterior contractors: dense,
+calm, familiar. Brand shows in details, not decoration.
 
----
+## Visual principles ("Field Ledger", `src/app/workbench.css`)
 
-## Page header
+- **Paper and ink.** Warm neutral canvas, white working surfaces, hairline
+  borders. Shadow only on things that float: menus, the peek panel, dialogs,
+  toasts (`--shadow-pop`).
+- **One accent, used sparingly:** the primary action, focus, selection and
+  the current lifecycle step. Never decoration, never urgency.
+- **Status colour only where it means something.** Urgent or late is
+  `--danger`; money owed is `--warning` (gold); done is `--success`.
+  Informational counts stay `--text` / `--text-muted`, untinted.
+- **Density is a setting.** Rows, controls, padding and gaps read from
+  `--d-*` variables; `html[data-density="compact"]` switches them (40px
+  rows by default, 32px compact). New components read these variables.
+- **Numbers line up.** Money, dates and counts use tabular figures (`.num`).
+- **One family.** Geist for everything; Geist Mono only for code-like data.
+- **Short motion that shows state.** Panels and menus transition in about
+  100–180ms. The Reduce motion preference (`html[data-motion="reduce"]`)
+  and `prefers-reduced-motion` turn it off.
+- **Every palette, both schemes.** Pages use tokens and Tailwind token
+  utilities only. No raw Tailwind colours (`red-500`) and no branching on
+  palette ids.
 
-- Title states the current context: Dashboard uses a greeting plus the calendar date. List pages use the entity name plus a live subtitle (`9 in this view`).
-- Never use leftover labels (“Previous layout”).
-- Mine/Team and List/Board (or List/Calendar on Tasks) live in AppShell `right` (desktop topbar). Below `lg` they drop into `page-actions` under the title. The cluster must wrap; do not rely on a single unwrapping row.
-- Greeting + date is **Dashboard only**.
+## Shells
 
-## Detail title
+Three shells. Do not mix them.
 
-**AppShell is the only page title.** Pass the record name (or invoice number) as `AppShell` `title`. The chrome already has back navigation and that title.
+| Shell | Pages | Rules |
+| --- | --- | --- |
+| App (`AppShell`) | Every signed-in page | Persistent rail (collapses to icons), top bar with search and Create, phone tab bar. `AppShell` `title` is the page's only `h1`. |
+| Auth (`AuthFrame`) | login, register, accept-invite, forgot-password, reset-password | Centred card; the frame title is the only `h1`. Company brand once a slug is known, Joist before that. |
+| Public (`PublicFrame`) | `/public/portal`, `intake`, `estimate`, `invoice` | Company header, one muted "Powered by Joist" line. Always light scheme, company palette. Stacked, always-open sections. |
 
-Job is the **detail template**. AppShell is the only `h1`. The record summary is `DetailHeader` **without** a title/heading — subtitle (linked lead), badges (status, health, time in status), and actions (Edit + More). Optional description and address sit in that card, not as a second title.
+## Page types
 
-Lead, Task, Invoice, and Estimate copy this Job pattern. `DetailHeader` keeps subtitle, badges, and actions only.
+### Today (`/dashboard`)
 
-`description` on details is optional context (email, related job), not a second title.
+Greeting plus the date, then widgets the person chooses and orders (Needs
+you, Agenda, Pinned, Money, Pipeline, Handoffs, Team, Activity). Owners and
+admins can make their layout the team default.
 
-## Metrics
+### Work lists: Leads, Jobs, Tasks, Invoices
 
-- Use **3–4 urgency/action metrics** when the page’s primary slice is _when or whether it needs you now_. Dashboard: Overdue, Due today, Waiting, Invoices. **Tasks:** Overdue, Due today, Next 7 days (existing counts). Clicking a metric **filters the page list**; click again returns to All. Do not use `StatCard` `href` to bounce to a query string if the same list can filter in place.
-- Overdue uses `--danger` (border and counts) only when the count is greater than zero.
-- Brand `--accent` is for primary buttons, selected nav, and selected chips — not urgency.
-- **Pipeline list pages** (Leads, Jobs) do **not** get an urgency strip. Their primary slice is stage; status tabs with live counts are the filter. Job health stays a row badge (see below).
-- **Secondary inventory** (Dashboard only): Jobs, Estimates, Total leads, New leads, Next 7 days — hidden by default, “More counts”, those cards **navigate**. They do not filter Do next.
+- Header: entity name plus a live subtitle (`9 in this view`).
+- Scope (Mine / All) and layout toggles sit in AppShell `right`; they wrap
+  below the title on small screens. Leads has List / Board; Tasks has
+  List / Calendar.
+- Status tabs with live counts (`Segmented`) are the main filter. Jobs
+  also filter by phase.
+- One `PageToolbar` row for search, assignee, refresh and New, wrapping on
+  small screens. Saved views sit on a thin row below it.
+- `RecordTable`: the person picks columns, order and sort. Row click opens
+  the peek; ⌘-click opens a tab; `x` selects; a bulk bar acts on the
+  selection. Phones get cards.
+- Filters, tab and peek live in the URL (`?status=`, `?view=`,
+  `?peek=job:12`), so reload, Back and shared links land in the same place.
+- **Urgency metrics only on Tasks** (`AttentionStrip`: Overdue, Due today,
+  Next 7 days). A metric filters the list in place. Overdue gets the
+  `--danger` border only when its count is above zero. Leads and Jobs are
+  sliced by stage, not urgency, so they get no metric strip; job health is a
+  row badge.
 
-Tasks differ from Leads/Jobs because a task’s job is a due date, not a pipeline stage. Status (Open / Completed) may still be tabs under the metrics; Calendar lives in AppShell `right`, like List/Board on Leads.
+### Records: Job, Lead, Estimate, Invoice
 
-## Primary lists
+- Record head: status, related records, the big number, Pin, More, and the
+  **next step** with the button that does it. Job, estimate and invoice
+  compute their next step the same way in the record, its peek and the job.
+- Body is `Tabs` (URL-synced with `?tab=`). Job: Overview · Work · Money ·
+  Files · Activity. Lead: Overview · Jobs · Work · Files.
+- An optional details rail beside the tabs; the person can reorder or hide
+  Overview sections and rail panels.
+- `RecordUnavailable` when the record cannot be shown.
+- The Task record is older: `DetailHeader` (subtitle, badges, actions; no
+  second title) and stacked sections.
 
-- One unified, filterable list per work page. Tabs with live counts. If two sections list the same kind of work, merge them.
-- Dashboard Do next tabs: All / Overdue / Today / Waiting / Invoices / Pipeline. Tabs wrap (existing `.seg`); use `short` labels on small screens. No horizontal scroll trap.
-- Common actions (complete a follow-up) sit **inline on the row**.
+### Forms
 
-### EntityList vs DataTable
+One full form per type at `/<type>/new` (lead, job, task, estimate,
+invoice), reached from Create or the list's New button and prefilled from
+query params (`?job_id=`). Edit routes exist for lead, job, task and
+estimate; invoice line items are edited on the invoice. Lists carry no
+inline create form. AppShell is the only `h1`; the body is one card of
+`Field` / `FormActions`.
 
-- **`EntityList` `layout="flush"`** when the row’s job is _open this record and work it_ (Leads, Jobs, Tasks, Invoices).
-- **`DataTable`** when there is no dedicated record route, or the row is an admin/tool grid: many comparable columns, row-level admin actions, preview/download rather than a detail page. **Files** and **Users** stay DataTable (`DataTable` already stacks to labeled cards below `md`).
-- Threshold is the interaction, not column count: if you would build `/files/[id]` or `/users/[id]` as a work record, it would be EntityList. Today those are tools, not records.
+Estimates have no index page: they live on their job, and sent ones
+surface on Today.
 
-Estimates stay **nested on the Job**. Do not add `/estimates` as a work list. Sent/waiting estimates already surface on Dashboard Do next; creating an estimate starts from the job.
+### Tool panels: Files, Users, Templates, Automation, Reports, Integrations
 
-## Creation
+Same chrome (live subtitle, `PageToolbar`, `Segmented` when status is a
+real slice) but **no urgency metrics**. Files, Users and the team report
+use `DataTable` (labelled cards below `md`), because their rows are tools,
+not records you open and work. Owner and admin areas wrap their content in
+`AdminOnly`. Reports keep their KPI cards (`StatCard`) and charts.
 
-- **Complete-on-the-list entities** (lead, job, task): one primary button; inline form only when opened; full-page form remains a secondary link. No always-visible create card.
-- **Document entities** (invoice, estimate): create is the start of a record (line items live on the detail). The list (or Job) primary button **navigates** to `/invoices/new` or `/estimates/new`. Do not inline a draft form that dumps the user back on the index with an incomplete document. After create, go to the new record.
+## Interaction rules
 
-## Toolbars
+- **Undo over confirm.** Reversible actions show a toast with Undo. Confirm
+  only what cannot be undone, and anything sent to a homeowner. (Owner
+  decision; the full list of where it applies is in
+  [`research/crm-ux-checklist.md`](research/crm-ux-checklist.md).)
+- **Common actions sit on the row** (complete a task, change status).
+- **Peek before navigate.** Opening a record beside the list is the
+  default; full pages are for deep work.
+- **Search and commands:** ⌘K or `/` opens the palette. It searches records,
+  remembers recent ones, takes filter tokens (`lead:`, `job:`, `status:`,
+  `assigned:me`, `jump:` on a record), runs actions after a `>` prefix,
+  and offers "Create … named" when nothing matches. Filter grammar:
+  `src/lib/search-filters.js`.
+- **Keyboard:** `c` Create, `g` then a letter to go somewhere, `[`
+  collapses the rail, `?` lists shortcuts. Menus take arrows, Home, End and
+  Esc.
 
-- Search, assignee (when the entity is assigned), refresh, and the primary create button share **one row** and wrap on small screens.
-- Saved views sit on a **thin row below**, not beside status tabs.
-- That wrap row is the shared **`PageToolbar`** primitive. Do not add extra props until Invoices needs them.
+## Copy
 
-## Right rail (dashboard-style pages)
-
-- Orientation, not a second work queue.
-- Compact **count rows** for Waiting and Invoices: they set the **same filter** as the matching metric/tab.
-- Team (admins) and Activity stay short.
-- Inventory totals do **not** live in the rail; they live in the secondary metrics toggle.
-
-## Job health
-
-Health (`Needs attention` / `Watch` / `On track`) is a **row badge only**. It is derived from overdue tasks, overdue invoices, and stall — those already have filters on Dashboard and Tasks. Do not add a Needs-attention filter on the Jobs list.
-
-## Detail sections
-
-Record bodies use **always-open stacked sections** (`SectionCard` or equivalent), not accordions, for work blocks (tasks, estimates, invoices, notes, files, pipeline).
-
-Collapse is allowed only for **log-like** blocks (Activity) or a section that is empty _and_ optional (e.g. measurements with nothing recorded). Do not hide primary work behind a disclosure.
-
-When Job is restyled, Estimates / Invoices / Tasks on that page stay visible without a click.
-
-**Job template (Wave 2):** stacked `SectionCard`s for pipeline, tasks, estimates, invoices, communication, and files. Collapse only **Activity** and **Measurements** when that optional section is empty. No second column / lead snapshot rail — lead lives in the summary subtitle.
-
-**Other records (Wave 3):** Lead, Task, Invoice, and Estimate copy Job. No second heading. Always-open work sections. Collapse only Invoice **Timeline**. Related entities live in the summary subtitle, not a snapshot rail. Document line items are a visible `SectionCard` with New item revealing the form.
-
-## Form pages
-
-Full new/edit routes are secondary to the list and the record. **AppShell is the only h1.** Body is one card of `Field` / `FormActions`. Do not add `DetailHeader`, metrics, or work sections.
-
-- **New:** `New lead`, `New job`, `New task`, `New invoice`, `New estimate`.
-- **Edit:** `Edit lead`, `Edit job`, `Edit task`, `Edit estimate`. There is no invoice edit route; line items stay on the invoice record.
-- `description` is the related or current record name when known (a prefilled job, the lead being edited). Do not put `#id` in the title, and do not change the title as the user picks a dropdown.
-- Inline create on Leads / Jobs / Tasks stays on the list. The full page stays the **Full form** link.
-
-## Tool panels
-
-Files, Users, Templates, Automation, Reports, and Integrations are **tools**, not work lists. They reuse AppShell, a live subtitle, `PageToolbar`, and `Segmented` when status is a real primary slice. They do **not** get urgency StatCards.
-
-Wave 5 stays one signed bucket. Sequence internally: **Files + Users**, then Templates + Automation, then Reports + Integrations. Do not add a Wave 5b as a new signed wave.
-
-- Inventory counts (total files, general vs lead vs job) are **not** an urgency strip. Scope already lives in a filter.
-- **Files:** `title="Files"`, `description` = `N in this view`. `PageToolbar`: search, scope, type, refresh, **Upload file**. Keep `DataTable`. Do not wrap the table in `CollapsibleSection`.
-- **Users:** Status is a primary slice — `Segmented` All / Active / Invited / Disabled with counts. `PageToolbar`: search, role, refresh, **Invite user**. Keep `DataTable`. Invite stays a modal. Keep the admin note about owner accounts.
-- **Templates:** `title="Templates"`, `description` = `N in this view`. `PageToolbar`: refresh, **New template**. Inline create card (no `ToggleFormSection`, no full-form route). Line items copy Invoice: always-open `SectionCard` with **New item** revealing the form.
-- **Automation:** `title="Automation"`, `description` = `N in this view`. `PageToolbar` refresh. Stacked always-open `SectionCard`s for Active rules and Rule templates. Do not wrap them in `CollapsibleSection`.
-- **Reports:** Not a work queue. KPIs and charts stay; they are the page. `PageToolbar` refresh. Product metrics lives in AppShell `right` (secondary destination). Sentence case titles.
-- **Integrations:** `title="Integrations"` plus a short subtitle. Website intake is a `SectionCard`. ABC / QuickBooks are destination cards, not a second heading. Nested pages use AppShell as the only `h1` (no extra back link).
-
-## Auth and public
-
-Login, accept-invite, and public pages use **different shells**. Do not put AppShell, nav, or PageToolbar on them. Reuse tokens, `Field`, `FormActions`, `SectionCard`, and `ListRow`.
-
-- **Auth (`AuthFrame`):** centered card. The frame title is the only `h1` (`Sign in`, `Accept invite`). Body is `Field` / `FormActions`. Theme toggle stays in the corner.
-- **Public (`PublicFrame`):** logo + `h1` + optional muted eyebrow/description. No uppercase tracking labels. Stacked always-open `SectionCard`s. Theme toggle in the header.
-- **Intake:** one Field card. **Portal:** job title is the `h1`; status, progress, estimates, invoices, photos stay visible. **Estimate:** summary, line items, and respond — line items use `ListRow`.
-- Invite create stays a modal in the app (`Invite user`). The public accept page is `/accept-invite`.
-
-## Color
-
-| Use                                       | Token                               |
-| ----------------------------------------- | ----------------------------------- |
-| Overdue / needs-you-now                   | `--danger`                          |
-| Pipeline status chips                     | `--warning` / `StatusBadge` tones   |
-| Primary CTA, selected nav, selected chips | `--accent`                          |
-| Informational counts                      | `--text` / `--text-muted` — no tint |
-
-## Primitives
-
-Reuse these; do not invent a parallel set:
-
-- Header: AppShell `title` / `description` / `right`; auth `AuthFrame`; public `PublicFrame`
-- Record summary: `DetailHeader` without a duplicate `h1` (subtitle, badges, actions)
-- Metrics: `AttentionStrip` + `StatCard` (`metric` primary, `compact` inventory)
-- Count tabs: `Segmented` with `count` / `countTone`
-- Lists: `EntityList` `layout="flush"` on work-first index pages; `DataTable` for Files/Users
-- Toolbar: `PageToolbar`
-- Urgency: `border-danger`, `text-danger`, `seg-count-danger`
-
-Spacing, radius, and card padding stay the existing theme tokens unless a wrap bug appears.
+Sentence case. Titles state the current context, not navigation history.
+Buttons name their action ("Schedule appointment", "Send password reset
+link"). Copy says what is true; errors say what happened and what to do.

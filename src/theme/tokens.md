@@ -1,133 +1,93 @@
 # Theme tokens
 
-**Source of truth:** palettes in [`src/theme/themes/`](themes/), registered in [`src/theme/registry.js`](registry.js).
+**Source of truth:** palettes in [`themes/`](themes/), registered in [`registry.js`](registry.js). Tables below show **Ember**, the default; other palettes use the same keys with their own values. How the tokens are used: [`docs/design-language.md`](../../docs/design-language.md). Brand: [`brand.md`](brand.md). Tailwind mappings: [`tailwind.config.js`](../../tailwind.config.js).
 
-Runtime CSS is emitted into `#crm-palette-vars` as:
+## How theming works
 
-- `[data-palette="<id>"]` — light tokens
-- `.dark[data-palette="<id>"]` — dark overrides
+- The palette's CSS is emitted into `#crm-palette-vars` (`app/layout.js`) as `[data-palette="<id>"]` (light) and `.dark[data-palette="<id>"]` (dark overrides).
+- `next-themes` owns the **scheme** (`class="dark"` on `<html>`). The theme controller owns the **palette** (`data-palette`).
+- The person's palette is saved with their preferences (`appearance.palette`); `null` means the company's. The browser also keeps `localStorage` `crm-palette` (`theme/constants.js`).
+- Pages use CSS variables and token utilities only. Never branch on a palette id.
+- JS that needs resolved values (charts, canvas) calls `useThemeTokens()` from `@/components/theme/theme-controller`.
 
-`next-themes` still owns **color scheme** (`class="dark"` on `<html>`). The controller owns **palette** (`data-palette`). Pages must use CSS variables / token utilities only — never palette ids.
+Palettes: **Ember** (id `rooftop`, default, Joist's own), Azure, Slate, Emerald, Violet, Rose, Sand, Graphite. Ember was called Rooftop; the id stays `rooftop` because companies and preferences store ids. Ember is the only palette with dark ink on its accent (`--on-accent: #111318`); the rest use white. Graphite uses tighter radii (4 / 8px).
 
-Named palettes: **Ember** (id `rooftop`; default and Joist’s own, orange `#f97316` / `rgb(249, 115, 22)`, dark `--on-accent`), **Azure** (previous blue `#2563eb`), and **Slate** (teal `#0f766e`), plus Emerald, Violet, Rose, Sand and Graphite. Ember was called Rooftop; the id stays `rooftop` because companies and preferences store ids, so saved choices keep resolving. The picker writes `localStorage` key `crm-palette`. Public `/public/*` routes use the company’s palette so a salesperson’s choice does not leak onto customer links. PDFs/email stay on the backend Ember print map.
+## Surfaces and text (Ember)
 
-Brand (Joist’s mark, company monograms, which brand owns which surface): [`brand.md`](brand.md).
+Warm neutrals: "paper and ink".
 
-Tailwind mappings: [`tailwind.config.js`](../../tailwind.config.js).
+| Token                | Light                  | Dark                | Use                               |
+| -------------------- | ---------------------- | ------------------- | --------------------------------- |
+| `--bg`               | `#f6f5f1`              | `#111110`           | App canvas                        |
+| `--surface`          | `#efede7`              | `#191917`           | Inputs, recessed panels           |
+| `--surface-elevated` | `#ffffff`              | `#1f1f1d`           | Cards, top bar, menus             |
+| `--border`           | `#e6e3db`              | `#2d2c29`           | Default hairline                  |
+| `--border-strong`    | `#d3cfc5`              | `#3e3d39`           | Emphasis, scrollbars              |
+| `--border-extra`     | `#8d897f`              | `#6f6d66`           | Rare stronger rule                |
+| `--text`             | `#1b1a17`              | `#f2f1ec`           | Ink                               |
+| `--text-muted`       | `#5f5d56`              | `#a8a69e`           | Secondary text                    |
+| `--text-soft`        | `#8f8c84`              | `#76746d`           | Hints, timestamps                 |
+| `--overlay`          | `rgb(17 19 24 / 0.45)` | `rgb(0 0 0 / 0.55)` | Modal and palette scrim           |
+| `--overlay-strong`   | `rgb(17 19 24 / 0.72)` | `rgb(0 0 0 / 0.78)` | Lightbox                          |
+| `--on-overlay`       | `#ffffff`              | `#ffffff`           | Text on scrims                    |
 
-PDFs and invite email consume **print hex** from each palette’s `print` map (light only). Backend copy: `crm_backend/src/lib/print-theme.ts`.
+## Accent and status (Ember)
 
-## Surfaces
+| Token            | Light                  | Dark      | Use                                             |
+| ---------------- | ---------------------- | --------- | ----------------------------------------------- |
+| `--accent`       | `#f97316`              | same      | Primary action, focus, selection, current step  |
+| `--on-accent`    | `#111318`              | same      | Text on solid accent                            |
+| `--accent-hover` | accent mixed 78% toward black | same | Hover. Never a second hue inside a palette |
+| `--success`      | `#16a34a`              | `#4ade80` | Done                                            |
+| `--warning`      | `#ca8a04`              | `#eab308` | Money owed, pipeline chips. Gold so it does not collide with the orange accent |
+| `--danger`       | `#dc2626`              | `#f87171` | Overdue, needs you now                          |
+| `--*-soft`       | 12% mix                | 18% mix   | Tinted backgrounds for the above                |
 
-| Token                | Light                  | Dark                | Notes                                                      |
-| -------------------- | ---------------------- | ------------------- | ---------------------------------------------------------- |
-| `--bg`               | `#f4f5f7`              | `#0a0a0a`           | App canvas (Ember dark; Azure/Slate use cooler charcoal)   |
-| `--surface`          | `#eceef2`              | `#141414`           | Inputs, recessed panels                                    |
-| `--surface-elevated` | `#ffffff`              | `#1a1a1a`           | Cards, topbar, dropdowns                                   |
-| `--overlay`          | `rgb(17 19 24 / 0.45)` | `rgb(0 0 0 / 0.55)` | Modal/command-palette scrim                                |
-| `--overlay-strong`   | `rgb(17 19 24 / 0.72)` | `rgb(0 0 0 / 0.78)` | Lightbox                                                   |
-| `--on-overlay`       | `#ffffff`              | `#ffffff`           | Text on dark scrims                                        |
-| `--border`           | `#e2e4ea`              | `#2a2b32`           | Default hairline                                           |
-| `--border-strong`    | `#cfd3dc`              | `#3a3b44`           | Emphasis / scrollbars                                      |
-| `--border-extra`     | `#8b909c`              | `#6b6d78`           | Rare stronger rule                                         |
+`bg-accent` is the **soft tint**, not solid `--accent`. Use `bg-accent-solid` or `bg-accent-soft` to be explicit; `text-accent` is the solid colour on text.
 
-## Chrome (shell / auth rail)
+## Workbench layer (`app/workbench.css`)
 
-Used by the desktop sidebar and mobile bottom nav. Light scheme uses a mid charcoal grey rail (still darker than the page, softer than pure black). Dark scheme stays near-black. Each palette keeps a slight hue tint on chrome.
+Derived from the palette, so they work in every palette and scheme.
 
-| Token               | Light (Ember)   | Dark (Ember)   |
-| ------------------- | --------------- | -------------- |
-| `--chrome`          | `#363a43`       | `#000000`      |
-| `--chrome-elevated` | `#40454f`       | `#111111`      |
-| `--chrome-border`   | `#4e463c`       | `#2a1c12`      |
-| `--chrome-text`     | `#f4f4f5`       | `#f4f4f5`      |
-| `--chrome-muted`    | `#a8adb8`       | `#8b8d96`      |
-| `--chrome-hover`    | 10% white mix   | 7% white mix   |
+| Token | Value | Use |
+| --- | --- | --- |
+| `--d-row` / `--d-control` / `--d-pad` / `--d-gap` / `--d-section` / `--d-text` | 40 / 34 / 16 / 16 / 22 / 14px; compact 32 / 30 / 12 / 12 / 16 / 13px | Density, switched by `html[data-density="compact"]` |
+| `--rail-w` / `--rail-w-collapsed` | 248px / 60px | Nav rail |
+| `--rail-bg` | `--surface` 60% into `--bg` | Nav rail background |
+| `--hover` / `--hover-strong` | `--text` at 5% / 9% | Row and control hover |
+| `--selected` | `--accent` at 11% | Selected rows and items |
+| `--ring` | `--accent` at 55% | Focus ring |
+| `--shadow-pop` | Soft, offset shadow | Floating layers only |
+| `--ease-out` | `cubic-bezier(0.2, 0.8, 0.2, 1)` | Panels and menus |
 
-## Text
+## Shape, elevation, motion, charts
 
-| Token          | Light                                          | Dark      |
-| -------------- | ---------------------------------------------- | --------- |
-| `--text`       | `#111318`                                      | `#f4f4f5` |
-| `--text-muted` | `#5c6370`                                      | `#a1a1aa` |
-| `--text-soft`  | `#8b919c`                                      | `#71717a` |
-| `--on-accent`  | `#111318` (Ember) / `#ffffff` (Azure, Slate)   | same      |
+| Token | Value |
+| --- | --- |
+| `--radius-sm` / `--radius-md` / `--radius-lg` | 6 / 8 / 10px (`rounded-theme-sm|md|lg`) |
+| `--shadow-sm` / `--shadow-md` | Quiet; hierarchy is mostly borders |
+| `--duration-fast` / `--ease-standard` | 150ms / `cubic-bezier(0.4, 0, 0.2, 1)` |
+| `--chart-1` … `--chart-4` | accent, success, warning, muted text |
 
-## Accent and semantic
+## Chrome tokens (unused on screen)
 
-`--accent` is **#f97316** on Ember, **#2563eb** on Azure, and **#0f766e** on Slate, same in light and dark. Hover is `color-mix` with black — do not add a second hue inside a palette. Ember `--warning` is shifted to gold so it does not collide with the orange accent.
+Every palette still defines `--chrome`, `--chrome-elevated`, `--chrome-border`, `--chrome-text`, `--chrome-muted` and `--chrome-hover` (Ember light `--chrome` is `#363a43`). They styled the dark sidebar before the Workbench; the rail now uses `--rail-bg`, and no component reads them. Ember's `--chrome` value is still the tile colour of the Joist mark ([`brand.md`](brand.md)).
 
-| Token            | Light                                                       | Dark                                           |
-| ---------------- | ----------------------------------------------------------- | ---------------------------------------------- |
-| `--accent`       | `#f97316` (Ember) / `#2563eb` (Azure) / `#0f766e` (Slate)   | same                                           |
-| `--accent-hover` | mix 78% toward black                                        | mix 78% toward black                           |
-| `--accent-soft`  | 12% mix                                                     | 18% mix                                        |
-| `--success`      | `#16a34a`                                                   | `#4ade80`                                      |
-| `--warning`      | `#ca8a04` (Ember) / `#f59e0b` (Azure, Slate)                | `#eab308` (Ember) / `#fbbf24` (Azure, Slate)   |
-| `--danger`       | `#dc2626`                                                   | `#f87171`                                      |
-| `--*-soft`       | 12% mix                                                     | 18% mix                                        |
+## Print and email
 
-`bg-accent` is the **soft tint**, not solid `--accent`. Use `bg-accent-solid` or `bg-accent-soft` when you need to be explicit. Use `text-accent` for the solid accent color on text.
+PDFs and invite email use each palette's light-only `print` map (`resolvePrintTheme(paletteId)`); backend copy `crm_backend/src/lib/print-theme.ts`. `accentSoft` is a solid 12% mix on white because mail and PDF cannot use `color-mix`. Estimate and invoice PDFs share `PRINT_PDF` + `pdf-layout.ts`.
 
-JS that needs resolved values (charts, canvas) should call `useThemeTokens()` from `@/components/theme/theme-controller`.
+Ember print: `accent #f97316`, `accentSoft #feeee3`, `onAccent #111318`, `surface #ffffff`, and the neutrals `ink #111318`, `muted #5c6370`, `rule #e2e4ea`, `paper #f4f5f7`. Those neutrals are the pre-Workbench cool greys in every palette; they were not moved to the warm screen neutrals.
 
-## Charts (Phase 6)
+## Light-only customer pages
 
-| Token       | Role                    |
-| ----------- | ----------------------- |
-| `--chart-1` | Primary series (accent) |
-| `--chart-2` | Secondary (success)     |
-| `--chart-3` | Tertiary (warning)      |
-| `--chart-4` | Quaternary (muted text) |
-
-## Shape, elevation, motion
-
-| Token                                         | Value                              |
-| --------------------------------------------- | ---------------------------------- |
-| `--radius-sm` / `--radius-md` / `--radius-lg` | `6px` / `8px` / `10px`             |
-| `--shadow-sm` / `--shadow-md`                 | Quiet; hierarchy is mostly borders |
-| `--duration-fast`                             | `150ms`                            |
-| `--ease-standard`                             | `cubic-bezier(0.4, 0, 0.2, 1)`     |
-
-Tailwind: `rounded-theme-sm|md|lg` maps to radius tokens.
-
-## Print / email (Phase 8)
-
-Light-only hex from `resolvePrintTheme(paletteId)` / palette `print`. No dark mode. `accentSoft` is a solid 12% mix of accent on white (mail/PDF cannot use `color-mix`).
-
-| Token        | Hex       | Source                  |
-| ------------ | --------- | ----------------------- |
-| `accent`     | `#f97316` | `--accent`              |
-| `accentSoft` | `#feeee3` | 12% `--accent` on white |
-| `ink`        | `#111318` | `--text`                |
-| `muted`      | `#5c6370` | `--text-muted`          |
-| `rule`       | `#e2e4ea` | `--border`              |
-| `onAccent`   | `#111318` | `--on-accent`           |
-| `paper`      | `#f4f5f7` | `--bg`                  |
-| `surface`    | `#ffffff` | `--surface-elevated`    |
-
-Estimate and invoice PDFs share `PRINT_PDF` + `pdf-layout.ts`. Invite HTML interpolates the same hex.
+Every `/public/*` route (portal, intake, estimate, invoice) forces the light scheme with the company's palette (`forcedTheme="light"` in `ThemeProvider`, `theme/public-path.js`). They are document-like, they match the light PDFs, and a salesperson previewing a link must not leak their dark theme onto it. Pages still use CSS variables.
 
 ## PWA
 
-Install chrome is Joist’s, not a company’s. Company palette and logo do not change the home-screen icon or manifest colors.
+Install chrome is Joist's: company palette and logo never change the home-screen icon or manifest colours.
 
-`resolvePwaTheme()` reads the Ember light `--bg` / `--accent` / `--on-accent` for the manifest.
-
-| Use                                                            | Source                                  | Hex                               |
-| -------------------------------------------------------------- | --------------------------------------- | --------------------------------- |
-| Manifest `theme_color` / `background_color`, viewport fallback | `--bg` (Ember light)                    | from the palette                  |
-| App icons, favicon, offline page mark                          | `src/assets/brand/joist-mark.svg`       | tile `#363a43`, glyph `#f4f4f5`, flange `#f97316` |
-| Offline shell (`public/offline.html`)                          | Ember light tokens, hardcoded           | no CSS vars                       |
-
-`npm run icons:pwa` writes every icon from the one drawing: `src/app/icon.svg`, `src/app/favicon.ico` (16/32/48), `src/app/apple-icon.png` (180, full bleed), `public/icons/icon-192|512.svg|png`, `public/icons/icon-512-maskable.png` (full bleed, mark at 80%), and the inline mark in `public/offline.html`. `npm run icons:pwa -- --check` fails on drift. Details in [`brand.md`](brand.md).
-
-Runtime `theme-color` follows computed `--bg` (light or dark) of the active palette via `watchThemeColorMeta()`, which also re-applies it when Next rewrites the head after a client navigation (Next resets it to the layout's viewport `themeColor`). Signed in, the active palette is the person’s own or else the company’s, so the browser chrome follows the company. The installed icon does not.
-
-## Public customer surfaces (Phase 7)
-
-`/public/portal/*` and `/public/estimate/*` **force light**. They do not follow the salesperson’s stored scheme or OS `prefers-color-scheme`.
-
-Reasons: these are document-like customer views (aligned with light PDFs/email in Phase 8), and previewing a link on the same origin must not leak a dark `localStorage` theme into the customer chrome.
-
-Implemented with `forcedTheme="light"` in `ThemeProvider` when the path is under `/public/`. Pages still use CSS variables — they do not hardcode light hex.
+- Manifest `theme_color` / `background_color` and the viewport fallback: Ember light `--bg`, via `resolvePwaTheme()`.
+- Icons, favicon and the offline page mark: generated from `src/assets/brand/joist-mark.svg` by `npm run icons:pwa` (`-- --check` fails on drift). File list in [`brand.md`](brand.md).
+- Offline shell (`public/offline.html`): Ember light values, hardcoded.
+- At runtime `watchThemeColorMeta()` keeps `<meta name="theme-color">` on the active palette's computed `--bg`, and re-applies it after Next rewrites the head on client navigation. Signed in, that is the person's palette or else the company's.
